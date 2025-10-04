@@ -32,3 +32,16 @@ htmlcov/
 
 # Logs
 *.log
+# Environment files
+.env
+.env.local
+.env.*.local
+.env.production
+.env.development
+
+# Secrets
+secrets/
+*.pem
+*.key
+google-creds.json
+google-token.json
