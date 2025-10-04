@@ -9,4 +9,5 @@ COPY . .
 
 EXPOSE 8000
 
-CMD uvicorn src.api.main:app --host 0.0.0.0 --port $PORT
+# Simple approach - just use port 8000 directly
+CMD ["uvicorn", "src.api.main:app", "--host", "0.0.0.0", "--port", "8000"]
