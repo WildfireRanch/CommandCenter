@@ -69,7 +69,7 @@ from starlette.middleware.gzip import GZipMiddleware
 # ─────────────────────────────────────────────────────────────────────────────
 # Imports: Local Modules
 # ─────────────────────────────────────────────────────────────────────────────
-from src.agents.greeter import create_greeter_agent
+from src.agents.solar_controller import create_energy_crew
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Load Environment Variables
@@ -378,7 +378,8 @@ def create_app() -> FastAPI:
             "present" if _env("OPENAI_API_KEY") else "MISSING",
             _env("RAILWAY_ENVIRONMENT", "local")
         )
-        
+        print(f"☀️ SolArk credentials configured: {'✅' if os.getenv('SOLARK_EMAIL') else '❌'}")
+
         # Yield control back to FastAPI (app is now running)
         yield
         
@@ -590,24 +591,15 @@ def create_app() -> FastAPI:
             - "OpenAI API error": Check OPENAI_API_KEY is set
             - Agent takes long time: First run downloads model, caches after
         """
-        from crewai import Task
+        # Create the energy crew
+        crew = create_energy_crew(request.message)
 
-        # Create the greeter agent
-        agent = create_greeter_agent()
-
-        # Wrap user message in a CrewAI task
-        task = Task(
-            description=request.message,
-            expected_output="A helpful response to the user's message",
-            agent=agent
-        )
-
-        # Execute the task synchronously and return result
-        result = task.execute_sync()
+        # Execute the crew and return result
+        result = crew.kickoff()
 
         return AskResponse(
             response=str(result),
-            agent_role=agent.role
+            agent_role="Energy Controller"
         )
     
     # ─────────────────────────────────────────────────────────────────────────
