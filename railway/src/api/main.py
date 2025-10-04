@@ -62,18 +62,44 @@ from pathlib import Path
 # ─────────────────────────────────────────────────────────────────────────────
 from fastapi import FastAPI, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
+from pydantic import BaseModel
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.middleware.gzip import GZipMiddleware
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Imports: Local Modules
-# (None yet - we'll add as we build agents/tools)
 # ─────────────────────────────────────────────────────────────────────────────
+from src.agents.greeter import create_greeter_agent
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Load Environment Variables
+# ─────────────────────────────────────────────────────────────────────────────
+from dotenv import load_dotenv
+from pathlib import Path
+
+# Load .env from repository root (not railway subdirectory)
+root_dir = Path(__file__).parent.parent.parent  # Go up to repo root
+env_file = root_dir / ".env"
+load_dotenv(dotenv_path=env_file)
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Logging Configuration
 # ─────────────────────────────────────────────────────────────────────────────
 logger = logging.getLogger("commandcenter.api")
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Request/Response Models
+# ─────────────────────────────────────────────────────────────────────────────
+
+class AskRequest(BaseModel):
+    """Request model for /ask endpoint."""
+    message: str
+
+class AskResponse(BaseModel):
+    """Response model for /ask endpoint."""
+    response: str
+    agent_role: str
 
 
 # ═══════════════════════════════════════════════════════════════════════════
@@ -520,14 +546,14 @@ def create_app() -> FastAPI:
     async def root():
         """
         API root with basic info and links.
-        
+
         WHAT: Landing page for the API
         WHY: Helps users discover available endpoints
         HOW: Returns JSON with service info and useful links
-        
+
         USAGE:
             curl http://localhost:8000/
-            
+
         RESPONSE:
             {
                 "service": "CommandCenter API",
@@ -544,6 +570,45 @@ def create_app() -> FastAPI:
             "docs": "/docs",  # Interactive API docs
             "health": "/health"  # Health check
         }
+
+    @app.post("/ask", response_model=AskResponse)
+    async def ask(request: AskRequest):
+        """
+        Ask the agent a question.
+
+        WHAT: Sends user message to CrewAI agent for response
+        WHY: Test that CrewAI + OpenAI integration works end-to-end
+        HOW: Creates greeter agent, wraps message in task, executes
+
+        USAGE:
+            curl -X POST http://localhost:8000/ask \
+                 -H "Content-Type: application/json" \
+                 -d '{"message": "Hello!"}'
+
+        TROUBLESHOOTING:
+            - "No module named crewai": Run pip install -r requirements.txt
+            - "OpenAI API error": Check OPENAI_API_KEY is set
+            - Agent takes long time: First run downloads model, caches after
+        """
+        from crewai import Task
+
+        # Create the greeter agent
+        agent = create_greeter_agent()
+
+        # Wrap user message in a CrewAI task
+        task = Task(
+            description=request.message,
+            expected_output="A helpful response to the user's message",
+            agent=agent
+        )
+
+        # Execute the task synchronously and return result
+        result = task.execute_sync()
+
+        return AskResponse(
+            response=str(result),
+            agent_role=agent.role
+        )
     
     # ─────────────────────────────────────────────────────────────────────────
     # Mount Feature Routers
