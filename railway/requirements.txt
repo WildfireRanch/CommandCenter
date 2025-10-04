@@ -1,0 +1,16 @@
+# FILE: railway/requirements.txt
+# Minimal dependencies to get started
+
+# Web Framework
+fastapi==0.104.1
+uvicorn[standard]==0.24.0
+
+# CrewAI (will install its own dependencies)
+crewai==0.28.8
+
+# Database basics
+psycopg2-binary==2.9.9
+
+# Utilities
+python-dotenv==1.0.0
+requests==2.31.0
