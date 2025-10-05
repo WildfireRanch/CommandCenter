@@ -179,9 +179,9 @@ CREATE TABLE IF NOT EXISTS agent.memory (
     access_count INTEGER DEFAULT 0,  -- How many times accessed
     last_accessed_at TIMESTAMPTZ,
 
-    -- Context
+    -- Context (no FK to messages due to composite PK)
     conversation_id UUID REFERENCES agent.conversations(id) ON DELETE SET NULL,
-    source_message_id UUID REFERENCES agent.messages(id) ON DELETE SET NULL,
+    source_message_id UUID,          -- No FK - messages has composite PK
 
     -- Metadata
     metadata JSONB DEFAULT '{}'::jsonb
@@ -223,7 +223,7 @@ CREATE TABLE IF NOT EXISTS agent.logs (
     event_type TEXT NOT NULL,        -- 'task_start', 'task_complete', 'tool_call', 'error'
     message TEXT NOT NULL,
 
-    -- Context
+    -- Context (no foreign keys on hypertables - use application-level constraints)
     conversation_id UUID,
     message_id UUID,
 
@@ -247,10 +247,8 @@ CREATE INDEX IF NOT EXISTS idx_logs_event_type
 CREATE INDEX IF NOT EXISTS idx_logs_conversation
     ON agent.logs(conversation_id, created_at DESC);
 
--- Foreign key constraints (added after hypertable creation)
-ALTER TABLE agent.logs
-    ADD CONSTRAINT fk_logs_conversation
-    FOREIGN KEY (conversation_id) REFERENCES agent.conversations(id) ON DELETE SET NULL;
+-- Note: Foreign keys on hypertables can cause issues with partitioning
+-- We'll enforce referential integrity at the application level
 
 -- Convert to TimescaleDB hypertable
 SELECT create_hypertable(
