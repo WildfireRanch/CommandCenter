@@ -439,6 +439,73 @@ def create_app() -> FastAPI:
     # ─────────────────────────────────────────────────────────────────────────
     # Agent Endpoints
     # ─────────────────────────────────────────────────────────────────────────
+
+    @app.get("/conversations")
+    async def list_conversations(limit: int = 10):
+        """
+        List recent conversations.
+
+        Args:
+            limit: Maximum number of conversations to return (default: 10)
+
+        Returns:
+            dict: List of conversations with metadata
+        """
+        try:
+            from ..utils.conversation import get_recent_conversations
+
+            conversations = get_recent_conversations(limit=limit)
+
+            return {
+                "status": "success",
+                "count": len(conversations),
+                "conversations": conversations,
+                "timestamp": time.time(),
+            }
+
+        except Exception as e:
+            logger.exception("list_conversations_failed error=%s", e)
+            raise HTTPException(
+                status_code=500,
+                detail=f"Failed to list conversations: {str(e)}"
+            )
+
+    @app.get("/conversations/{conversation_id}")
+    async def get_conversation_detail(conversation_id: str):
+        """
+        Get conversation details with all messages.
+
+        Args:
+            conversation_id: UUID of the conversation
+
+        Returns:
+            dict: Conversation metadata and all messages
+        """
+        try:
+            from ..utils.conversation import get_conversation, get_conversation_messages
+
+            conversation = get_conversation(conversation_id)
+            if not conversation:
+                raise HTTPException(status_code=404, detail="Conversation not found")
+
+            messages = get_conversation_messages(conversation_id)
+
+            return {
+                "status": "success",
+                "conversation": conversation,
+                "messages": messages,
+                "timestamp": time.time(),
+            }
+
+        except HTTPException:
+            raise
+        except Exception as e:
+            logger.exception("get_conversation_failed error=%s", e)
+            raise HTTPException(
+                status_code=500,
+                detail=f"Failed to get conversation: {str(e)}"
+            )
+
     
     @app.post("/ask", response_model=AskResponse)
     async def ask_agent(request: AskRequest):
