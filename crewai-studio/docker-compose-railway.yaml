@@ -1,0 +1,49 @@
+version: '3.9'
+
+# CrewAI Studio - Railway Backend Configuration
+# This configuration connects directly to Railway PostgreSQL
+# No local database required
+
+services:
+  web:
+    build: .
+    container_name: crewai_studio
+    env_file:
+      - .env
+    ports:
+      - "8501:8501"
+    restart: unless-stopped
+    environment:
+      # Database connection to Railway PostgreSQL
+      # Note: postgres.railway.internal only works within Railway network
+      # For local development, you'll need to use the public URL with credentials
+      - DB_URL=${DB_URL}
+
+      # OpenAI Configuration
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - OPENAI_API_BASE=${OPENAI_API_BASE:-}
+      - OPENAI_PROXY_MODELS=${OPENAI_PROXY_MODELS:-}
+
+      # Optional API Keys
+      - GROQ_API_KEY=${GROQ_API_KEY:-}
+      - LMSTUDIO_API_BASE=${LMSTUDIO_API_BASE:-}
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
+      - AGENTOPS_API_KEY=${AGENTOPS_API_KEY:-}
+      - XAI_API_KEY=${XAI_API_KEY:-}
+      - SERPER_API_KEY=${SERPER_API_KEY:-}
+      - SCRAPFLY_API_KEY=${SCRAPFLY_API_KEY:-}
+
+      # Local LLM Configuration
+      - OLLAMA_HOST=${OLLAMA_HOST:-}
+      - OLLAMA_MODELS=${OLLAMA_MODELS:-}
+
+      # AgentOps
+      - AGENTOPS_ENABLED=${AGENTOPS_ENABLED:-False}
+
+# ===================================================================
+# Notes:
+# - No local database - connects directly to Railway PostgreSQL
+# - Ensure DB_URL in .env points to Railway database
+# - For local development, use Railway's public database URL
+# - For Railway deployment, use internal network URL
+# ===================================================================
