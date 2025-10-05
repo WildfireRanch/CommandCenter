@@ -378,6 +378,64 @@ def create_app() -> FastAPI:
                 detail=f"Schema initialization failed: {str(e)}"
             )
 
+    @app.get("/db/schema-status")
+    async def schema_status():
+        """
+        Check database schema status.
+
+        Returns information about tables, extensions, and hypertables.
+        """
+        try:
+            from ..utils.db import get_connection, query_all
+
+            with get_connection() as conn:
+                # Get all tables
+                tables = query_all(
+                    conn,
+                    """
+                    SELECT table_schema, table_name
+                    FROM information_schema.tables
+                    WHERE table_schema IN ('agent', 'solark')
+                    ORDER BY table_schema, table_name
+                    """,
+                    as_dict=True
+                )
+
+                # Get extensions
+                extensions = query_all(
+                    conn,
+                    "SELECT extname, extversion FROM pg_extension WHERE extname IN ('timescaledb', 'vector', 'uuid-ossp')",
+                    as_dict=True
+                )
+
+                # Try to get hypertables (may fail if timescaledb not loaded)
+                try:
+                    hypertables = query_all(
+                        conn,
+                        """
+                        SELECT hypertable_schema, hypertable_name
+                        FROM _timescaledb_catalog.hypertable
+                        """,
+                        as_dict=True
+                    )
+                except:
+                    hypertables = []
+
+                return {
+                    "status": "success",
+                    "tables": tables,
+                    "extensions": extensions,
+                    "hypertables": hypertables,
+                    "timestamp": time.time(),
+                }
+
+        except Exception as e:
+            logger.exception("schema_status_failed error=%s", e)
+            raise HTTPException(
+                status_code=500,
+                detail=f"Schema status check failed: {str(e)}"
+            )
+
     # ─────────────────────────────────────────────────────────────────────────
     # Agent Endpoints
     # ─────────────────────────────────────────────────────────────────────────
