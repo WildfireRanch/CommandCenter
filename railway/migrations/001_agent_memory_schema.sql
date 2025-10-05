@@ -149,15 +149,15 @@ CREATE INDEX IF NOT EXISTS idx_messages_role
     ON agent.messages(role);
 
 -- Convert to TimescaleDB hypertable (time-series optimization)
--- Check if already a hypertable before creating
+-- Ignore error if already a hypertable
 DO $$
 BEGIN
-    IF NOT EXISTS (
-        SELECT 1 FROM timescaledb_information.hypertables
-        WHERE hypertable_name = 'messages' AND hypertable_schema = 'agent'
-    ) THEN
-        PERFORM create_hypertable('agent.messages', 'created_at', chunk_time_interval => INTERVAL '7 days');
-    END IF;
+    PERFORM create_hypertable('agent.messages', 'created_at', chunk_time_interval => INTERVAL '7 days');
+EXCEPTION
+    WHEN duplicate_object THEN
+        RAISE NOTICE 'agent.messages is already a hypertable, skipping';
+    WHEN others THEN
+        RAISE NOTICE 'Could not create hypertable for agent.messages: %', SQLERRM;
 END $$;
 
 
@@ -257,12 +257,12 @@ CREATE INDEX IF NOT EXISTS idx_logs_conversation
 -- Convert to TimescaleDB hypertable
 DO $$
 BEGIN
-    IF NOT EXISTS (
-        SELECT 1 FROM timescaledb_information.hypertables
-        WHERE hypertable_name = 'logs' AND hypertable_schema = 'agent'
-    ) THEN
-        PERFORM create_hypertable('agent.logs', 'created_at', chunk_time_interval => INTERVAL '7 days');
-    END IF;
+    PERFORM create_hypertable('agent.logs', 'created_at', chunk_time_interval => INTERVAL '7 days');
+EXCEPTION
+    WHEN duplicate_object THEN
+        RAISE NOTICE 'agent.logs is already a hypertable, skipping';
+    WHEN others THEN
+        RAISE NOTICE 'Could not create hypertable for agent.logs: %', SQLERRM;
 END $$;
 
 
@@ -323,12 +323,12 @@ CREATE INDEX IF NOT EXISTS idx_plant_flow_plant_id
 -- Convert to TimescaleDB hypertable
 DO $$
 BEGIN
-    IF NOT EXISTS (
-        SELECT 1 FROM timescaledb_information.hypertables
-        WHERE hypertable_name = 'plant_flow' AND hypertable_schema = 'solark'
-    ) THEN
-        PERFORM create_hypertable('solark.plant_flow', 'created_at', chunk_time_interval => INTERVAL '1 day');
-    END IF;
+    PERFORM create_hypertable('solark.plant_flow', 'created_at', chunk_time_interval => INTERVAL '1 day');
+EXCEPTION
+    WHEN duplicate_object THEN
+        RAISE NOTICE 'solark.plant_flow is already a hypertable, skipping';
+    WHEN others THEN
+        RAISE NOTICE 'Could not create hypertable for solark.plant_flow: %', SQLERRM;
 END $$;
 
 
