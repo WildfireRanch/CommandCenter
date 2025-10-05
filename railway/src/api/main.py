@@ -444,24 +444,24 @@ def create_app() -> FastAPI:
     async def ask_agent(request: AskRequest):
         """
         Ask the Solar Controller agent a question.
-        
+
         WHAT: Processes user questions through CrewAI agent
         WHY: Main interface for interacting with the agent system
-        HOW: Creates crew, runs task, returns result
-        
+        HOW: Creates crew, runs task, returns result, stores in database
+
         Args:
             request: AskRequest with user's message
-            
+
         Returns:
             AskResponse with agent's answer and metadata
-            
+
         Raises:
             HTTPException: If agent execution fails
-            
+
         Example:
             POST /ask
             {"message": "What's my battery level?"}
-            
+
             Response:
             {
                 "response": "Your battery is at 52%...",
@@ -471,29 +471,90 @@ def create_app() -> FastAPI:
             }
         """
         start_time = time.time()
-        
+        conversation_id = None
+
         try:
+            from ..utils.conversation import create_conversation, add_message, log_event
+
+            agent_role = "Energy Systems Monitor"
+
+            # Create conversation in database
+            conversation_id = create_conversation(
+                agent_role=agent_role,
+                title=request.message[:100] if len(request.message) <= 100 else request.message[:97] + "..."
+            )
+
+            # Log task start
+            log_event(
+                level="info",
+                event_type="task_start",
+                message=f"Processing query: {request.message}",
+                agent_role=agent_role,
+                conversation_id=conversation_id
+            )
+
+            # Store user message
+            add_message(
+                conversation_id=conversation_id,
+                role="user",
+                content=request.message
+            )
+
             # Create crew with user's query
             crew = create_energy_crew(request.message)
-            
+
             # Run the crew (executes agent and task)
             result = crew.kickoff()
-            
+
             # Calculate duration
             duration_ms = int((time.time() - start_time) * 1000)
-            
+
+            # Store assistant response
+            add_message(
+                conversation_id=conversation_id,
+                role="assistant",
+                content=str(result),
+                agent_role=agent_role,
+                duration_ms=duration_ms
+            )
+
+            # Log task completion
+            log_event(
+                level="info",
+                event_type="task_complete",
+                message=f"Query completed in {duration_ms}ms",
+                agent_role=agent_role,
+                conversation_id=conversation_id,
+                data={"duration_ms": duration_ms}
+            )
+
             # Return response
             return AskResponse(
                 response=str(result),
                 query=request.message,
-                agent_role="Energy Systems Monitor",
+                agent_role=agent_role,
                 duration_ms=duration_ms,
             )
-            
+
         except Exception as e:
             # Log error with details
             logger.exception("agent_execution_failed error=%s", e)
-            
+
+            # Log error to database if we have a conversation
+            if conversation_id:
+                try:
+                    from ..utils.conversation import log_event
+                    log_event(
+                        level="error",
+                        event_type="error",
+                        message=f"Agent execution failed: {str(e)}",
+                        agent_role="Energy Systems Monitor",
+                        conversation_id=conversation_id,
+                        data={"error": str(e)}
+                    )
+                except:
+                    pass  # Don't fail if logging fails
+
             # Return HTTP 500 with error details
             raise HTTPException(
                 status_code=500,
