@@ -104,7 +104,7 @@ CREATE TRIGGER conversations_update_timestamp
 -- ─────────────────────────────────────────────────────────────────────────────
 
 CREATE TABLE IF NOT EXISTS agent.messages (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    id UUID DEFAULT uuid_generate_v4(),
     conversation_id UUID NOT NULL REFERENCES agent.conversations(id) ON DELETE CASCADE,
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
 
@@ -122,7 +122,10 @@ CREATE TABLE IF NOT EXISTS agent.messages (
     duration_ms INTEGER,             -- Time to generate (if assistant message)
 
     -- Metadata
-    metadata JSONB DEFAULT '{}'::jsonb
+    metadata JSONB DEFAULT '{}'::jsonb,
+
+    -- Composite primary key including the partitioning column for TimescaleDB
+    PRIMARY KEY (id, created_at)
 );
 
 -- Indexes for fast queries
@@ -201,7 +204,7 @@ CREATE TRIGGER memory_update_timestamp
 -- ─────────────────────────────────────────────────────────────────────────────
 
 CREATE TABLE IF NOT EXISTS agent.logs (
-    id BIGSERIAL PRIMARY KEY,
+    id BIGSERIAL,
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
 
     -- Log details
@@ -211,11 +214,14 @@ CREATE TABLE IF NOT EXISTS agent.logs (
     message TEXT NOT NULL,
 
     -- Context
-    conversation_id UUID REFERENCES agent.conversations(id) ON DELETE SET NULL,
-    message_id UUID REFERENCES agent.messages(id) ON DELETE SET NULL,
+    conversation_id UUID,
+    message_id UUID,
 
     -- Additional data
-    data JSONB DEFAULT '{}'::jsonb
+    data JSONB DEFAULT '{}'::jsonb,
+
+    -- Composite primary key including the partitioning column for TimescaleDB
+    PRIMARY KEY (id, created_at)
 );
 
 -- Indexes for fast queries
@@ -231,6 +237,11 @@ CREATE INDEX IF NOT EXISTS idx_logs_event_type
 CREATE INDEX IF NOT EXISTS idx_logs_conversation
     ON agent.logs(conversation_id, created_at DESC);
 
+-- Foreign key constraints (added after hypertable creation)
+ALTER TABLE agent.logs
+    ADD CONSTRAINT fk_logs_conversation
+    FOREIGN KEY (conversation_id) REFERENCES agent.conversations(id) ON DELETE SET NULL;
+
 -- Convert to TimescaleDB hypertable
 SELECT create_hypertable(
     'agent.logs',
@@ -245,7 +256,7 @@ SELECT create_hypertable(
 -- ─────────────────────────────────────────────────────────────────────────────
 
 CREATE TABLE IF NOT EXISTS solark.plant_flow (
-    id BIGSERIAL PRIMARY KEY,
+    id BIGSERIAL,
     plant_id INTEGER NOT NULL,
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
 
@@ -281,7 +292,10 @@ CREATE TABLE IF NOT EXISTS solark.plant_flow (
     exist_think_power BOOLEAN,
 
     -- Raw JSON for debugging
-    raw_json JSONB
+    raw_json JSONB,
+
+    -- Composite primary key including the partitioning column for TimescaleDB
+    PRIMARY KEY (id, created_at)
 );
 
 -- Indexes for fast time-range queries
