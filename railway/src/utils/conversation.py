@@ -19,9 +19,11 @@
 #   add_message(conv_id, role="assistant", content="Your battery is at 52%")
 # ═══════════════════════════════════════════════════════════════════════════
 
+import json
 import uuid
 from typing import Optional, Dict, Any, List
 
+from psycopg2.extras import Json
 from .db import get_connection, query_one, query_all, execute
 
 
@@ -67,7 +69,7 @@ def create_conversation(
                 agent_role,
                 user_id,
                 title,
-                metadata or {}
+                Json(metadata or {})
             )
         )
 
@@ -176,11 +178,11 @@ def add_message(
                 role,
                 content,
                 agent_role,
-                tool_calls or [],
-                tool_results or [],
+                Json(tool_calls or []),
+                Json(tool_results or []),
                 tokens_used,
                 duration_ms,
-                metadata or {}
+                Json(metadata or {})
             )
         )
 
@@ -294,7 +296,7 @@ def log_event(
                 (level, event_type, message, agent_role, conversation_id, message_id, data)
             VALUES (%s, %s, %s, %s, %s, %s, %s)
             """,
-            (level, event_type, message, agent_role, conversation_id, message_id, data or {})
+            (level, event_type, message, agent_role, conversation_id, message_id, Json(data or {}))
         )
 
 
