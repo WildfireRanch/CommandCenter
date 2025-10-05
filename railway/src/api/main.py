@@ -18,11 +18,14 @@
 #   - ALLOWED_ORIGINS: Comma-separated URLs allowed to call this API
 #                     Example: "https://mcp.wildfireranch.us,http://localhost:3000"
 #   - OPENAI_API_KEY: Your OpenAI API key (for CrewAI agents)
+#   - DATABASE_URL: PostgreSQL connection string
 #   - ENV: Environment name (development/staging/production)
 #
 # ENVIRONMENT VARIABLES OPTIONAL:
 #   - INDEX_ROOT: Where to store data files (default: ./data/index)
-#   - DATABASE_URL: PostgreSQL connection (auto-provided by Railway)
+#   - SOLARK_EMAIL: SolArk Cloud login
+#   - SOLARK_PASSWORD: SolArk Cloud password
+#   - SOLARK_PLANT_ID: SolArk plant ID (optional, defaults to 146453)
 #
 # HOW TO RUN:
 #   Local:      uvicorn src.api.main:app --reload --port 8000
@@ -70,6 +73,9 @@ from starlette.middleware.gzip import GZipMiddleware
 # Imports: Local Modules
 # ─────────────────────────────────────────────────────────────────────────────
 from src.agents.solar_controller import create_energy_crew
+
+# Import database utilities
+from src.utils.db import check_connection as check_db_connection
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Load Environment Variables
@@ -379,6 +385,7 @@ def create_app() -> FastAPI:
             _env("RAILWAY_ENVIRONMENT", "local")
         )
         print(f"☀️ SolArk credentials configured: {'✅' if os.getenv('SOLARK_EMAIL') else '❌'}")
+        print(f"🗄️ Database configured: {'✅' if os.getenv('DATABASE_URL') else '❌'}")
 
         # Yield control back to FastAPI (app is now running)
         yield
@@ -526,12 +533,16 @@ def create_app() -> FastAPI:
         checks = {
             "api": "ok",
             "openai_key": "present" if _env("OPENAI_API_KEY") else "missing",
-            # TODO: Add actual database check when we implement it
-            "database": "not_checked",
+            "database_configured": bool(os.getenv("DATABASE_URL")),
+            "database_connected": check_db_connection(),
+            "solark_configured": bool(os.getenv("SOLARK_EMAIL") and os.getenv("SOLARK_PASSWORD")),
         }
-        
-        # Consider ready if all checks pass or are not yet implemented
-        all_ok = all(v in {"ok", "present", "not_checked"} for v in checks.values())
+
+        # Consider ready if API is running, OpenAI configured, and database connected
+        # SolArk is optional for some queries
+        all_ok = (checks["api"] == "ok" and
+                  checks["openai_key"] == "present" and
+                  checks["database_connected"])
         
         return {
             "ready": all_ok,
