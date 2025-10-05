@@ -4,10 +4,11 @@ import json
 from my_tools import TOOL_CLASSES
 from sqlalchemy import create_engine, text
 
-# If you have an environment variable DB_URL for Postgres, use that. 
+# If you have an environment variable DB_URL or DATABASE_URL for Postgres, use that.
+# Railway provides DATABASE_URL, some other services use DB_URL
 # Otherwise, fallback to local SQLite file: 'sqlite:///crewai.db'
 DEFAULT_SQLITE_URL = 'sqlite:///crewai.db'
-DB_URL = os.getenv('DB_URL', DEFAULT_SQLITE_URL)
+DB_URL = os.getenv('DB_URL') or os.getenv('DATABASE_URL') or DEFAULT_SQLITE_URL
 
 # Create a SQLAlchemy Engine.
 # For example, DB_URL could be:
