@@ -250,27 +250,102 @@ def execute(
 def init_schema():
     """
     Initialize database schema (create tables if they don't exist).
-    
+
     WHAT: Creates all required tables and extensions for CommandCenter
     WHY: First-time setup or schema updates
-    HOW: Enables extensions, then creates tables with optimizations
-    
+    HOW: Runs the main migration file
+
     Call this once when deploying to new database.
     """
+    from pathlib import Path
+
+    # Load migration SQL from file
+    migration_file = Path(__file__).parent.parent.parent / "migrations" / "001_agent_memory_schema.sql"
+
+    if not migration_file.exists():
+        print(f"⚠️  Migration file not found: {migration_file}")
+        print("   Using fallback schema creation...")
+        _create_fallback_schema()
+        return
+
+    print(f"📋 Running migration: {migration_file.name}")
+    schema_sql = migration_file.read_text()
+
+    with get_connection() as conn:
+        conn.autocommit = True  # Required for CREATE EXTENSION and hypertables
+        with conn.cursor() as cursor:
+            try:
+                cursor.execute(schema_sql)
+                print("✅ Database schema initialized from migration file")
+            except Exception as e:
+                print(f"❌ Migration failed: {e}")
+                raise
+
+
+def _create_fallback_schema():
+    """Fallback schema creation if migration file not found."""
     schema_sql = """
     -- Enable PostgreSQL extensions
     CREATE EXTENSION IF NOT EXISTS timescaledb;
     CREATE EXTENSION IF NOT EXISTS vector;
-    
-    -- Create schema for SolArk data
+    CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+
+    -- Create schemas
+    CREATE SCHEMA IF NOT EXISTS agent;
     CREATE SCHEMA IF NOT EXISTS solark;
-    
+
+    -- Basic agent.conversations table
+    CREATE TABLE IF NOT EXISTS agent.conversations (
+        id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        user_id TEXT,
+        agent_role TEXT NOT NULL,
+        status TEXT DEFAULT 'active',
+        title TEXT,
+        summary TEXT,
+        message_count INTEGER DEFAULT 0,
+        total_tokens INTEGER DEFAULT 0,
+        metadata JSONB DEFAULT '{}'::jsonb
+    );
+
+    -- Basic agent.messages table
+    CREATE TABLE IF NOT EXISTS agent.messages (
+        id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+        conversation_id UUID NOT NULL REFERENCES agent.conversations(id) ON DELETE CASCADE,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        role TEXT NOT NULL,
+        content TEXT NOT NULL,
+        agent_role TEXT,
+        tool_calls JSONB,
+        tool_results JSONB,
+        tokens_used INTEGER,
+        duration_ms INTEGER,
+        metadata JSONB DEFAULT '{}'::jsonb
+    );
+
+    -- Basic agent.memory table
+    CREATE TABLE IF NOT EXISTS agent.memory (
+        id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        agent_role TEXT NOT NULL,
+        memory_type TEXT NOT NULL,
+        content TEXT NOT NULL,
+        embedding vector(1536),
+        importance REAL DEFAULT 0.5,
+        access_count INTEGER DEFAULT 0,
+        last_accessed_at TIMESTAMPTZ,
+        conversation_id UUID REFERENCES agent.conversations(id) ON DELETE SET NULL,
+        metadata JSONB DEFAULT '{}'::jsonb
+    );
+
     -- SolArk plant flow data (real-time snapshots)
     CREATE TABLE IF NOT EXISTS solark.plant_flow (
-        id SERIAL PRIMARY KEY,
+        id BIGSERIAL PRIMARY KEY,
         plant_id INTEGER NOT NULL,
-        ts TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-        
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+
         -- Power metrics (watts)
         pv_power INTEGER,
         batt_power INTEGER,
@@ -278,20 +353,18 @@ def init_schema():
         load_power INTEGER,
         gen_power INTEGER,
         min_power INTEGER,
-        
+
         -- Battery state
-        soc REAL,  -- State of charge (%)
-        
-        -- Flow indicators (booleans)
-        pv_to BOOLEAN,
-        to_load BOOLEAN,
-        to_grid BOOLEAN,
-        to_bat BOOLEAN,
-        bat_to BOOLEAN,
-        grid_to BOOLEAN,
-        gen_to BOOLEAN,
-        min_to BOOLEAN,
-        
+        soc REAL,
+
+        -- Flow indicators
+        pv_to_load BOOLEAN,
+        pv_to_grid BOOLEAN,
+        pv_to_bat BOOLEAN,
+        bat_to_load BOOLEAN,
+        grid_to_load BOOLEAN,
+        gen_to_load BOOLEAN,
+
         -- System flags
         exists_gen BOOLEAN,
         exists_min BOOLEAN,
@@ -299,30 +372,29 @@ def init_schema():
         micro_on BOOLEAN,
         exists_meter BOOLEAN,
         bms_comm_fault_flag BOOLEAN,
-        
+
         -- Additional data
-        pv TEXT,
+        pv_details TEXT,
         exist_think_power BOOLEAN,
-        
+
         -- Raw JSON for debugging
         raw_json JSONB
     );
-    
-    -- Index for fast time-range queries
-    CREATE INDEX IF NOT EXISTS idx_plant_flow_ts 
-        ON solark.plant_flow(ts DESC);
-    
-    -- Index for fast plant_id queries
-    CREATE INDEX IF NOT EXISTS idx_plant_flow_plant_id 
-        ON solark.plant_flow(plant_id, ts DESC);
+
+    -- Create basic indexes
+    CREATE INDEX IF NOT EXISTS idx_conversations_created_at ON agent.conversations(created_at DESC);
+    CREATE INDEX IF NOT EXISTS idx_messages_conversation_id ON agent.messages(conversation_id, created_at ASC);
+    CREATE INDEX IF NOT EXISTS idx_memory_agent_role ON agent.memory(agent_role, created_at DESC);
+    CREATE INDEX IF NOT EXISTS idx_plant_flow_created_at ON solark.plant_flow(created_at DESC);
+    CREATE INDEX IF NOT EXISTS idx_plant_flow_plant_id ON solark.plant_flow(plant_id, created_at DESC);
     """
-    
+
     with get_connection() as conn:
+        conn.autocommit = True
         with conn.cursor() as cursor:
             cursor.execute(schema_sql)
-            conn.commit()
-    
-    print("✅ Database schema initialized")
+
+    print("✅ Database schema initialized (fallback)")
 
 
 # ─────────────────────────────────────────────────────────────────────────────

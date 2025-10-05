@@ -340,6 +340,45 @@ def create_app() -> FastAPI:
         }
     
     # ─────────────────────────────────────────────────────────────────────────
+    # Database Management Endpoints
+    # ─────────────────────────────────────────────────────────────────────────
+
+    @app.post("/db/init-schema")
+    async def initialize_schema():
+        """
+        Initialize database schema (run migrations).
+
+        WHAT: Creates all tables, extensions, and indexes
+        WHY: First-time setup or schema updates
+        HOW: Runs migration SQL file via db.init_schema()
+
+        Returns:
+            dict: Success status and message
+
+        Raises:
+            HTTPException: If schema initialization fails
+        """
+        try:
+            from ..utils.db import init_schema
+
+            logger.info("schema_init_requested")
+            init_schema()
+            logger.info("schema_init_completed")
+
+            return {
+                "status": "success",
+                "message": "Database schema initialized successfully",
+                "timestamp": time.time(),
+            }
+
+        except Exception as e:
+            logger.exception("schema_init_failed error=%s", e)
+            raise HTTPException(
+                status_code=500,
+                detail=f"Schema initialization failed: {str(e)}"
+            )
+
+    # ─────────────────────────────────────────────────────────────────────────
     # Agent Endpoints
     # ─────────────────────────────────────────────────────────────────────────
     
