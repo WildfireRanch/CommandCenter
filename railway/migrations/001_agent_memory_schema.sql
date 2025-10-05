@@ -149,11 +149,16 @@ CREATE INDEX IF NOT EXISTS idx_messages_role
     ON agent.messages(role);
 
 -- Convert to TimescaleDB hypertable (time-series optimization)
-SELECT create_hypertable(
-    'agent.messages',
-    by_range('created_at', INTERVAL '7 days'),
-    if_not_exists => TRUE
-);
+-- Check if already a hypertable before creating
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM timescaledb_information.hypertables
+        WHERE hypertable_name = 'messages' AND hypertable_schema = 'agent'
+    ) THEN
+        PERFORM create_hypertable('agent.messages', 'created_at', chunk_time_interval => INTERVAL '7 days');
+    END IF;
+END $$;
 
 
 -- ─────────────────────────────────────────────────────────────────────────────
@@ -250,11 +255,15 @@ CREATE INDEX IF NOT EXISTS idx_logs_conversation
 -- We'll enforce referential integrity at the application level
 
 -- Convert to TimescaleDB hypertable
-SELECT create_hypertable(
-    'agent.logs',
-    by_range('created_at', INTERVAL '7 days'),
-    if_not_exists => TRUE
-);
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM timescaledb_information.hypertables
+        WHERE hypertable_name = 'logs' AND hypertable_schema = 'agent'
+    ) THEN
+        PERFORM create_hypertable('agent.logs', 'created_at', chunk_time_interval => INTERVAL '7 days');
+    END IF;
+END $$;
 
 
 -- ─────────────────────────────────────────────────────────────────────────────
@@ -312,11 +321,15 @@ CREATE INDEX IF NOT EXISTS idx_plant_flow_plant_id
     ON solark.plant_flow(plant_id, created_at DESC);
 
 -- Convert to TimescaleDB hypertable
-SELECT create_hypertable(
-    'solark.plant_flow',
-    by_range('created_at', INTERVAL '1 day'),
-    if_not_exists => TRUE
-);
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM timescaledb_information.hypertables
+        WHERE hypertable_name = 'plant_flow' AND hypertable_schema = 'solark'
+    ) THEN
+        PERFORM create_hypertable('solark.plant_flow', 'created_at', chunk_time_interval => INTERVAL '1 day');
+    END IF;
+END $$;
 
 
 -- ─────────────────────────────────────────────────────────────────────────────
