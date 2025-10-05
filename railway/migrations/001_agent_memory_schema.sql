@@ -24,14 +24,24 @@
 -- 1. Enable Extensions
 -- ─────────────────────────────────────────────────────────────────────────────
 
--- TimescaleDB: Time-series database extension
-CREATE EXTENSION IF NOT EXISTS timescaledb;
+-- NOTE: Railway's TimescaleDB image pre-loads timescaledb extension
+-- We only need to check/enable vector and uuid extensions
 
 -- pgvector: Vector similarity search for embeddings
-CREATE EXTENSION IF NOT EXISTS vector;
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_extension WHERE extname = 'vector') THEN
+        CREATE EXTENSION vector;
+    END IF;
+END $$;
 
 -- uuid-ossp: UUID generation
-CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_extension WHERE extname = 'uuid-ossp') THEN
+        CREATE EXTENSION "uuid-ossp";
+    END IF;
+END $$;
 
 
 -- ─────────────────────────────────────────────────────────────────────────────
