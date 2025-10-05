@@ -1,0 +1,14 @@
+{
+  "mcpServers": {
+    "commandcenter": {
+      "command": "node",
+      "args": [
+        "/workspaces/CommandCenter/mcp-server/dist/index.js"
+      ],
+      "env": {
+        "RAILWAY_API_URL": "https://api.wildfireranch.us",
+        "API_KEY": "c8AeEqNFckwzjTRzVhjOgAtXBd88vEprAtFZxNJXY8Gc"
+      }
+    }
+  }
+}
