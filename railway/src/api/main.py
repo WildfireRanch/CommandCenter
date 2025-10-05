@@ -437,6 +437,115 @@ def create_app() -> FastAPI:
             )
 
     # ─────────────────────────────────────────────────────────────────────────
+    # Energy Data Endpoints
+    # ─────────────────────────────────────────────────────────────────────────
+
+    @app.get("/energy/latest")
+    async def get_latest_energy():
+        """
+        Get the most recent energy system snapshot from database.
+
+        Returns:
+            dict: Latest energy data with timestamp
+        """
+        try:
+            from ..utils.solark_storage import get_latest_snapshot
+
+            snapshot = get_latest_snapshot()
+
+            if not snapshot:
+                return {
+                    "status": "no_data",
+                    "message": "No energy data available yet",
+                    "timestamp": time.time(),
+                }
+
+            return {
+                "status": "success",
+                "data": snapshot,
+                "timestamp": time.time(),
+            }
+
+        except Exception as e:
+            logger.exception("get_latest_energy_failed error=%s", e)
+            raise HTTPException(
+                status_code=500,
+                detail=f"Failed to get latest energy data: {str(e)}"
+            )
+
+    @app.get("/energy/recent")
+    async def get_recent_energy(hours: int = 1, limit: int = 100):
+        """
+        Get recent energy data points.
+
+        Args:
+            hours: Number of hours to look back (default: 1)
+            limit: Maximum number of records (default: 100, max: 1000)
+
+        Returns:
+            dict: List of energy data points
+        """
+        try:
+            from ..utils.solark_storage import get_recent_data
+
+            # Limit the maximum
+            limit = min(limit, 1000)
+
+            data = get_recent_data(hours=hours, limit=limit)
+
+            return {
+                "status": "success",
+                "count": len(data),
+                "hours": hours,
+                "data": data,
+                "timestamp": time.time(),
+            }
+
+        except Exception as e:
+            logger.exception("get_recent_energy_failed error=%s", e)
+            raise HTTPException(
+                status_code=500,
+                detail=f"Failed to get recent energy data: {str(e)}"
+            )
+
+    @app.get("/energy/stats")
+    async def get_energy_statistics(hours: int = 24):
+        """
+        Get aggregated energy statistics.
+
+        Args:
+            hours: Number of hours to analyze (default: 24)
+
+        Returns:
+            dict: Statistical summary of energy data
+        """
+        try:
+            from ..utils.solark_storage import get_energy_stats
+
+            stats = get_energy_stats(hours=hours)
+
+            if not stats or stats.get('total_records', 0) == 0:
+                return {
+                    "status": "no_data",
+                    "message": f"No energy data available for the last {hours} hours",
+                    "timestamp": time.time(),
+                }
+
+            return {
+                "status": "success",
+                "hours": hours,
+                "stats": stats,
+                "timestamp": time.time(),
+            }
+
+        except Exception as e:
+            logger.exception("get_energy_stats_failed error=%s", e)
+            raise HTTPException(
+                status_code=500,
+                detail=f"Failed to get energy statistics: {str(e)}"
+            )
+
+    # ─────────────────────────────────────────────────────────────────────────
     # Agent Endpoints
     # ─────────────────────────────────────────────────────────────────────────
 

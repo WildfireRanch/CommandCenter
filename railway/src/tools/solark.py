@@ -172,14 +172,17 @@ def fetch_plant_flow(token: str, plant_id: str, date_str: Optional[str] = None) 
 # High-Level Interface (This is what agents use)
 # ─────────────────────────────────────────────────────────────────────────────
 
-def get_solark_status() -> Dict[str, any]:
+def get_solark_status(save_to_db: bool = True) -> Dict[str, any]:
     """
     Get current SolArk system status (high-level interface).
-    
+
     WHAT: One-stop function to get current system metrics
     WHY: Agents need simple interface without handling auth/APIs
-    HOW: Authenticates, fetches data, returns clean dict
-    
+    HOW: Authenticates, fetches data, optionally saves to DB, returns clean dict
+
+    Args:
+        save_to_db: If True, saves snapshot to database (default: True)
+
     Returns:
         dict: Cleaned system status with keys:
             - soc: Battery state of charge (%)
@@ -192,27 +195,28 @@ def get_solark_status() -> Dict[str, any]:
             - exporting: Boolean, exporting to grid?
             - importing: Boolean, importing from grid?
             - raw: Full API response for debugging
-            
+            - db_id: Database record ID (if save_to_db=True)
+
     Example:
         >>> status = get_solark_status()
         >>> print(f"Battery: {status['soc']}%")
         Battery: 37%
         >>> print(f"Solar: {status['pv_power']}W")
         Solar: 9878W
-        
+
     Raises:
         ValueError: If credentials are missing
         requests.RequestException: If API calls fail
     """
     # Get plant ID from environment or use default
     plant_id = os.getenv("SOLARK_PLANT_ID", DEFAULT_PLANT_ID)
-    
+
     # Step 1: Authenticate
     token = authenticate()
-    
+
     # Step 2: Fetch current data
     raw_data = fetch_plant_flow(token, plant_id)
-    
+
     # Step 3: Extract and clean key metrics
     status = {
         # Core metrics
@@ -221,17 +225,29 @@ def get_solark_status() -> Dict[str, any]:
         "battery_power": raw_data.get("battPower", 0),
         "load_power": raw_data.get("loadOrEpsPower", 0),
         "grid_power": raw_data.get("gridOrMeterPower", 0),
-        
+
         # Flow indicators (easier to read than raw booleans)
         "charging": raw_data.get("toBat", False),
         "discharging": raw_data.get("batTo", False),
         "exporting": raw_data.get("toGrid", False),
         "importing": raw_data.get("gridTo", False),
-        
+
         # Keep raw data for debugging
         "raw": raw_data,
     }
-    
+
+    # Step 4: Save to database (if enabled)
+    if save_to_db:
+        try:
+            # Import here to avoid circular dependency
+            from ..utils.solark_storage import save_plant_flow
+            db_id = save_plant_flow(status, int(plant_id))
+            status["db_id"] = db_id
+        except Exception as e:
+            # Don't fail if DB save fails - just log it
+            print(f"⚠️  Warning: Could not save to database: {e}")
+            status["db_id"] = None
+
     return status
 
 
