@@ -151,9 +151,8 @@ CREATE INDEX IF NOT EXISTS idx_messages_role
 -- Convert to TimescaleDB hypertable (time-series optimization)
 SELECT create_hypertable(
     'agent.messages',
-    'created_at',
-    if_not_exists => TRUE,
-    chunk_time_interval => INTERVAL '7 days'
+    by_range('created_at', INTERVAL '7 days'),
+    if_not_exists => TRUE
 );
 
 
@@ -253,9 +252,8 @@ CREATE INDEX IF NOT EXISTS idx_logs_conversation
 -- Convert to TimescaleDB hypertable
 SELECT create_hypertable(
     'agent.logs',
-    'created_at',
-    if_not_exists => TRUE,
-    chunk_time_interval => INTERVAL '7 days'
+    by_range('created_at', INTERVAL '7 days'),
+    if_not_exists => TRUE
 );
 
 
@@ -316,9 +314,8 @@ CREATE INDEX IF NOT EXISTS idx_plant_flow_plant_id
 -- Convert to TimescaleDB hypertable
 SELECT create_hypertable(
     'solark.plant_flow',
-    'created_at',
-    if_not_exists => TRUE,
-    chunk_time_interval => INTERVAL '1 day'
+    by_range('created_at', INTERVAL '1 day'),
+    if_not_exists => TRUE
 );
 
 
