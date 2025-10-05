@@ -254,6 +254,143 @@ def get_recent_conversations(
             )
 
 
+def get_conversation_context(
+    agent_role: str,
+    current_conversation_id: Optional[str] = None,
+    max_conversations: int = 3,
+    max_messages_per_conversation: int = 10
+) -> str:
+    """
+    Get formatted conversation context for agent prompts.
+
+    Retrieves recent conversations and formats them as context
+    that can be included in agent prompts to provide memory.
+
+    Args:
+        agent_role: Agent role to filter conversations
+        current_conversation_id: Exclude this conversation (optional)
+        max_conversations: Maximum number of past conversations to include
+        max_messages_per_conversation: Max messages per conversation
+
+    Returns:
+        str: Formatted conversation context, or empty string if no history
+
+    Example:
+        >>> context = get_conversation_context("Energy Systems Monitor")
+        >>> print(context)
+        Previous Conversations:
+
+        [2 hours ago]
+        User: What's my battery level?
+        Assistant: Your battery is at 52%...
+    """
+    with get_connection() as conn:
+        # Get recent conversations
+        query = """
+            SELECT id, created_at, title
+            FROM agent.conversations
+            WHERE agent_role = %s
+        """
+        params = [agent_role]
+
+        if current_conversation_id:
+            query += " AND id != %s"
+            params.append(current_conversation_id)
+
+        query += " ORDER BY created_at DESC LIMIT %s"
+        params.append(max_conversations)
+
+        conversations = query_all(conn, query, tuple(params))
+
+        if not conversations:
+            return ""
+
+        # Build context string
+        context_parts = ["Previous Conversations:\n"]
+
+        for conv in conversations:
+            # Calculate time ago
+            from datetime import datetime
+            created = conv['created_at']
+            if isinstance(created, str):
+                created = datetime.fromisoformat(created.replace('Z', '+00:00'))
+
+            now = datetime.now(created.tzinfo) if created.tzinfo else datetime.utcnow()
+            time_diff = now - created
+
+            if time_diff.days > 0:
+                time_ago = f"{time_diff.days} day{'s' if time_diff.days > 1 else ''} ago"
+            elif time_diff.seconds >= 3600:
+                hours = time_diff.seconds // 3600
+                time_ago = f"{hours} hour{'s' if hours > 1 else ''} ago"
+            else:
+                minutes = time_diff.seconds // 60
+                time_ago = f"{minutes} minute{'s' if minutes > 1 else ''} ago"
+
+            context_parts.append(f"\n[{time_ago}]")
+            if conv.get('title'):
+                context_parts.append(f"Topic: {conv['title']}")
+
+            # Get messages for this conversation
+            messages = query_all(
+                conn,
+                """
+                SELECT role, content, created_at
+                FROM agent.messages
+                WHERE conversation_id = %s
+                ORDER BY created_at ASC
+                LIMIT %s
+                """,
+                (conv['id'], max_messages_per_conversation)
+            )
+
+            for msg in messages:
+                role = "User" if msg['role'] == 'user' else "Assistant"
+                content = msg['content']
+                # Truncate long messages
+                if len(content) > 200:
+                    content = content[:197] + "..."
+                context_parts.append(f"{role}: {content}")
+
+        return "\n".join(context_parts)
+
+
+def get_session_context(
+    session_id: str,
+    max_messages: int = 10
+) -> List[Dict[str, Any]]:
+    """
+    Get conversation context for a specific session.
+
+    Used for multi-turn conversations where user continues
+    in the same session/conversation.
+
+    Args:
+        session_id: Conversation ID (session identifier)
+        max_messages: Maximum messages to retrieve
+
+    Returns:
+        List of message dicts in chronological order
+
+    Example:
+        >>> messages = get_session_context(conv_id, max_messages=5)
+        >>> for msg in messages:
+        ...     print(f"{msg['role']}: {msg['content']}")
+    """
+    with get_connection() as conn:
+        return query_all(
+            conn,
+            """
+            SELECT role, content, created_at
+            FROM agent.messages
+            WHERE conversation_id = %s
+            ORDER BY created_at ASC
+            LIMIT %s
+            """,
+            (session_id, max_messages)
+        )
+
+
 # ─────────────────────────────────────────────────────────────────────────────
 # Logging
 # ─────────────────────────────────────────────────────────────────────────────

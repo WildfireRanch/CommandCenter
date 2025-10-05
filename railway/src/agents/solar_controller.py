@@ -125,32 +125,40 @@ def create_energy_monitor_agent() -> Agent:
 # Task Templates
 # ─────────────────────────────────────────────────────────────────────────────
 
-def create_status_task(query: str) -> Task:
+def create_status_task(query: str, conversation_context: str = "") -> Task:
     """
     Create a task to answer energy status questions.
-    
+
     Args:
         query: User's question (e.g., "What's my battery level?")
-        
+        conversation_context: Previous conversation history (optional)
+
     Returns:
         Task: Configured task for the energy monitor agent
     """
+    # Build task description with context if available
+    context_section = ""
+    if conversation_context:
+        context_section = f"\n\n{conversation_context}\n\n"
+
     return Task(
         description=f"""Answer this question about the energy system: {query}
-        
+        {context_section}
         Instructions:
         1. Use the 'Get SolArk Status' tool to fetch current data
         2. Answer the specific question asked
         3. Provide helpful context if relevant
         4. Use clear language and accurate numbers
         5. If the data shows something noteworthy (like low battery), mention it
-        
+        6. If there are previous conversations, you can reference them for context
+
         The user's question: {query}
         """,
         expected_output="""A clear, accurate answer to the user's question with:
         - Direct answer to what was asked
         - Specific numbers from current data
         - Brief context if helpful
+        - References to previous conversations if relevant
         - No speculation or guessing""",
         agent=create_energy_monitor_agent(),
     )
@@ -160,28 +168,29 @@ def create_status_task(query: str) -> Task:
 # Crew Assembly
 # ─────────────────────────────────────────────────────────────────────────────
 
-def create_energy_crew(query: str) -> Crew:
+def create_energy_crew(query: str, conversation_context: str = "") -> Crew:
     """
     Create a crew to handle energy monitoring queries.
-    
+
     WHAT: Assembles agent + task into executable crew
     WHY: CrewAI needs a crew to run tasks
-    HOW: Combines energy monitor agent with status task
-    
+    HOW: Combines energy monitor agent with status task, includes conversation history
+
     Args:
         query: User's question about energy system
-        
+        conversation_context: Previous conversation history (optional)
+
     Returns:
         Crew: Ready-to-execute crew
-        
+
     Example:
         >>> crew = create_energy_crew("What's my battery level?")
         >>> result = crew.kickoff()
         >>> print(result)
     """
     agent = create_energy_monitor_agent()
-    task = create_status_task(query)
-    
+    task = create_status_task(query, conversation_context)
+
     return Crew(
         agents=[agent],
         tasks=[task],

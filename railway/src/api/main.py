@@ -67,11 +67,13 @@ logger = logging.getLogger("commandcenter.api")
 class AskRequest(BaseModel):
     """Request model for /ask endpoint."""
     message: str
-    
+    session_id: Optional[str] = None  # For multi-turn conversations
+
     class Config:
         json_schema_extra = {
             "example": {
-                "message": "What's my battery level?"
+                "message": "What's my battery level?",
+                "session_id": "optional-conversation-uuid"
             }
         }
 
@@ -82,14 +84,16 @@ class AskResponse(BaseModel):
     query: str
     agent_role: str
     duration_ms: int
-    
+    session_id: str  # Conversation ID for continuing the conversation
+
     class Config:
         json_schema_extra = {
             "example": {
                 "response": "Your battery is at 52% and currently discharging at 3160W.",
                 "query": "What's my battery level?",
                 "agent_role": "Energy Systems Monitor",
-                "duration_ms": 1250
+                "duration_ms": 1250,
+                "session_id": "abc123-uuid"
             }
         }
 
@@ -650,14 +654,40 @@ def create_app() -> FastAPI:
         conversation_id = None
 
         try:
-            from ..utils.conversation import create_conversation, add_message, log_event
+            from ..utils.conversation import (
+                create_conversation,
+                add_message,
+                log_event,
+                get_conversation_context,
+                get_conversation
+            )
 
             agent_role = "Energy Systems Monitor"
 
-            # Create conversation in database
-            conversation_id = create_conversation(
+            # Handle session continuity
+            if request.session_id:
+                # Continue existing conversation
+                conversation_id = request.session_id
+                existing_conv = get_conversation(conversation_id)
+                if not existing_conv:
+                    # Session ID invalid, create new conversation
+                    conversation_id = create_conversation(
+                        agent_role=agent_role,
+                        title=request.message[:100] if len(request.message) <= 100 else request.message[:97] + "..."
+                    )
+            else:
+                # Create new conversation
+                conversation_id = create_conversation(
+                    agent_role=agent_role,
+                    title=request.message[:100] if len(request.message) <= 100 else request.message[:97] + "..."
+                )
+
+            # Get conversation context (previous conversations, excluding current)
+            context = get_conversation_context(
                 agent_role=agent_role,
-                title=request.message[:100] if len(request.message) <= 100 else request.message[:97] + "..."
+                current_conversation_id=conversation_id,
+                max_conversations=3,
+                max_messages_per_conversation=6
             )
 
             # Log task start
@@ -676,8 +706,8 @@ def create_app() -> FastAPI:
                 content=request.message
             )
 
-            # Create crew with user's query
-            crew = create_energy_crew(request.message)
+            # Create crew with user's query and conversation context
+            crew = create_energy_crew(request.message, context)
 
             # Run the crew (executes agent and task)
             result = crew.kickoff()
@@ -704,12 +734,13 @@ def create_app() -> FastAPI:
                 data={"duration_ms": duration_ms}
             )
 
-            # Return response
+            # Return response with session_id for multi-turn conversations
             return AskResponse(
                 response=str(result),
                 query=request.message,
                 agent_role=agent_role,
                 duration_ms=duration_ms,
+                session_id=conversation_id,
             )
 
         except Exception as e:
