@@ -1,4 +1,4 @@
-# 🚀 Session 011 Prompt
+# 🚀 Session 011 Prompt - Frontend & Integration Complete
 
 Copy this to start your next session:
 
@@ -7,89 +7,69 @@ Copy this to start your next session:
 Hi Claude! Continuing work on CommandCenter - Session 011.
 
 **Where We Left Off (Session 010):**
-- ✅ CrewAI Studio installed and running locally
-- ✅ Environment configured for Railway PostgreSQL
-- ✅ Docker deployment configuration ready
-- ✅ Comprehensive documentation created
-- ✅ Local test successful (http://localhost:8501)
+- ✅ Built complete Streamlit Operations Dashboard (4 pages)
+- ✅ Installed CrewAI Studio for agent management
+- ✅ Fixed Vercel deployment (Next.js frontend)
+- ✅ Main page WORKING with live data! (Battery: 19%, Solar: 8,687W)
+- ✅ Sidebar with Bitcoin punk character icons
+- ✅ API properly wired to Railway backend
 
 **Current Status:**
-- API: https://api.wildfireranch.us (healthy ✅)
-- Agent: Solar Controller with memory ✅
-- Database: PostgreSQL + TimescaleDB ✅
-- MCP Server: Ready for Claude Desktop ✅
-- **CrewAI Studio: Running locally, ready for Railway deployment** ✅
+- **Railway API**: https://api.wildfireranch.us ✅ Healthy
+- **PostgreSQL**: TimescaleDB enabled ✅ Connected
+- **MCP Server**: Port 8080 ✅ Claude Desktop ready
+- **Streamlit Ops Dashboard**: Port 8502 ✅ Running
+- **CrewAI Studio**: Port 8501 ✅ Running
+- **Next.js Frontend**: http://localhost:3000 ✅ Main page working!
 
-**Today's Goals: Deploy CrewAI Studio & Create First Crew**
+**What's Working:**
+- ✅ Home page (/) - Live battery, solar, load, grid data
+- ✅ Sidebar navigation with character icons
+- ✅ Real-time updates every 30 seconds
+- ✅ System health indicators
 
-We want to deploy CrewAI Studio to Railway and build our first multi-agent crew.
+**What Needs Wiring:**
+- ❌ /dashboard - Energy charts and history
+- ❌ /chat - Agent interaction interface
+- ❌ /energy - Detailed energy page
+- ❌ /logs - Activity and conversation logs
+- ❌ /status - System health details
 
-**What We Need:**
-1. Deploy CrewAI Studio to Railway as a service
-2. Configure environment variables in Railway
-3. Test Railway deployment
-4. Create Solar Controller agent in CrewAI Studio GUI
-5. Build a simple monitoring crew
-6. Test crew execution
+**Today's Goals: Complete Frontend Integration**
 
-**Deployment Plan:**
+Build the remaining Next.js pages using the working Streamlit dashboards as reference.
 
-1. **Railway Service Setup**
-   - Create new service in Railway project
-   - Connect to GitHub or use Dockerfile
-   - Set root directory to `/crewai-studio`
-   - Configure port 8501
+**Reference Materials:**
 
-2. **Environment Variables** (Set in Railway):
-   ```
-   DB_URL=${{Postgres.DATABASE_URL}}
-   OPENAI_API_KEY=sk-proj-...
-   AGENTOPS_ENABLED=False
-   ```
+1. **Working Streamlit Pages**:
+   - /dashboards/pages/2_⚡_Energy_Monitor.py - Charts with Plotly
+   - /dashboards/pages/3_🤖_Agent_Chat.py - Chat interface
+   - /dashboards/pages/4_📊_Logs_Viewer.py - Activity logs
 
-3. **Build & Start Commands**:
-   - Build: `pip install -r requirements.txt`
-   - Start: `streamlit run app/app.py --server.headless true --server.port $PORT`
+2. **API Endpoints Available**:
+   - GET /energy/stats?hours=24 - Historical data
+   - POST /agent/ask - Chat with agent
+   - GET /conversations/recent - Recent conversations
 
-4. **First Crew Design**:
-   - **Agents**: Solar Monitor, Data Analyzer, Report Generator
-   - **Tasks**: Fetch data, Analyze patterns, Generate report
-   - **Process**: Sequential
-   - **Goal**: Automated solar monitoring report
+3. **Tech Stack**:
+   - Next.js 14 + TypeScript
+   - Recharts (for charts)
+   - Tailwind CSS
+   - Lucide React (icons)
 
-**Context:**
-- CrewAI Studio location: `/workspaces/CommandCenter/crewai-studio/`
-- Documentation: `/docs/CREWAI_STUDIO_SETUP.md`
-- Session summary: `/docs/sessions/SESSION_010_SUMMARY.md`
-- Railway project: CommandCenter (existing)
-- Database: Shared with MCP server
+**Implementation Checklist:**
 
-**Architecture Goal:**
-```
-Claude Desktop → MCP Server ─┐
-                             ├─→ Railway API → PostgreSQL
-Web Browser → CrewAI Studio ─┘
-```
+- [ ] /dashboard - Energy charts (Recharts)
+- [ ] /chat - Agent chat interface
+- [ ] /energy - Detailed metrics
+- [ ] /logs - Activity history
+- [ ] /status - System health
+- [ ] Test all pages
+- [ ] Deploy to Vercel
 
-All agents accessible from both interfaces!
+**Quick Reference:**
+- Frontend: /workspaces/CommandCenter/vercel/
+- API: https://api.wildfireranch.us
+- Working page: /vercel/src/app/page.tsx ✅
 
-Ready to deploy and build our first crew! 🚀
-
----
-
-## Quick Reference
-
-**Local CrewAI Studio:**
-```bash
-cd /workspaces/CommandCenter/crewai-studio
-source venv/bin/activate
-streamlit run app/app.py
-# Access: http://localhost:8501
-```
-
-**Railway API:** `https://api.wildfireranch.us`
-**Database:** PostgreSQL on Railway (TimescaleDB enabled)
-**OpenAI Key:** Already configured in .env
-
-**Last Commit:** CrewAI Studio setup and documentation
-**Next:** Railway deployment + First crew
+Ready to complete the frontend! 🚀
