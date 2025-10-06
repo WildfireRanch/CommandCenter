@@ -20,8 +20,7 @@ export default function Sidebar() {
   return (
     <aside className="w-48 bg-white border-r p-3 space-y-2 min-h-screen">
       <h2 className="text-lg font-bold flex items-center gap-2 mb-4">
-        <Image src="/WildfireMang.png" alt="logo" width={24} height={24} />
-        Wildfire Ranch
+        <Image src="/wildfireranch.png" alt="logo" width={48} height={48} />
       </h2>
       <nav className="mt-4 space-y-2 text-sm">
         {links.map(({ href, label, icon }) => (
