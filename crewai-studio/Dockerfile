@@ -19,6 +19,6 @@ RUN pip install -r requirements.txt
 # Copy CrewAI-Studio
 COPY ./ /CrewAI-Studio/
 
-# Run app
-CMD ["streamlit","run","./app/app.py","--server.headless","true"]
-EXPOSE 8501
+# Run app using our start.sh script
+CMD ["bash", "start.sh"]
+EXPOSE 8080
