@@ -27,10 +27,18 @@ Last Updated: October 6, 2025
 - [x] **MCP Server deployed to Vercel** (Claude Desktop integration)
 - [x] **CrewAI Studio deployed to Railway** (Agent management GUI)
 - [x] **Railway PORT issue fixed** (Streamlit deployment working)
+- [x] **embedchain dependency issue resolved** (Studio loads successfully)
+- [x] **Cross-project database access configured** (Public hostname for Studio)
 
 ### In Progress 🔄
-- [ ] Frontend enhancement (dashboard, charts, chat UI)
-- [ ] Additional agent capabilities
+- [ ] Add NEXT_PUBLIC_STUDIO_URL to Vercel
+- [ ] Complete frontend Studio integration
+- [ ] Final end-to-end testing
+
+### Up Next (After Studio Integration) ⏳
+- Frontend UI improvements (energy charts, chat interface)
+- Authentication system
+- Real-time WebSocket updates
 
 ### Up Next ⏳
 - Frontend UI improvements (energy charts, chat interface)
@@ -201,5 +209,61 @@ Last Updated: October 6, 2025
 - API: https://api.wildfireranch.us ✅
 - Frontend: Vercel deployment ✅
 - MCP Server: Vercel deployment ✅
-- CrewAI Studio: Railway deployment ✅
+- CrewAI Studio: https://studio.wildfireranch.us ✅
 - Database: PostgreSQL + TimescaleDB ✅
+
+---
+
+### Session 014 - October 6, 2025
+**Type:** CrewAI Studio Production Deployment + Integration
+**Duration:** ~3 hours
+**Status:** ✅ **COMPLETE - CREWAI STUDIO DEPLOYED**
+
+**Major Issues Resolved:**
+1. **Railway PORT Error** (Sessions 012-014)
+   - Root cause: Hidden `STREAMLIT_SERVER_PORT=$PORT` service variable
+   - Solution: Deleted variable from Railway dashboard
+   - Result: Streamlit starts cleanly on port 8080
+
+2. **Dockerfile Path Issues**
+   - Root cause: Railway couldn't find Dockerfile in subdirectory
+   - Solution: Moved Dockerfile to repo root, cleared root directory setting
+   - Result: Clean builds with proper file copying
+
+3. **embedchain Module Error**
+   - Root cause: Unpinned dependency installed incompatible version
+   - Solution: Changed `embedchain` to `embedchain>=0.1.100`
+   - Result: All imports working, Studio loads successfully
+
+4. **Cross-Project Database Access**
+   - Root cause: `postgres.railway.internal` only works within same project
+   - Solution: Use public hostname for Studio: `postgresdb-production-e5ae.up.railway.app:5432`
+   - Result: Full database integration across projects
+
+**Configuration Established:**
+- CrewAI Studio (CrewAI project) → PostgreSQL (CommandCenter project)
+- Uses public DATABASE_URL for cross-project access
+- Internal URLs for same-project services (API, Dashboards)
+- Cost-efficient: internal traffic free, minimal external
+
+**Deployments:**
+- ✅ CrewAI Studio running on Railway port 8080
+- ✅ Streamlit GUI accessible at studio.wildfireranch.us
+- ✅ Database connection working
+- ✅ Frontend Studio page ready (needs env var)
+
+**Remaining Tasks (Next Session):**
+- Add `NEXT_PUBLIC_STUDIO_URL=https://studio.wildfireranch.us` to Vercel
+- Redeploy frontend
+- Test full Studio integration end-to-end
+
+**Key Learnings:**
+- Railway service variables override everything - check dashboard first!
+- Dockerfile at repo root is safest for Railway
+- Cross-project database requires public hostname
+- Always pin dependencies with version constraints
+
+**Documentation Created:**
+- SESSION_014_RAILWAY_PORT_RESOLUTION.md (PORT troubleshooting deep-dive)
+- SESSION_014_FINAL_SUMMARY.md (Complete session summary)
+- Updated progress.md and project configuration files

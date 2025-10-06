@@ -1,99 +1,160 @@
-# Next Session Prompt - Session 009
+# Next Session Prompt - Session 015
 
 Copy and paste this to start your next session with Claude:
 
 ---
 
-Hi Claude! Continuing work on **CommandCenter** - Session 009.
+Hi Claude! Continuing work on **CommandCenter** - Session 015.
 
-## Where We Left Off (Session 008 - Oct 5, 2025)
+## Where We Left Off (Session 014 - Oct 6, 2025)
 
 **MAJOR WINS:** 🎉
-- ✅ **Agent has memory!** Recalls past conversations automatically
-- ✅ **Multi-turn dialogue** works (using session_id)
-- ✅ **Energy data persistence** - SolArk snapshots saved to TimescaleDB
-- ✅ **Historical tracking** - Can query past energy data
+- ✅ **CrewAI Studio deployed to Railway** at https://studio.wildfireranch.us
+- ✅ **Railway PORT issue resolved** (hidden service variable was the culprit)
+- ✅ **embedchain dependency fixed** (pinned to >=0.1.100)
+- ✅ **Cross-project database access configured** (PostgreSQL public hostname)
+- ✅ **Dockerfile moved to repo root** for reliable Railway builds
 
 **What's Working:**
-- API: https://api.wildfireranch.us (healthy, 9 endpoints)
-- Agent: Solar Controller with conversation memory
-- Database: PostgreSQL + TimescaleDB on Railway
-- Memory: Agent recalls past 3 conversations in context
+- API: https://api.wildfireranch.us ✅
+- Frontend: Vercel deployment ✅
+- MCP Server: Vercel deployment ✅
+- CrewAI Studio: https://studio.wildfireranch.us ✅
+- Database: PostgreSQL + TimescaleDB (cross-project access working) ✅
 
-**Test Evidence:**
-```
-User: "What was my battery in our first conversation?"
-Agent: "Your battery was 18% in our first conversation..." ✅ REMEMBERED!
-```
+**What's Almost Done:**
+- Frontend `/studio` page is built and ready
+- Just needs `NEXT_PUBLIC_STUDIO_URL` environment variable in Vercel
+- Then redeploy and test!
 
-## Session 009 Goal: Build MCP Server 🚀
+## Session 015 Goals: Complete Integration & Testing 🚀
 
-**Objective:** Deploy MCP server to Vercel so I can use my CommandCenter agent directly from Claude Desktop.
+**Primary Objectives:**
 
-**What We Need to Build:**
-1. Create MCP server project (Model Context Protocol)
-2. Connect to Railway database (reuse existing connection)
-3. Expose agent capabilities via MCP interface
-4. Deploy to Vercel
-5. Configure Claude Desktop to connect
-6. Test end-to-end integration
+### 1. Complete Frontend Integration (15 min)
+- Add `NEXT_PUBLIC_STUDIO_URL=https://studio.wildfireranch.us` to Vercel
+- Redeploy frontend
+- Verify `/studio` page loads CrewAI Studio iframe
 
-**Estimated Time:** 45-60 minutes
+### 2. Comprehensive Testing (30 min)
+**CrewAI Installation & Studio:**
+- [ ] Test CrewAI Studio loads at https://studio.wildfireranch.us
+- [ ] Verify database connectivity (PostgreSQL cross-project access)
+- [ ] Test creating agents in Studio
+- [ ] Test creating crews in Studio
+- [ ] Verify data persistence (refresh page, data should remain)
+
+**Frontend Accessibility:**
+- [ ] Visit frontend `/studio` page
+- [ ] Verify iframe embedding works
+- [ ] Test "Open in New Tab" button
+- [ ] Test fullscreen mode
+- [ ] Confirm green "Studio Connected" banner shows
+
+**Database Integration:**
+- [ ] Check PostgreSQL for stored crew/agent data
+- [ ] Verify TimescaleDB hypertables are working
+- [ ] Test cross-project access from CrewAI Studio
+
+### 3. CrewAI Studio Walkthrough (45 min)
+**Guide me through:**
+- Overview of CrewAI Studio interface
+- How to create an agent (roles, goals, backstory, tools)
+- How to create a crew (process types, agents, tasks)
+- How to configure tasks and workflows
+- Available tools and integrations
+- LLM provider configuration (OpenAI, Anthropic, Ollama, etc.)
+- Knowledge base features
+- Running crews and viewing results
+- Best practices for agent/crew design
+
+**Hands-On Demo:**
+- Walk me through creating a simple crew from scratch
+- Explain each step and what options mean
+- Show me how to run it and interpret results
+- Tips for effective agent design
 
 ## Context
 
 **Repository:** https://github.com/WildfireRanch/CommandCenter
 **Documentation:** All docs in `/docs`, session summaries in `/docs/sessions/`
-**Latest Session:** Session 008 - Agent Memory and Energy Tracking
+**Latest Session:** SESSION_014_FINAL_SUMMARY.md (comprehensive 500+ line deep-dive)
 
-**Current Stack:**
-- Backend: FastAPI on Railway
+**Current Production Stack:**
+- Backend: FastAPI on Railway (https://api.wildfireranch.us)
+- Frontend: Next.js on Vercel
+- MCP Server: Vercel deployment
+- CrewAI Studio: Streamlit on Railway (https://studio.wildfireranch.us)
 - Database: PostgreSQL + TimescaleDB on Railway
-- Agent: CrewAI (Solar Controller)
-- Frontend: None (this is what MCP solves!)
+  - Public hostname: `postgresdb-production-e5ae.up.railway.app:5432`
+  - Used for cross-project access from CrewAI Studio
 
-**Environment:**
-- DATABASE_URL: Railway reference variable (already configured)
-- OPENAI_API_KEY: Configured
-- SOLARK_EMAIL/PASSWORD: Configured
+**Key Learnings from Session 014:**
+1. Railway service variables override everything - check dashboard first!
+2. Internal hostnames (`.railway.internal`) only work within same project
+3. Cross-project database requires public hostname
+4. Always pin dependencies with version constraints
+5. Dockerfile at repo root is safest for Railway
 
 ## Expected Deliverables
 
-1. **MCP Server Code:**
-   - Project structure in `/vercel/` or `/mcp/`
-   - MCP protocol implementation
-   - Database connection to Railway
-   - Agent integration
+1. **Completed Integration:**
+   - `NEXT_PUBLIC_STUDIO_URL` set in Vercel
+   - Frontend `/studio` page fully functional
+   - End-to-end testing complete
 
-2. **Deployment:**
-   - Deploy to Vercel
-   - Environment variables configured
-   - Health check working
+2. **Test Results:**
+   - Document all test results (pass/fail)
+   - Screenshot evidence of working features
+   - Any issues discovered and resolved
 
-3. **Claude Desktop Config:**
-   - Configuration file for Claude Desktop
-   - Instructions to test
+3. **CrewAI Studio Documentation:**
+   - Create user guide for CrewAI Studio features
+   - Document agent/crew creation process
+   - Best practices and tips
+   - Example workflows
 
-4. **Documentation:**
-   - Session 009 summary
-   - MCP setup guide
-   - Updated progress.md
+4. **Session Documentation:**
+   - Session 015 summary
+   - Updated progress.md (mark Phase 4 COMPLETE!)
+   - Screenshots of working system
 
-## Resources
+## Quick Reference
 
-**MCP Documentation:**
-- https://modelcontextprotocol.io/
-- MCP SDK: https://github.com/modelcontextprotocol/servers
+**Production URLs:**
+- API: https://api.wildfireranch.us
+- CrewAI Studio: https://studio.wildfireranch.us
+- Frontend: (Vercel URL - will test `/studio` page)
 
-**Vercel Deployment:**
-- Serverless functions
-- Environment variables
-- Python runtime
+**Database Connection String (for Studio):**
+```
+postgresql://postgres:1tVY3mhx1Xt3d7tvBrDKU0ZC0JO7u010bcisH25jNkg@postgresdb-production-e5ae.up.railway.app:5432/commandcenter
+```
 
-## My Question
+**Files to Reference:**
+- [vercel/src/app/studio/page.tsx](vercel/src/app/studio/page.tsx) - Frontend Studio page
+- [crewai-studio/.env](crewai-studio/.env) - Database configuration docs
+- [docs/sessions/SESSION_014_FINAL_SUMMARY.md](docs/sessions/SESSION_014_FINAL_SUMMARY.md) - Comprehensive troubleshooting guide
 
-I'm ready to build the MCP server! Let's make my CommandCenter agent accessible directly from Claude Desktop. Where should we start? 🚀
+## My Questions
+
+I'm ready to complete the integration and learn CrewAI Studio!
+
+**First, let's:**
+1. Add the Vercel environment variable and test the integration
+2. Run comprehensive tests on all components
+3. Then walk me through CrewAI Studio - I want to understand how to use it effectively!
+
+**Specific things I want to learn:**
+- How do I create effective agents? What makes a good agent?
+- What are the different process types for crews?
+- How do I add tools to my agents?
+- What LLM providers work best for different use cases?
+- How does the knowledge base feature work?
+- Any tips for debugging crews that don't work as expected?
+
+Let's finish Phase 4 strong! 🚀
 
 ---
 
-**Note:** I prefer step-by-step guidance and clear documentation as we go.
+**Note:** I prefer hands-on learning with clear explanations. Show me examples and let's build something together!
