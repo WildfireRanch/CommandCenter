@@ -15,4 +15,4 @@ snowflake-connector-python
 markdown
 docling
 duckduckgo-search>=8.0.2
-embedchain
+embedchain>=0.1.100
