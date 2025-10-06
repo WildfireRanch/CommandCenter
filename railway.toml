@@ -1,6 +1,0 @@
-[build]
-builder = "NIXPACKS"
-buildCommand = "cd crewai-studio && pip install -r requirements.txt"
-
-[deploy]
-startCommand = "cd crewai-studio && bash start.sh"
