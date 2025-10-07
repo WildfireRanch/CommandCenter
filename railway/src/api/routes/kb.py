@@ -11,6 +11,7 @@ import logging
 import os
 
 from ...kb.sync import sync_knowledge_base, search_kb
+from ...kb.google_drive import get_drive_service, list_files_recursive
 from ...utils.db import get_connection, query_all, query_one
 
 router = APIRouter(prefix="/kb", tags=["knowledge-base"])
@@ -63,6 +64,106 @@ async def trigger_sync(
             yield f"data: {json.dumps({'status': 'failed', 'error': str(e)})}\n\n"
 
     return StreamingResponse(generate(), media_type="text/event-stream")
+
+
+@router.post("/preview")
+async def preview_sync(
+    authorization: Optional[str] = Header(None),
+    folder_id: Optional[str] = None
+):
+    """
+    Preview what would be synced (dry run - no actual syncing).
+
+    Requires Google OAuth access token in Authorization header.
+    Returns file structure, counts, and estimates.
+
+    Args:
+        authorization: Bearer token from NextAuth session
+        folder_id: Google Drive folder ID (optional, uses env var if not provided)
+
+    Returns:
+        Dict with:
+            - total_files: Total number of files found
+            - total_folders: Number of unique folders
+            - files_by_folder: Files grouped by folder
+            - ignored_folders: List of folders that would be skipped
+            - estimated_tokens: Rough token estimate
+            - file_types: Breakdown by file type
+    """
+    if not authorization or not authorization.startswith("Bearer "):
+        raise HTTPException(status_code=401, detail="Missing or invalid access token")
+
+    access_token = authorization.replace("Bearer ", "")
+
+    # Use folder ID from env if not provided
+    if not folder_id:
+        folder_id = os.getenv("GOOGLE_DOCS_KB_FOLDER_ID")
+        if not folder_id:
+            raise HTTPException(
+                status_code=400,
+                detail="Folder ID not configured. Set GOOGLE_DOCS_KB_FOLDER_ID environment variable."
+            )
+
+    logger.info(f"Previewing KB sync for folder {folder_id}")
+
+    try:
+        # Get Google Drive service
+        drive_service = get_drive_service(access_token)
+
+        # List files recursively
+        files = list_files_recursive(
+            drive_service,
+            folder_id,
+            ignore_patterns=["old.*", "archive", "trash", "backup", "deprecated"]
+        )
+
+        # Group by folder
+        files_by_folder = {}
+        file_types = {}
+        ignored_count = 0
+
+        for file in files:
+            folder_name = file.get('folder', 'unknown')
+            mime_type = file.get('mimeType', 'unknown')
+            file_path = file.get('path', file['name'])
+
+            # Count by folder
+            if folder_name not in files_by_folder:
+                files_by_folder[folder_name] = []
+            files_by_folder[folder_name].append({
+                'name': file['name'],
+                'path': file_path,
+                'mimeType': mime_type,
+                'modifiedTime': file.get('modifiedTime')
+            })
+
+            # Count by file type
+            if mime_type not in file_types:
+                file_types[mime_type] = 0
+            file_types[mime_type] += 1
+
+        # Estimate tokens (very rough: 1 doc ≈ 5000 tokens)
+        google_docs_count = file_types.get('application/vnd.google-apps.document', 0)
+        estimated_tokens = google_docs_count * 5000
+
+        return {
+            "status": "success",
+            "total_files": len(files),
+            "total_folders": len(files_by_folder),
+            "google_docs_count": google_docs_count,
+            "files_by_folder": files_by_folder,
+            "file_types": file_types,
+            "estimated_tokens": estimated_tokens,
+            "estimated_cost": f"${(estimated_tokens / 1000 * 0.0001):.4f}",
+            "note": "This is a preview only. No files have been synced."
+        }
+
+    except Exception as e:
+        logger.exception(f"Preview failed: {e}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Preview failed: {str(e)}"
+        )
 
 
 @router.get("/documents")

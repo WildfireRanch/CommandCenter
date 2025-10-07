@@ -13,6 +13,7 @@ from .google_drive import (
     get_drive_service,
     get_docs_service,
     list_files_in_folder,
+    list_files_recursive,
     fetch_document_content,
     get_folder_name
 )
@@ -153,24 +154,39 @@ async def sync_knowledge_base(
             drive_service = get_drive_service(access_token)
             docs_service = get_docs_service(access_token)
 
-            # List files
-            files = list_files_in_folder(drive_service, folder_id)
-            total_files = len(files)
+            # List files recursively from all subfolders
+            logger.info(f"Starting recursive scan of folder {folder_id}")
+            files = list_files_recursive(
+                drive_service,
+                folder_id,
+                ignore_patterns=["old.*", "archive", "trash", "backup", "deprecated"]
+            )
+
+            # Filter to only Google Docs for now (can expand to PDFs, Sheets later)
+            doc_files = [
+                f for f in files
+                if f['mimeType'] == 'application/vnd.google-apps.document'
+            ]
+
+            total_files = len(doc_files)
+            logger.info(f"Found {len(files)} total files, {total_files} Google Docs")
 
             yield {
                 "status": "started",
                 "total": total_files,
-                "message": f"Found {total_files} documents"
+                "message": f"Found {total_files} documents across all folders"
             }
 
             processed = 0
             updated = 0
             failed = 0
 
-            for idx, file in enumerate(files):
+            for idx, file in enumerate(doc_files):
                 try:
                     file_id = file['id']
                     file_name = file['name']
+                    folder_name = file.get('folder', 'unknown')
+                    folder_path = file.get('path', file_name)
 
                     # Check if changed (unless force=True)
                     if not force:
@@ -190,7 +206,7 @@ async def sync_knowledge_base(
                                 continue
 
                     # Fetch document content
-                    logger.info(f"Syncing {idx + 1}/{total_files}: {file_name}")
+                    logger.info(f"Syncing {idx + 1}/{total_files}: {folder_path}")
                     content = fetch_document_content(docs_service, file_id)
 
                     if not content or len(content.strip()) < 10:
@@ -204,27 +220,57 @@ async def sync_knowledge_base(
                     # Generate embeddings
                     embeddings = generate_embeddings(chunks)
 
-                    # Determine if context file (in "context" subfolder)
-                    # For now, mark as context file if "context" is in the name
-                    is_context = "context" in file_name.lower()
-
-                    # Store document
-                    execute(
-                        conn,
-                        """
-                        INSERT INTO kb_documents (google_doc_id, title, full_content, token_count, last_synced, is_context_file)
-                        VALUES (%s, %s, %s, %s, NOW(), %s)
-                        ON CONFLICT (google_doc_id) DO UPDATE
-                        SET title = EXCLUDED.title,
-                            full_content = EXCLUDED.full_content,
-                            token_count = EXCLUDED.token_count,
-                            last_synced = NOW(),
-                            is_context_file = EXCLUDED.is_context_file,
-                            updated_at = NOW()
-                        """,
-                        (file_id, file_name, content, len(content) // 4, is_context),
-                        commit=True
+                    # Determine if context file based on folder path
+                    is_context = (
+                        '/CONTEXT/' in folder_path.upper() or
+                        folder_name.upper() == 'CONTEXT' or
+                        'context' in file_name.lower()
                     )
+
+                    # Store document with folder information
+                    # Try to use folder_path if column exists, otherwise just use folder
+                    try:
+                        execute(
+                            conn,
+                            """
+                            INSERT INTO kb_documents (google_doc_id, title, folder, folder_path, full_content, token_count, last_synced, is_context_file)
+                            VALUES (%s, %s, %s, %s, %s, %s, NOW(), %s)
+                            ON CONFLICT (google_doc_id) DO UPDATE
+                            SET title = EXCLUDED.title,
+                                folder = EXCLUDED.folder,
+                                folder_path = EXCLUDED.folder_path,
+                                full_content = EXCLUDED.full_content,
+                                token_count = EXCLUDED.token_count,
+                                last_synced = NOW(),
+                                is_context_file = EXCLUDED.is_context_file,
+                                updated_at = NOW()
+                            """,
+                            (file_id, file_name, folder_name, folder_path, content, len(content) // 4, is_context),
+                            commit=True
+                        )
+                    except Exception as e:
+                        # Fallback if folder_path column doesn't exist yet
+                        if "folder_path" in str(e):
+                            logger.warning("folder_path column not found, using folder only")
+                            execute(
+                                conn,
+                                """
+                                INSERT INTO kb_documents (google_doc_id, title, folder, full_content, token_count, last_synced, is_context_file)
+                                VALUES (%s, %s, %s, %s, %s, NOW(), %s)
+                                ON CONFLICT (google_doc_id) DO UPDATE
+                                SET title = EXCLUDED.title,
+                                    folder = EXCLUDED.folder,
+                                    full_content = EXCLUDED.full_content,
+                                    token_count = EXCLUDED.token_count,
+                                    last_synced = NOW(),
+                                    is_context_file = EXCLUDED.is_context_file,
+                                    updated_at = NOW()
+                                """,
+                                (file_id, file_name, folder_name, content, len(content) // 4, is_context),
+                                commit=True
+                            )
+                        else:
+                            raise
 
                     # Get document ID
                     doc = query_one(

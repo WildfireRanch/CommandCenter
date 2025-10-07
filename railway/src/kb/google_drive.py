@@ -186,3 +186,110 @@ def list_subfolders(drive_service, folder_id: str) -> List[Dict]:
     except HttpError as e:
         logger.error(f"Failed to list subfolders: {e}")
         raise Exception(f"Failed to list subfolders in folder {folder_id}: {e}")
+
+
+def list_files_recursive(
+    drive_service,
+    folder_id: str,
+    ignore_patterns: Optional[List[str]] = None,
+    current_path: str = "COMMAND_CENTER",
+    _visited_folders: Optional[set] = None
+) -> List[Dict]:
+    """
+    Recursively list all files in a folder and its subfolders.
+
+    Args:
+        drive_service: Google Drive API service
+        folder_id: Google Drive folder ID to start from
+        ignore_patterns: List of folder name patterns to skip (e.g., ["old.*", "archive"])
+        current_path: Current path being traversed (for tracking)
+        _visited_folders: Internal set to prevent infinite loops
+
+    Returns:
+        List of file metadata dicts with enhanced fields:
+            - id: Google Drive file ID
+            - name: File name
+            - mimeType: MIME type
+            - modifiedTime: Last modified timestamp
+            - parents: List of parent folder IDs
+            - path: Full path (e.g., "COMMAND_CENTER/SolarShack/manual.pdf")
+            - folder: Immediate parent folder name (e.g., "SolarShack")
+    """
+    import re
+
+    if ignore_patterns is None:
+        ignore_patterns = ["old.*", "archive", "trash", "backup"]
+
+    if _visited_folders is None:
+        _visited_folders = set()
+
+    # Prevent infinite loops from circular references
+    if folder_id in _visited_folders:
+        logger.warning(f"Circular reference detected for folder {folder_id}, skipping")
+        return []
+
+    _visited_folders.add(folder_id)
+
+    all_files = []
+
+    try:
+        # Get all items in current folder (both files and subfolders)
+        query = f"'{folder_id}' in parents and trashed=false"
+        page_token = None
+
+        while True:
+            results = drive_service.files().list(
+                q=query,
+                fields="nextPageToken, files(id, name, mimeType, modifiedTime, parents)",
+                pageSize=100,
+                pageToken=page_token
+            ).execute()
+
+            items = results.get('files', [])
+
+            for item in items:
+                item_name = item['name']
+                item_path = f"{current_path}/{item_name}"
+
+                # Check if folder should be ignored
+                if item['mimeType'] == 'application/vnd.google-apps.folder':
+                    # Check ignore patterns
+                    should_ignore = False
+                    for pattern in ignore_patterns:
+                        if re.match(pattern, item_name, re.IGNORECASE):
+                            logger.info(f"Ignoring folder (matches pattern '{pattern}'): {item_path}")
+                            should_ignore = True
+                            break
+
+                    if should_ignore:
+                        continue
+
+                    # Recurse into subfolder
+                    logger.info(f"Entering subfolder: {item_path}")
+                    subfolder_files = list_files_recursive(
+                        drive_service=drive_service,
+                        folder_id=item['id'],
+                        ignore_patterns=ignore_patterns,
+                        current_path=item_path,
+                        _visited_folders=_visited_folders
+                    )
+                    all_files.extend(subfolder_files)
+
+                else:
+                    # It's a file - add it to the list
+                    # Enhance with path information
+                    item['path'] = item_path
+                    item['folder'] = current_path.split('/')[-1]  # Immediate parent folder
+                    all_files.append(item)
+
+            # Check for next page
+            page_token = results.get('nextPageToken')
+            if not page_token:
+                break
+
+        logger.info(f"Found {len(all_files)} files in {current_path} (including subfolders)")
+        return all_files
+
+    except HttpError as e:
+        logger.error(f"Failed to list files recursively in {current_path}: {e}")
+        raise Exception(f"Failed to list files in folder {folder_id}: {e}")
