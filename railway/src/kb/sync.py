@@ -127,201 +127,197 @@ async def sync_knowledge_base(
             - updated: Files updated
             - failed: Files that failed
     """
-    conn = get_connection()
+    with get_connection() as conn:
+        # Log sync start
+        sync_log_id = execute(
+            conn,
+            """
+            INSERT INTO kb_sync_log (sync_type, started_at, status, triggered_by)
+            VALUES (%s, NOW(), 'running', 'manual')
+            RETURNING id
+            """,
+            (sync_type,),
+            commit=True
+        )
 
-    # Log sync start
-    sync_log_id = execute(
-        conn,
-        """
-        INSERT INTO kb_sync_log (sync_type, started_at, status, triggered_by)
-        VALUES (%s, NOW(), 'running', 'manual')
-        RETURNING id
-        """,
-        (sync_type,),
-        commit=True
-    )
+        # Get the ID from the insert
+        log_result = query_one(
+            conn,
+            "SELECT id FROM kb_sync_log WHERE sync_type = %s ORDER BY started_at DESC LIMIT 1",
+            (sync_type,)
+        )
+        sync_log_id = log_result['id'] if log_result else None
 
-    # Get the ID from the insert
-    log_result = query_one(
-        conn,
-        "SELECT id FROM kb_sync_log WHERE sync_type = %s ORDER BY started_at DESC LIMIT 1",
-        (sync_type,)
-    )
-    sync_log_id = log_result['id'] if log_result else None
+        try:
+            # Get Google Drive service
+            drive_service = get_drive_service(access_token)
+            docs_service = get_docs_service(access_token)
 
-    try:
-        # Get Google Drive service
-        drive_service = get_drive_service(access_token)
-        docs_service = get_docs_service(access_token)
+            # List files
+            files = list_files_in_folder(drive_service, folder_id)
+            total_files = len(files)
 
-        # List files
-        files = list_files_in_folder(drive_service, folder_id)
-        total_files = len(files)
+            yield {
+                "status": "started",
+                "total": total_files,
+                "message": f"Found {total_files} documents"
+            }
 
-        yield {
-            "status": "started",
-            "total": total_files,
-            "message": f"Found {total_files} documents"
-        }
+            processed = 0
+            updated = 0
+            failed = 0
 
-        processed = 0
-        updated = 0
-        failed = 0
+            for idx, file in enumerate(files):
+                try:
+                    file_id = file['id']
+                    file_name = file['name']
 
-        for idx, file in enumerate(files):
-            try:
-                file_id = file['id']
-                file_name = file['name']
+                    # Check if changed (unless force=True)
+                    if not force:
+                        existing = query_one(
+                            conn,
+                            "SELECT last_synced, updated_at FROM kb_documents WHERE google_doc_id = %s",
+                            (file_id,)
+                        )
 
-                # Check if changed (unless force=True)
-                if not force:
-                    existing = query_one(
-                        conn,
-                        "SELECT last_synced, updated_at FROM kb_documents WHERE google_doc_id = %s",
-                        (file_id,)
-                    )
+                        if existing and existing.get('last_synced'):
+                            last_synced = existing['last_synced']
+                            modified_time = datetime.fromisoformat(file['modifiedTime'].replace('Z', '+00:00'))
 
-                    if existing and existing.get('last_synced'):
-                        last_synced = existing['last_synced']
-                        modified_time = datetime.fromisoformat(file['modifiedTime'].replace('Z', '+00:00'))
+                            if last_synced.replace(tzinfo=None) >= modified_time.replace(tzinfo=None):
+                                processed += 1
+                                logger.info(f"Skipping unchanged file: {file_name}")
+                                continue
 
-                        if last_synced.replace(tzinfo=None) >= modified_time.replace(tzinfo=None):
-                            processed += 1
-                            logger.info(f"Skipping unchanged file: {file_name}")
-                            continue
+                    # Fetch document content
+                    logger.info(f"Syncing {idx + 1}/{total_files}: {file_name}")
+                    content = fetch_document_content(docs_service, file_id)
 
-                # Fetch document content
-                logger.info(f"Syncing {idx + 1}/{total_files}: {file_name}")
-                content = fetch_document_content(docs_service, file_id)
+                    if not content or len(content.strip()) < 10:
+                        logger.warning(f"Skipping empty document: {file_name}")
+                        processed += 1
+                        continue
 
-                if not content or len(content.strip()) < 10:
-                    logger.warning(f"Skipping empty document: {file_name}")
-                    processed += 1
-                    continue
+                    # Chunk content
+                    chunks = chunk_text(content)
 
-                # Chunk content
-                chunks = chunk_text(content)
+                    # Generate embeddings
+                    embeddings = generate_embeddings(chunks)
 
-                # Generate embeddings
-                embeddings = generate_embeddings(chunks)
+                    # Determine if context file (in "context" subfolder)
+                    # For now, mark as context file if "context" is in the name
+                    is_context = "context" in file_name.lower()
 
-                # Determine if context file (in "context" subfolder)
-                # For now, mark as context file if "context" is in the name
-                is_context = "context" in file_name.lower()
-
-                # Store document
-                execute(
-                    conn,
-                    """
-                    INSERT INTO kb_documents (google_doc_id, title, full_content, token_count, last_synced, is_context_file)
-                    VALUES (%s, %s, %s, %s, NOW(), %s)
-                    ON CONFLICT (google_doc_id) DO UPDATE
-                    SET title = EXCLUDED.title,
-                        full_content = EXCLUDED.full_content,
-                        token_count = EXCLUDED.token_count,
-                        last_synced = NOW(),
-                        is_context_file = EXCLUDED.is_context_file,
-                        updated_at = NOW()
-                    """,
-                    (file_id, file_name, content, len(content) // 4, is_context),
-                    commit=True
-                )
-
-                # Get document ID
-                doc = query_one(
-                    conn,
-                    "SELECT id FROM kb_documents WHERE google_doc_id = %s",
-                    (file_id,)
-                )
-                doc_id = doc['id'] if doc else None
-
-                if not doc_id:
-                    logger.error(f"Failed to get document ID for {file_name}")
-                    failed += 1
-                    continue
-
-                # Delete old chunks
-                execute(conn, "DELETE FROM kb_chunks WHERE document_id = %s", (doc_id,), commit=True)
-
-                # Store chunks with embeddings
-                for chunk_idx, (chunk, embedding) in enumerate(zip(chunks, embeddings)):
+                    # Store document
                     execute(
                         conn,
                         """
-                        INSERT INTO kb_chunks (document_id, chunk_text, chunk_index, token_count, embedding)
-                        VALUES (%s, %s, %s, %s, %s)
+                        INSERT INTO kb_documents (google_doc_id, title, full_content, token_count, last_synced, is_context_file)
+                        VALUES (%s, %s, %s, %s, NOW(), %s)
+                        ON CONFLICT (google_doc_id) DO UPDATE
+                        SET title = EXCLUDED.title,
+                            full_content = EXCLUDED.full_content,
+                            token_count = EXCLUDED.token_count,
+                            last_synced = NOW(),
+                            is_context_file = EXCLUDED.is_context_file,
+                            updated_at = NOW()
                         """,
-                        (doc_id, chunk, chunk_idx, len(chunk) // 4, embedding),
+                        (file_id, file_name, content, len(content) // 4, is_context),
                         commit=True
                     )
 
-                processed += 1
-                updated += 1
+                    # Get document ID
+                    doc = query_one(
+                        conn,
+                        "SELECT id FROM kb_documents WHERE google_doc_id = %s",
+                        (file_id,)
+                    )
+                    doc_id = doc['id'] if doc else None
 
-                yield {
-                    "status": "processing",
-                    "current": idx + 1,
-                    "total": total_files,
-                    "current_file": file_name,
-                    "processed": processed,
-                    "updated": updated
-                }
+                    if not doc_id:
+                        logger.error(f"Failed to get document ID for {file_name}")
+                        failed += 1
+                        continue
 
-            except Exception as e:
-                logger.error(f"Failed to sync {file.get('name', 'unknown')}: {e}")
-                failed += 1
-                continue
+                    # Delete old chunks
+                    execute(conn, "DELETE FROM kb_chunks WHERE document_id = %s", (doc_id,), commit=True)
 
-        # Update sync log
-        if sync_log_id:
-            execute(
-                conn,
-                """
-                UPDATE kb_sync_log
-                SET completed_at = NOW(),
-                    status = 'completed',
-                    documents_processed = %s,
-                    documents_updated = %s,
-                    documents_failed = %s
-                WHERE id = %s
-                """,
-                (processed, updated, failed, sync_log_id),
-                commit=True
-            )
+                    # Store chunks with embeddings
+                    for chunk_idx, (chunk, embedding) in enumerate(zip(chunks, embeddings)):
+                        execute(
+                            conn,
+                            """
+                            INSERT INTO kb_chunks (document_id, chunk_text, chunk_index, token_count, embedding)
+                            VALUES (%s, %s, %s, %s, %s)
+                            """,
+                            (doc_id, chunk, chunk_idx, len(chunk) // 4, embedding),
+                            commit=True
+                        )
 
-        yield {
-            "status": "completed",
-            "total": total_files,
-            "processed": processed,
-            "updated": updated,
-            "failed": failed
-        }
+                    processed += 1
+                    updated += 1
 
-    except Exception as e:
-        logger.exception(f"Sync failed: {e}")
+                    yield {
+                        "status": "processing",
+                        "current": idx + 1,
+                        "total": total_files,
+                        "current_file": file_name,
+                        "processed": processed,
+                        "updated": updated
+                    }
 
-        # Log failure
-        if sync_log_id:
-            execute(
-                conn,
-                """
-                UPDATE kb_sync_log
-                SET completed_at = NOW(),
-                    status = 'failed',
-                    error_message = %s
-                WHERE id = %s
-                """,
-                (str(e), sync_log_id),
-                commit=True
-            )
+                except Exception as e:
+                    logger.error(f"Failed to sync {file.get('name', 'unknown')}: {e}")
+                    failed += 1
+                    continue
 
-        yield {
-            "status": "failed",
-            "error": str(e)
-        }
+            # Update sync log
+            if sync_log_id:
+                execute(
+                    conn,
+                    """
+                    UPDATE kb_sync_log
+                    SET completed_at = NOW(),
+                        status = 'completed',
+                        documents_processed = %s,
+                        documents_updated = %s,
+                        documents_failed = %s
+                    WHERE id = %s
+                    """,
+                    (processed, updated, failed, sync_log_id),
+                    commit=True
+                )
 
-    finally:
-        conn.close()
+            yield {
+                "status": "completed",
+                "total": total_files,
+                "processed": processed,
+                "updated": updated,
+                "failed": failed
+            }
+
+        except Exception as e:
+            logger.exception(f"Sync failed: {e}")
+
+            # Log failure
+            if sync_log_id:
+                execute(
+                    conn,
+                    """
+                    UPDATE kb_sync_log
+                    SET completed_at = NOW(),
+                        status = 'failed',
+                        error_message = %s
+                    WHERE id = %s
+                    """,
+                    (str(e), sync_log_id),
+                    commit=True
+                )
+
+            yield {
+                "status": "failed",
+                "error": str(e)
+            }
 
 
 def search_kb(query: str, limit: int = 5) -> Dict:
@@ -348,26 +344,23 @@ def search_kb(query: str, limit: int = 5) -> Dict:
         query_embedding = query_embeddings[0]
 
         # Search using pgvector
-        conn = get_connection()
-
-        results = query_all(
-            conn,
-            """
-            SELECT
-                kc.chunk_text,
-                kd.title,
-                kd.folder,
-                1 - (kc.embedding <=> %s::vector) AS similarity
-            FROM kb_chunks kc
-            JOIN kb_documents kd ON kc.document_id = kd.id
-            ORDER BY similarity DESC
-            LIMIT %s
-            """,
-            (query_embedding, limit),
-            as_dict=True
-        )
-
-        conn.close()
+        with get_connection() as conn:
+            results = query_all(
+                conn,
+                """
+                SELECT
+                    kc.chunk_text,
+                    kd.title,
+                    kd.folder,
+                    1 - (kc.embedding <=> %s::vector) AS similarity
+                FROM kb_chunks kc
+                JOIN kb_documents kd ON kc.document_id = kd.id
+                ORDER BY similarity DESC
+                LIMIT %s
+                """,
+                (query_embedding, limit),
+                as_dict=True
+            )
 
         return {
             "success": True,

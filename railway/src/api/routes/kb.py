@@ -74,29 +74,26 @@ async def list_documents():
         Dict with documents list and count
     """
     try:
-        conn = get_connection()
-
-        docs = query_all(
-            conn,
-            """
-            SELECT
-                id,
-                google_doc_id,
-                title,
-                folder,
-                is_context_file,
-                token_count,
-                last_synced,
-                sync_error,
-                created_at,
-                updated_at
-            FROM kb_documents
-            ORDER BY is_context_file DESC, title ASC
-            """,
-            as_dict=True
-        )
-
-        conn.close()
+        with get_connection() as conn:
+            docs = query_all(
+                conn,
+                """
+                SELECT
+                    id,
+                    google_doc_id,
+                    title,
+                    folder,
+                    is_context_file,
+                    token_count,
+                    last_synced,
+                    sync_error,
+                    created_at,
+                    updated_at
+                FROM kb_documents
+                ORDER BY is_context_file DESC, title ASC
+                """,
+                as_dict=True
+            )
 
         return {
             "status": "success",
@@ -121,33 +118,30 @@ async def get_sync_status():
         Dict with latest sync log entry
     """
     try:
-        conn = get_connection()
+        with get_connection() as conn:
+            # Get latest sync
+            latest = query_one(
+                conn,
+                """
+                SELECT *
+                FROM kb_sync_log
+                ORDER BY started_at DESC
+                LIMIT 1
+                """,
+                as_dict=True
+            )
 
-        # Get latest sync
-        latest = query_one(
-            conn,
-            """
-            SELECT *
-            FROM kb_sync_log
-            ORDER BY started_at DESC
-            LIMIT 1
-            """,
-            as_dict=True
-        )
-
-        # Get recent syncs
-        history = query_all(
-            conn,
-            """
-            SELECT *
-            FROM kb_sync_log
-            ORDER BY started_at DESC
-            LIMIT 10
-            """,
-            as_dict=True
-        )
-
-        conn.close()
+            # Get recent syncs
+            history = query_all(
+                conn,
+                """
+                SELECT *
+                FROM kb_sync_log
+                ORDER BY started_at DESC
+                LIMIT 10
+                """,
+                as_dict=True
+            )
 
         return {
             "status": "success",
@@ -217,49 +211,46 @@ async def get_kb_stats():
         Dict with document counts, chunk counts, etc.
     """
     try:
-        conn = get_connection()
+        with get_connection() as conn:
+            # Document counts
+            doc_stats = query_one(
+                conn,
+                """
+                SELECT
+                    COUNT(*) as total_documents,
+                    COUNT(*) FILTER (WHERE is_context_file = TRUE) as context_files,
+                    COUNT(*) FILTER (WHERE is_context_file = FALSE) as searchable_files,
+                    SUM(token_count) as total_tokens,
+                    MAX(last_synced) as last_sync_time
+                FROM kb_documents
+                """,
+                as_dict=True
+            )
 
-        # Document counts
-        doc_stats = query_one(
-            conn,
-            """
-            SELECT
-                COUNT(*) as total_documents,
-                COUNT(*) FILTER (WHERE is_context_file = TRUE) as context_files,
-                COUNT(*) FILTER (WHERE is_context_file = FALSE) as searchable_files,
-                SUM(token_count) as total_tokens,
-                MAX(last_synced) as last_sync_time
-            FROM kb_documents
-            """,
-            as_dict=True
-        )
+            # Chunk counts
+            chunk_stats = query_one(
+                conn,
+                """
+                SELECT
+                    COUNT(*) as total_chunks,
+                    SUM(token_count) as total_chunk_tokens
+                FROM kb_chunks
+                """,
+                as_dict=True
+            )
 
-        # Chunk counts
-        chunk_stats = query_one(
-            conn,
-            """
-            SELECT
-                COUNT(*) as total_chunks,
-                SUM(token_count) as total_chunk_tokens
-            FROM kb_chunks
-            """,
-            as_dict=True
-        )
-
-        # Sync stats
-        sync_stats = query_one(
-            conn,
-            """
-            SELECT
-                COUNT(*) as total_syncs,
-                COUNT(*) FILTER (WHERE status = 'completed') as successful_syncs,
-                COUNT(*) FILTER (WHERE status = 'failed') as failed_syncs
-            FROM kb_sync_log
-            """,
-            as_dict=True
-        )
-
-        conn.close()
+            # Sync stats
+            sync_stats = query_one(
+                conn,
+                """
+                SELECT
+                    COUNT(*) as total_syncs,
+                    COUNT(*) FILTER (WHERE status = 'completed') as successful_syncs,
+                    COUNT(*) FILTER (WHERE status = 'failed') as failed_syncs
+                FROM kb_sync_log
+                """,
+                as_dict=True
+            )
 
         return {
             "status": "success",
