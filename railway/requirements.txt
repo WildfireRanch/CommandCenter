@@ -24,3 +24,8 @@ python-dotenv==1.1.1
 
 # Database (for future use)
 psycopg2-binary==2.9.10
+
+# Google APIs (for Knowledge Base sync)
+google-api-python-client==2.184.0
+google-auth-httplib2==0.2.0
+google-auth-oauthlib==1.2.2

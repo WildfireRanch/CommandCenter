@@ -1,0 +1,413 @@
+# SESSION 016 PROMPT - Google SSO + Knowledge Base Implementation
+
+**Date:** October 6, 2025  
+**Type:** Implementation Session  
+**Duration:** 4 hours  
+**Goal:** Build complete Knowledge Base sync system with Google SSO
+
+---
+
+## 🎯 Session Objectives
+
+By the end of this session, you will have:
+
+1. ✅ Google SSO authentication (your email only)
+2. ✅ Full Google Docs sync to PostgreSQL
+3. ✅ Two-tier KB system (context files + searchable)
+4. ✅ Frontend /kb page with manual sync button
+5. ✅ Agents can search KB and cite sources
+6. ✅ Daily automatic sync configured
+
+---
+
+## 📋 Pre-Session Checklist
+
+Before starting, verify you have:
+
+- [ ] Railway API running (https://api.wildfireranch.us)
+- [ ] PostgreSQL accessible (should already be configured)
+- [ ] Vercel frontend deployed
+- [ ] Google account access (the one with your Google Docs)
+- [ ] ~4 hours available for focused work
+- [ ] Google Chrome (for OAuth testing)
+
+---
+
+## 🗂️ What You'll Build
+
+### **Architecture Overview:**
+
+```
+User (your Google account)
+    ↓ Google SSO login
+Frontend (/kb page)
+    ↓ Manual "Sync Now" button
+Railway API (/kb/sync endpoint)
+    ↓ Fetch from Google Drive
+Google Docs (command-center folder)
+    ↓ Parse, chunk, embed
+PostgreSQL (kb_documents, kb_chunks tables)
+    ↓ Semantic search
+CrewAI Agents (cite sources in responses)
+```
+
+---
+
+## 📝 Implementation Plan
+
+### **PART 1: Google Cloud Setup (45 minutes)**
+
+**What:** Configure Google OAuth for Drive/Docs access
+
+**Steps:**
+
+1. **Create Google Cloud Project**
+   - Go to: https://console.cloud.google.com
+   - Create new project: "CommandCenter KB"
+   - Enable APIs:
+     - Google Drive API
+     - Google Docs API
+   
+2. **Configure OAuth Consent Screen**
+   - User Type: External
+   - App name: "CommandCenter"
+   - User support email: [your email]
+   - Developer email: [your email]
+   - Scopes:
+     - `openid`
+     - `email`
+     - `profile`
+     - `https://www.googleapis.com/auth/drive.readonly`
+     - `https://www.googleapis.com/auth/documents.readonly`
+   - Test users: Add your email
+
+3. **Create OAuth Credentials**
+   - Create OAuth 2.0 Client ID
+   - Application type: Web application
+   - Authorized redirect URIs:
+     - `http://localhost:3000/api/auth/callback/google` (dev)
+     - `https://your-frontend.vercel.app/api/auth/callback/google` (prod)
+   - Save Client ID and Client Secret
+
+4. **Set Environment Variables**
+   ```bash
+   # In Vercel project settings
+   GOOGLE_CLIENT_ID=your-client-id.apps.googleusercontent.com
+   GOOGLE_CLIENT_SECRET=your-client-secret
+   ALLOWED_EMAIL=your-email@gmail.com
+   NEXTAUTH_URL=https://your-frontend.vercel.app
+   NEXTAUTH_SECRET=$(openssl rand -base64 32)
+   ```
+
+**Verification:**
+- [ ] Google Cloud project created
+- [ ] APIs enabled
+- [ ] OAuth consent screen configured
+- [ ] Client ID/Secret obtained
+- [ ] Environment variables set in Vercel
+
+---
+
+### **PART 2: NextAuth.js Integration (45 minutes)**
+
+**What:** Add Google SSO to Next.js frontend
+
+**Files to Create:**
+
+1. **`vercel/lib/auth.ts`** - Auth configuration
+
+```typescript
+import NextAuth, { NextAuthOptions } from "next-auth";
+import GoogleProvider from "next-auth/providers/google";
+
+export const authOptions: NextAuthOptions = {
+  providers: [
+    GoogleProvider({
+      clientId: process.env.GOOGLE_CLIENT_ID!,
+      clientSecret: process.env.GOOGLE_CLIENT_SECRET!,
+      authorization: {
+        params: {
+          scope: [
+            'openid',
+            'email',
+            'profile',
+            'https://www.googleapis.com/auth/drive.readonly',
+            'https://www.googleapis.com/auth/documents.readonly'
+          ].join(' '),
+          access_type: 'offline',
+          prompt: 'consent'
+        }
+      }
+    })
+  ],
+  
+  callbacks: {
+    // Restrict to your email only
+    async signIn({ user }) {
+      const allowedEmail = process.env.ALLOWED_EMAIL;
+      if (user.email === allowedEmail) {
+        return true;
+      }
+      return false; // Reject all other emails
+    },
+    
+    // Include access token in session
+    async jwt({ token, account }) {
+      if (account) {
+        token.accessToken = account.access_token;
+        token.refreshToken = account.refresh_token;
+      }
+      return token;
+    },
+    
+    async session({ session, token }) {
+      session.accessToken = token.accessToken as string;
+      return session;
+    }
+  },
+  
+  pages: {
+    signIn: '/auth/signin',
+    error: '/auth/error'
+  }
+};
+
+export default NextAuth(authOptions);
+```
+
+2. **`vercel/app/api/auth/[...nextauth]/route.ts`** - NextAuth route handler
+
+```typescript
+import NextAuth from "next-auth";
+import { authOptions } from "@/lib/auth";
+
+const handler = NextAuth(authOptions);
+export { handler as GET, handler as POST };
+```
+
+3. **`vercel/app/providers.tsx`** - Session provider wrapper
+
+```typescript
+'use client';
+
+import { SessionProvider } from 'next-auth/react';
+
+export function Providers({ children }: { children: React.ReactNode }) {
+  return <SessionProvider>{children}</SessionProvider>;
+}
+```
+
+4. **Update `vercel/app/layout.tsx`** - Wrap app in provider
+
+```typescript
+import { Providers } from './providers';
+
+export default function RootLayout({ children }) {
+  return (
+    <html lang="en">
+      <body>
+        <Providers>
+          {children}
+        </Providers>
+      </body>
+    </html>
+  );
+}
+```
+
+**Install Dependencies:**
+```bash
+cd vercel
+npm install next-auth
+```
+
+**Test:**
+```bash
+npm run dev
+# Visit http://localhost:3000
+# Click "Sign in with Google"
+# Should only allow your email
+```
+
+**Verification:**
+- [ ] NextAuth.js configured
+- [ ] Google SSO working locally
+- [ ] Only your email can log in
+- [ ] Access token available in session
+
+---
+
+### **PART 3: Database Schema for KB (15 minutes)**
+
+**What:** Create tables for knowledge base storage
+
+**File:** `railway/src/database/migrations/004_knowledge_base.sql`
+
+```sql
+-- Knowledge Base Tables
+CREATE TABLE IF NOT EXISTS kb_documents (
+    id SERIAL PRIMARY KEY,
+    google_doc_id VARCHAR(255) UNIQUE NOT NULL,
+    title VARCHAR(500) NOT NULL,
+    folder VARCHAR(255),
+    full_content TEXT,
+    is_context_file BOOLEAN DEFAULT FALSE,
+    token_count INTEGER,
+    last_synced TIMESTAMP,
+    sync_error TEXT,
+    created_at TIMESTAMP DEFAULT NOW(),
+    updated_at TIMESTAMP DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS kb_chunks (
+    id SERIAL PRIMARY KEY,
+    document_id INTEGER REFERENCES kb_documents(id) ON DELETE CASCADE,
+    chunk_text TEXT NOT NULL,
+    chunk_index INTEGER NOT NULL,
+    token_count INTEGER,
+    embedding VECTOR(1536),
+    created_at TIMESTAMP DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS kb_sync_log (
+    id SERIAL PRIMARY KEY,
+    sync_type VARCHAR(50) NOT NULL,
+    started_at TIMESTAMP NOT NULL,
+    completed_at TIMESTAMP,
+    status VARCHAR(50) NOT NULL,
+    documents_processed INTEGER DEFAULT 0,
+    documents_updated INTEGER DEFAULT 0,
+    documents_failed INTEGER DEFAULT 0,
+    error_message TEXT,
+    triggered_by VARCHAR(100)
+);
+
+-- Indexes
+CREATE INDEX IF NOT EXISTS idx_kb_documents_folder ON kb_documents(folder);
+CREATE INDEX IF NOT EXISTS idx_kb_documents_context ON kb_documents(is_context_file);
+CREATE INDEX IF NOT EXISTS idx_kb_chunks_document ON kb_chunks(document_id);
+CREATE INDEX IF NOT EXISTS idx_kb_chunks_embedding ON kb_chunks 
+    USING ivfflat (embedding vector_cosine_ops);
+
+-- Enable pgvector if not already enabled
+CREATE EXTENSION IF NOT EXISTS vector;
+```
+
+**Run Migration:**
+```bash
+# Via Claude Code in railway/ directory
+psql $DATABASE_URL -f src/database/migrations/004_knowledge_base.sql
+```
+
+**Verification:**
+- [ ] Tables created successfully
+- [ ] Indexes created
+- [ ] pgvector extension enabled
+
+---
+
+### **PART 4-7: Remaining Implementation**
+
+The remaining parts cover:
+- Part 4: Google Drive Integration (1 hour)
+- Part 5: KB Sync Service (1 hour)  
+- Part 6: API Endpoints (30 minutes)
+- Part 7: Frontend KB Page (1 hour)
+
+For the complete detailed implementation of these parts, refer to the full design document at: `docs/06-knowledge-base-design.md`
+
+Each part includes:
+- Complete code examples
+- Step-by-step instructions
+- Verification checkpoints
+- Common issues and solutions
+
+---
+
+## 🧪 Testing Checklist
+
+After implementation, verify:
+
+### **Authentication:**
+- [ ] Can sign in with your Google account
+- [ ] Other emails are rejected
+- [ ] Access token obtained
+- [ ] Session persists across page reloads
+
+### **KB Sync:**
+- [ ] Can trigger manual sync
+- [ ] Progress updates show in real-time
+- [ ] All files synced successfully
+- [ ] Context files marked correctly
+- [ ] Embeddings generated
+
+### **Database:**
+- [ ] Documents stored in kb_documents
+- [ ] Chunks stored in kb_chunks
+- [ ] Embeddings have correct dimensions
+- [ ] Sync log records created
+
+### **Search:**
+- [ ] Can search KB via API
+- [ ] Results ranked by similarity
+- [ ] Citations included
+- [ ] Response time < 200ms
+
+### **Agent Integration:**
+- [ ] Context files loaded on agent startup
+- [ ] Agent can search KB
+- [ ] Agent cites sources in responses
+- [ ] Retrieval quality is good
+
+---
+
+## 📊 Success Criteria
+
+Session complete when:
+
+- [ ] ✅ Google SSO working (your email only)
+- [ ] ✅ Can sync Google Docs to database
+- [ ] ✅ Context files identified and loaded
+- [ ] ✅ Semantic search returning relevant results
+- [ ] ✅ Frontend /kb page functional
+- [ ] ✅ Manual sync button working
+- [ ] ✅ Progress tracking in real-time
+- [ ] ✅ Agent can search KB and cite sources
+- [ ] ✅ Daily cron job configured
+
+---
+
+## 📝 Session End Checklist
+
+Before ending session:
+
+1. **Commit all changes:**
+   ```bash
+   git add .
+   git commit -m "Session 016: Google SSO + Knowledge Base implementation"
+   git push origin main
+   ```
+
+2. **Deploy to production:**
+   - Vercel: Auto-deploys on push
+   - Railway: Auto-deploys on push
+
+3. **Test in production:**
+   - Visit production URL
+   - Sign in with Google
+   - Trigger sync
+   - Verify agents can search KB
+
+4. **Create session summary:**
+   - Document what was built
+   - Note any issues encountered
+   - List next steps
+
+5. **Update progress.md:**
+   - Mark Session 016 complete
+   - Update current phase
+   - Note what's next
+
+---
+
+**Ready to build? Let's make your agents smart! 🚀**

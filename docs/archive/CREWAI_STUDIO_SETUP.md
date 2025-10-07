@@ -1,3 +1,4 @@
+# ARCHIVED - Not Used in CommandCenter V1
 # 🎨 CrewAI Studio Setup Guide
 
 ## Overview

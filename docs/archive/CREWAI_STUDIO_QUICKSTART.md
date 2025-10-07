@@ -1,3 +1,4 @@
+# ARCHIVED - Not Used in CommandCenter V1
 # CrewAI Studio - Quick Start Tutorial
 
 **Goal:** Create your first agent and crew in 10 minutes

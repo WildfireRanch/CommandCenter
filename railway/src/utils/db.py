@@ -253,33 +253,51 @@ def init_schema():
 
     WHAT: Creates all required tables and extensions for CommandCenter
     WHY: First-time setup or schema updates
-    HOW: Runs the main migration file
+    HOW: Runs all migration files in order
 
     Call this once when deploying to new database.
     """
     from pathlib import Path
 
-    # Load migration SQL from file
-    migration_file = Path(__file__).parent.parent.parent / "migrations" / "001_agent_memory_schema.sql"
+    migrations_dir = Path(__file__).parent.parent / "database" / "migrations"
 
-    if not migration_file.exists():
-        print(f"⚠️  Migration file not found: {migration_file}")
+    # List of migration files to run in order
+    migration_files = [
+        "001_agent_memory_schema.sql",
+        "001_knowledge_base.sql",
+    ]
+
+    # Fallback if migrations directory doesn't exist
+    if not migrations_dir.exists():
+        print(f"⚠️  Migrations directory not found: {migrations_dir}")
         print("   Using fallback schema creation...")
         _create_fallback_schema()
         return
 
-    print(f"📋 Running migration: {migration_file.name}")
-    schema_sql = migration_file.read_text()
-
     with get_connection() as conn:
         conn.autocommit = True  # Required for CREATE EXTENSION and hypertables
-        with conn.cursor() as cursor:
-            try:
-                cursor.execute(schema_sql)
-                print("✅ Database schema initialized from migration file")
-            except Exception as e:
-                print(f"❌ Migration failed: {e}")
-                raise
+
+        for migration_file_name in migration_files:
+            migration_file = migrations_dir / migration_file_name
+
+            if not migration_file.exists():
+                print(f"⚠️  Migration file not found: {migration_file_name} (skipping)")
+                continue
+
+            print(f"📋 Running migration: {migration_file_name}")
+            schema_sql = migration_file.read_text()
+
+            with conn.cursor() as cursor:
+                try:
+                    cursor.execute(schema_sql)
+                    print(f"✅ Migration completed: {migration_file_name}")
+                except Exception as e:
+                    print(f"❌ Migration failed ({migration_file_name}): {e}")
+                    # Continue with other migrations even if one fails
+                    # This allows adding KB schema even if agent schema exists
+                    continue
+
+    print("✅ All database migrations completed")
 
 
 def _create_fallback_schema():

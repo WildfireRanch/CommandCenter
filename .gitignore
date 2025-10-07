@@ -45,3 +45,20 @@ secrets/
 *.key
 google-creds.json
 google-token.json
+
+# NextAuth
+.next-auth/
+.auth/
+
+# Vercel
+.vercel/
+.vercel
+
+# Next.js build output
+.next/
+out/
+*.next/
+
+# Database migrations (keep schema, ignore data dumps)
+*.sql.backup
+*.dump

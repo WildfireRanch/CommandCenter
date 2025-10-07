@@ -343,3 +343,36 @@ CommandCenterProject (Railway)
 
 ---
 
+
+---
+
+### Session 015 - October 6, 2025
+**Type:** Architecture Decision + Documentation
+**Duration:** ~2 hours
+**Status:** ✅ **COMPLETE - DECISIONS FINALIZED**
+
+**Key Decisions:**
+1. **Removed CrewAI Studio** - Not needed for solo developer workflow
+   - Too complex (5,874 lines, 20-30 min deployments)
+   - Better to use Claude Code directly
+   - Archived all Studio documentation
+
+2. **Knowledge Base Design Finalized**
+   - Two-tier system: Context files (always loaded) + Full KB (searchable)
+   - Google SSO for authentication + Drive/Docs access
+   - Manual sync button in frontend
+   - Daily automatic sync (cron)
+
+3. **Session 016 Planned**
+   - Google OAuth setup
+   - KB sync implementation
+   - Frontend /kb page
+   - Agent integration
+
+**Documentation Created:**
+- 06-knowledge-base-design.md (complete KB architecture)
+- SESSION_016_PROMPT.md (4-hour implementation guide)
+- organize-repo.sh (cleanup script)
+
+**Next Session:** SESSION_016 - Google SSO + KB Implementation (~4 hours)
+

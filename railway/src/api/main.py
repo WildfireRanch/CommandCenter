@@ -383,6 +383,54 @@ def create_app() -> FastAPI:
                 detail=f"Schema initialization failed: {str(e)}"
             )
 
+    @app.post("/db/init-kb-schema")
+    async def initialize_kb_schema():
+        """
+        Initialize Knowledge Base schema only.
+
+        WHAT: Creates KB tables (kb_documents, kb_chunks, kb_sync_log)
+        WHY: Add KB functionality to existing database
+        HOW: Runs 001_knowledge_base.sql migration
+
+        Returns:
+            dict: Success status and message
+        """
+        try:
+            from pathlib import Path
+            from ..utils.db import get_connection
+
+            migrations_dir = Path(__file__).parent.parent / "database" / "migrations"
+            kb_migration = migrations_dir / "001_knowledge_base.sql"
+
+            if not kb_migration.exists():
+                raise HTTPException(
+                    status_code=500,
+                    detail=f"KB migration file not found: {kb_migration}"
+                )
+
+            logger.info("kb_schema_init_requested")
+            sql = kb_migration.read_text()
+
+            with get_connection() as conn:
+                conn.autocommit = True
+                with conn.cursor() as cursor:
+                    cursor.execute(sql)
+
+            logger.info("kb_schema_init_completed")
+
+            return {
+                "status": "success",
+                "message": "Knowledge Base schema initialized successfully",
+                "timestamp": time.time(),
+            }
+
+        except Exception as e:
+            logger.exception("kb_schema_init_failed error=%s", e)
+            raise HTTPException(
+                status_code=500,
+                detail=f"KB schema initialization failed: {str(e)}"
+            )
+
     @app.get("/db/schema-status")
     async def schema_status():
         """
