@@ -1,8 +1,8 @@
 # CommandCenter - Project Progress
 
-Last Updated: October 7, 2025 - 03:15 UTC
+Last Updated: October 7, 2025 - 17:30 UTC
 
-## Current Phase: Phase 5 - Knowledge Base COMPLETE! 🎉 → Phase 6 - AGENT KB INTEGRATION
+## Current Phase: Phase 6 - Agent KB Integration - BACKEND COMPLETE! ✅
 
 ### Completed ✅
 - [x] GitHub repo created
@@ -36,6 +36,7 @@ Last Updated: October 7, 2025 - 03:15 UTC
 - [x] **Frontend /studio page ready** (iframe, fullscreen, new tab)
 - [x] **Phase 4: PRODUCTION DEPLOYMENT - COMPLETE!** 🎉
 - [x] **Phase 5: KNOWLEDGE BASE SYSTEM - COMPLETE!** 🎉
+- [x] **Phase 6: AGENT KB INTEGRATION - BACKEND COMPLETE!** 🎉
 
 ### Phase 5 Complete! ✅
 **Knowledge Base System Fully Implemented:**
@@ -48,13 +49,29 @@ Last Updated: October 7, 2025 - 03:15 UTC
 - ✅ Two-tier KB system (context + searchable)
 - ✅ API endpoints: /kb/sync, /kb/documents, /kb/search, /kb/stats
 
-### Phase 6 Goals 🔄
-- [ ] Test KB end-to-end (Google SSO, sync, search)
-- [ ] Integrate search_kb tool with CrewAI agents
-- [ ] Load context files into agent system prompts
-- [ ] Verify agent source citations
+### Phase 6 Complete! ✅ (Backend - Awaiting User Testing)
+**Agent KB Integration Implemented:**
+- ✅ **Fixed critical DB connection bug** (all KB endpoints now operational)
+- ✅ **KB search tool created** (`railway/src/tools/kb_search.py`)
+  - Semantic search with source citations
+  - Context file loader for system prompts
+  - Error handling and formatting
+- ✅ **Agent integration complete** (`railway/src/agents/solar_controller.py`)
+  - Added search_kb_tool to agent
+  - Updated agent backstory to mention KB access
+  - Agent can now cite sources
+- ✅ **Deployed to Railway** - all systems operational
+
+**Awaiting User Testing:**
+- ⏳ Test Google SSO login at https://mcp.wildfireranch.us/kb
+- ⏳ Run manual KB sync (requires GOOGLE_DOCS_KB_FOLDER_ID env var)
+- ⏳ Test KB search functionality
+- ⏳ Verify agent uses KB to answer questions
+- ⏳ Confirm source citations in agent responses
+
+**Deferred to Future:**
 - [ ] Add automatic daily sync (cron job)
-- [ ] Production polish and error handling
+- [ ] Load context files into agent system prompts (implemented but not tested)
 
 ### Up Next (After Studio Integration) ⏳
 - Frontend UI improvements (energy charts, chat interface)
@@ -452,6 +469,60 @@ CommandCenterProject (Railway)
 - SESSION_016_WHERE_VARS_GO.md (variable locations)
 
 **Next Session (017):** Testing KB system, agent integration, production polish
+
+---
+
+### Session 017 - October 7, 2025
+**Type:** KB Bug Fixes + Agent Integration
+**Duration:** ~1 hour
+**Status:** ✅ **BACKEND COMPLETE - READY FOR USER TESTING**
+
+**Major Accomplishments:**
+1. **Critical Bug Fix**
+   - Fixed database connection context manager usage in KB endpoints
+   - Error: `'_GeneratorContextManager' object has no attribute 'cursor'`
+   - Root cause: Using `conn = get_connection()` instead of `with get_connection() as conn:`
+   - Fixed 3 endpoints in kb.py, 2 functions in sync.py
+   - All KB endpoints now operational ✅
+
+2. **KB Search Tool Created**
+   - New file: `railway/src/tools/kb_search.py` (260 lines)
+   - `search_knowledge_base()` - Semantic search with citations
+   - `get_context_files()` - Load critical docs into system prompts
+   - Error handling, formatting, truncation for readability
+   - CLI testing interface included
+
+3. **Agent Integration**
+   - Added `search_kb_tool` to `railway/src/agents/solar_controller.py`
+   - Updated agent backstory to mention KB access
+   - Agent now has 3 tools: SolArk status + detailed data + KB search
+   - Agent can cite sources from KB documents
+
+**Files Modified:**
+- railway/src/api/routes/kb.py (DB connection fixes)
+- railway/src/kb/sync.py (DB connection fixes)
+- railway/src/tools/kb_search.py (NEW)
+- railway/src/tools/__init__.py (Added KB exports)
+- railway/src/agents/solar_controller.py (Added KB tool)
+
+**Testing Results:**
+- ✅ `/kb/stats` endpoint working (returns empty data as expected)
+- ✅ `/kb/documents` endpoint working (empty list as expected)
+- ✅ API health check passing
+- ✅ Code deployed to Railway
+
+**User Testing Required:**
+- ⏳ Google SSO login at https://mcp.wildfireranch.us/kb
+- ⏳ Manual KB sync (requires GOOGLE_DOCS_KB_FOLDER_ID in Railway)
+- ⏳ Test KB search functionality
+- ⏳ Test agent KB integration
+- ⏳ Verify source citations
+
+**Documentation Created:**
+- SESSION_017_COMPLETION_SUMMARY.md (comprehensive summary)
+- KB_USER_TESTING_GUIDE.md (step-by-step testing guide)
+
+**Next Steps:** User testing of KB sync and agent integration with real data
 
 ---
 
