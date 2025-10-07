@@ -817,6 +817,13 @@ def create_app() -> FastAPI:
                 detail=f"Agent execution failed: {str(e)}"
             )
     
+    # ─────────────────────────────────────────────────────────────────────────
+    # Include API Routes
+    # ─────────────────────────────────────────────────────────────────────────
+
+    from .routes import kb
+    app.include_router(kb.router)
+
     logger.info("✅ CommandCenter API initialized")
     return app
 
