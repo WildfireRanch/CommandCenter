@@ -23,11 +23,39 @@ from crewai import Agent, Crew, Task
 from crewai.tools import tool
 
 from ..tools.solark import get_solark_status, format_status_summary
+from ..tools.kb_search import search_knowledge_base
 
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Tool Definitions (CrewAI-compatible wrappers)
 # ─────────────────────────────────────────────────────────────────────────────
+
+@tool("Search Knowledge Base")
+def search_kb_tool(query: str) -> str:
+    """
+    Search the knowledge base for system documentation and procedures.
+
+    Use this tool when you need information about:
+    - Solar system specifications and limits
+    - Battery operating thresholds (min SOC, target SOC, etc.)
+    - Standard operating procedures
+    - System maintenance guidelines
+    - Hardware specifications
+    - Business or operational policies
+
+    Args:
+        query: Natural language search query
+
+    Returns:
+        str: Relevant information with source citations
+
+    Example:
+        "What is the minimum battery SOC threshold?"
+        "How should I handle low battery situations?"
+        "What are the solar panel specifications?"
+    """
+    return search_knowledge_base(query, limit=5)
+
 
 @tool("Get SolArk Status")
 def get_energy_status() -> str:
@@ -109,13 +137,18 @@ def create_energy_monitor_agent() -> Agent:
     return Agent(
         role="Energy Systems Monitor",
         goal="Monitor solar, battery, and energy systems and provide clear, accurate status reports",
-        backstory="""You are an expert energy systems analyst specializing in 
-        solar + battery installations. You monitor a SolArk inverter system and 
-        help the homeowner understand their energy production, consumption, and 
-        battery status. You communicate clearly with accurate numbers and helpful 
-        context. When asked about status, you always use the real-time tools to 
-        get current data - never guess or use old information.""",
-        tools=[get_energy_status, get_detailed_status],
+        backstory="""You are an expert energy systems analyst specializing in
+        solar + battery installations. You monitor a SolArk inverter system and
+        help the homeowner understand their energy production, consumption, and
+        battery status. You communicate clearly with accurate numbers and helpful
+        context. When asked about status, you always use the real-time tools to
+        get current data - never guess or use old information.
+
+        You have access to a knowledge base with detailed system documentation,
+        operating procedures, and specifications. When you need information about
+        thresholds, limits, or procedures, use the Search Knowledge Base tool.
+        Always cite your sources when referencing information from the KB.""",
+        tools=[get_energy_status, get_detailed_status, search_kb_tool],
         verbose=True,
         allow_delegation=False,
     )
