@@ -90,10 +90,9 @@ async def preview_sync(
             - estimated_tokens: Rough token estimate
             - file_types: Breakdown by file type
     """
-    if not authorization or not authorization.startswith("Bearer "):
-        raise HTTPException(status_code=401, detail="Missing or invalid access token")
-
-    access_token = authorization.replace("Bearer ", "")
+    # Try to use service account first, fall back to OAuth token
+    drive_service = None
+    auth_method = "unknown"
 
     # Use folder ID from env if not provided
     if not folder_id:
@@ -107,8 +106,26 @@ async def preview_sync(
     logger.info(f"Previewing KB sync for folder {folder_id}")
 
     try:
-        # Get Google Drive service
-        drive_service = get_drive_service(access_token)
+        # Try service account first
+        from ...kb.google_drive import get_drive_service_with_service_account
+        try:
+            drive_service = get_drive_service_with_service_account()
+            auth_method = "service_account"
+            logger.info("Using service account for preview")
+        except Exception as sa_error:
+            logger.warning(f"Service account failed: {sa_error}, trying OAuth token")
+
+            # Fall back to OAuth token
+            if not authorization or not authorization.startswith("Bearer "):
+                raise HTTPException(
+                    status_code=401,
+                    detail="Service account not configured and no OAuth token provided"
+                )
+
+            access_token = authorization.replace("Bearer ", "")
+            drive_service = get_drive_service(access_token)
+            auth_method = "oauth_token"
+            logger.info("Using OAuth token for preview")
 
         # List files recursively
         files = list_files_recursive(
@@ -148,6 +165,7 @@ async def preview_sync(
 
         return {
             "status": "success",
+            "auth_method": auth_method,
             "total_files": len(files),
             "total_folders": len(files_by_folder),
             "google_docs_count": google_docs_count,

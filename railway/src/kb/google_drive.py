@@ -5,15 +5,83 @@
 
 from typing import List, Dict, Optional
 import logging
+import os
+import json
 
 from google.oauth2.credentials import Credentials
+from google.oauth2 import service_account
 from googleapiclient.discovery import build
 from googleapiclient.errors import HttpError
 
 logger = logging.getLogger(__name__)
 
+# Scopes needed for Drive and Docs readonly access
+SCOPES = [
+    'https://www.googleapis.com/auth/drive.readonly',
+    'https://www.googleapis.com/auth/documents.readonly'
+]
 
-def get_drive_service(access_token: str):
+
+def get_service_account_credentials():
+    """
+    Get service account credentials from environment or file.
+
+    Returns:
+        Service account credentials with Drive/Docs scopes
+    """
+    # Try to get from environment variable (Railway)
+    service_account_json = os.getenv('GOOGLE_SERVICE_ACCOUNT_JSON')
+
+    if service_account_json:
+        # Parse JSON from environment variable
+        service_account_info = json.loads(service_account_json)
+        credentials = service_account.Credentials.from_service_account_info(
+            service_account_info,
+            scopes=SCOPES
+        )
+        logger.info("Using service account from environment variable")
+        return credentials
+
+    # Fallback to file (local development)
+    service_account_file = os.path.join(
+        os.path.dirname(__file__),
+        '../../../.google-service-account.json'
+    )
+
+    if os.path.exists(service_account_file):
+        credentials = service_account.Credentials.from_service_account_file(
+            service_account_file,
+            scopes=SCOPES
+        )
+        logger.info("Using service account from file")
+        return credentials
+
+    raise Exception("No service account credentials found. Set GOOGLE_SERVICE_ACCOUNT_JSON environment variable.")
+
+
+def get_drive_service_with_service_account():
+    """
+    Create Google Drive service using service account.
+
+    Returns:
+        Google Drive API service instance
+    """
+    credentials = get_service_account_credentials()
+    return build('drive', 'v3', credentials=credentials)
+
+
+def get_docs_service_with_service_account():
+    """
+    Create Google Docs service using service account.
+
+    Returns:
+        Google Docs API service instance
+    """
+    credentials = get_service_account_credentials()
+    return build('docs', 'v1', credentials=credentials)
+
+
+def get_drive_service(access_token: str = None):
     """
     Create Google Drive service from OAuth access token.
 

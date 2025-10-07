@@ -61,4 +61,4 @@ out/
 
 # Database migrations (keep schema, ignore data dumps)
 *.sql.backup
-*.dump
+*.dump.google-service-account.json
