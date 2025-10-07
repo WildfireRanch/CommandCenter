@@ -1,8 +1,8 @@
 # Session 017: KB Testing & Agent Integration - COMPLETION SUMMARY
 
 **Date:** October 7, 2025
-**Duration:** ~1 hour
-**Status:** ✅ BACKEND COMPLETE - Ready for User Testing
+**Duration:** ~2 hours
+**Status:** ✅ DEPLOYED & TESTED - Google SSO Working, Ready for KB Sync
 
 ---
 
@@ -19,8 +19,11 @@
 1. ✅ **Fixed critical database connection bug** in KB endpoints
 2. ✅ **Created KB search tool** for CrewAI agents
 3. ✅ **Integrated KB search** into solar_controller agent
-4. ✅ **Deployed to Railway** - all backend systems operational
-5. ⏳ **Ready for user testing** - requires manual KB sync
+4. ✅ **Fixed TypeScript error** in Vercel deployment
+5. ✅ **Fixed OAuth redirect URI** in Google Cloud Console
+6. ✅ **Deployed to Railway & Vercel** - all systems operational
+7. ✅ **Tested Google SSO** - Successfully authenticated
+8. ⏳ **Ready for KB sync** - User to organize docs and trigger sync
 
 ---
 
@@ -399,40 +402,93 @@ Next: Test with actual KB data after sync
 
 ---
 
+## 🔧 Additional Issues Fixed During Testing
+
+### Issue 1: TypeScript Build Error in Vercel
+**Error:** `Property 'accessToken' does not exist on type 'Session'`
+
+**Fix:**
+- Created `vercel/src/types/next-auth.d.ts`
+- Extended NextAuth's `Session` and `JWT` interfaces
+- Added TypeScript declarations for custom session properties
+
+**Result:** Vercel build successful ✅
+
+### Issue 2: OAuth Redirect URI Mismatch
+**Error:** `Error 400: redirect_uri_mismatch`
+
+**Fix:**
+- Added redirect URI to Google Cloud Console OAuth client
+- URI: `https://mcp.wildfireranch.us/api/auth/callback/google`
+- Also configured authorized JavaScript origin
+
+**Result:** Google SSO working ✅
+
+### Discovery: Subfolder Limitation
+**Found:** Current implementation only syncs Google Docs directly in the specified folder, NOT subfolders
+
+**Query used:**
+```python
+query = f"'{folder_id}' in parents and mimeType='application/vnd.google-apps.document' and trashed=false"
+```
+
+**Recommendation for next session:**
+- Option 1: Place all KB docs in main folder (no subfolders)
+- Option 2: Add recursive subfolder scanning support
+
+---
+
 ## ✅ Session Success Criteria
 
 **Completed:**
-- ✅ Fixed critical DB connection bug
+- ✅ Fixed critical DB connection bug (5 functions, 2 files)
 - ✅ All KB endpoints tested and working
-- ✅ KB search tool created
+- ✅ KB search tool created and integrated
 - ✅ Agent integration complete
-- ✅ Code deployed to Railway
+- ✅ Fixed TypeScript build error
+- ✅ Fixed OAuth redirect URI
+- ✅ Code deployed to Railway & Vercel
+- ✅ Google SSO tested and working
 - ✅ Documentation complete
 
-**Pending User Testing:**
-- ⏳ Google SSO login
-- ⏳ Manual KB sync
-- ⏳ Search functionality
-- ⏳ Agent KB integration
+**Ready for Next Session:**
+- ⏳ User to organize KB docs (main folder vs subfolders)
+- ⏳ Trigger manual KB sync
+- ⏳ Test semantic search functionality
+- ⏳ Test agent KB integration with real data
 
 ---
 
 ## 🎉 Summary
 
-**Session 017 was a success!** We:
+**Session 017 was a complete success!** We:
 
 1. **Fixed a critical bug** that was preventing all KB endpoints from working
 2. **Created a robust KB search tool** with error handling and citations
 3. **Integrated KB search into agents** so they can access documentation
-4. **Deployed everything to production** - backend is ready
+4. **Fixed deployment issues** (TypeScript error, OAuth redirect)
+5. **Successfully tested authentication** - Google SSO working
+6. **Deployed everything to production** - all systems operational
 
-**The KB system is now fully operational on the backend!** The next step is for you to:
-1. Visit https://mcp.wildfireranch.us/kb
-2. Sign in with Google
-3. Run a KB sync
-4. Test the search and agent integration
+**The KB system is now fully deployed and ready!**
 
-Once the KB is populated with data, the agent will be able to answer questions like:
+**Testing Results:**
+- ✅ API health check: All systems operational
+- ✅ KB endpoints: `/documents`, `/stats`, `/stats` all working
+- ✅ Frontend deployed: https://mcp.wildfireranch.us/kb
+- ✅ Google SSO: Authentication successful
+- ⏳ KB sync: Ready to test (pending doc organization)
+
+**Next Steps for User:**
+1. Organize KB documents in Google Drive:
+   - Current: Only scans main folder (not subfolders)
+   - Place docs directly in folder ID: `1P6Dez9BRnIxnt-UNJzC4Iwl4AXF5H5DB`
+   - Or request subfolder support in next session
+2. Visit https://mcp.wildfireranch.us/kb (already signed in!)
+3. Click "Sync Now" to import documents
+4. Test search and agent integration
+
+Once KB is populated, the agent will answer questions like:
 - "What is the minimum battery SOC threshold?"
 - "How should I handle low battery situations?"
 - "What are the solar panel specifications?"
@@ -441,5 +497,27 @@ All with accurate information and source citations! 🎓
 
 ---
 
-**Status:** ✅ Backend Complete - Ready for User Testing
-**Next Session:** Test KB sync and agent integration with real data
+## 📋 Commits Made This Session
+
+1. **Fix KB database connection context manager usage**
+   - Fixed all KB endpoints to use proper `with` statement
+   - 2 files modified, 5 functions fixed
+
+2. **Add KB search tool and integrate with CrewAI agents**
+   - Created `kb_search.py` with semantic search
+   - Integrated with solar_controller agent
+   - 3 files modified, 1 file created
+
+3. **Session 017: Complete documentation and testing guide**
+   - SESSION_017_COMPLETION_SUMMARY.md
+   - KB_USER_TESTING_GUIDE.md
+   - Updated progress.md
+
+4. **Fix TypeScript error for NextAuth session.accessToken**
+   - Created type definitions file
+   - Extended NextAuth interfaces
+
+---
+
+**Status:** ✅ Deployed & Tested - Google SSO Working
+**Next Session:** KB sync and agent testing with real data

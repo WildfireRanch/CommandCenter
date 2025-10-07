@@ -473,9 +473,9 @@ CommandCenterProject (Railway)
 ---
 
 ### Session 017 - October 7, 2025
-**Type:** KB Bug Fixes + Agent Integration
-**Duration:** ~1 hour
-**Status:** ✅ **BACKEND COMPLETE - READY FOR USER TESTING**
+**Type:** KB Bug Fixes + Agent Integration + Deployment Testing
+**Duration:** ~2 hours
+**Status:** ✅ **DEPLOYED & TESTED - GOOGLE SSO WORKING**
 
 **Major Accomplishments:**
 1. **Critical Bug Fix**
@@ -498,31 +498,39 @@ CommandCenterProject (Railway)
    - Agent now has 3 tools: SolArk status + detailed data + KB search
    - Agent can cite sources from KB documents
 
+4. **Deployment Issues Fixed**
+   - Fixed TypeScript error in Vercel build (`accessToken` type)
+   - Created `vercel/src/types/next-auth.d.ts` with type extensions
+   - Fixed OAuth redirect URI mismatch in Google Cloud Console
+   - Added redirect URI: `https://mcp.wildfireranch.us/api/auth/callback/google`
+
 **Files Modified:**
 - railway/src/api/routes/kb.py (DB connection fixes)
 - railway/src/kb/sync.py (DB connection fixes)
 - railway/src/tools/kb_search.py (NEW)
 - railway/src/tools/__init__.py (Added KB exports)
 - railway/src/agents/solar_controller.py (Added KB tool)
+- vercel/src/types/next-auth.d.ts (NEW - TypeScript types)
 
 **Testing Results:**
-- ✅ `/kb/stats` endpoint working (returns empty data as expected)
-- ✅ `/kb/documents` endpoint working (empty list as expected)
+- ✅ `/kb/stats` endpoint working
+- ✅ `/kb/documents` endpoint working
 - ✅ API health check passing
-- ✅ Code deployed to Railway
+- ✅ Code deployed to Railway & Vercel
+- ✅ Google SSO tested and working!
+- ✅ User successfully authenticated
+- ⏳ KB sync ready to test (pending doc organization)
 
-**User Testing Required:**
-- ⏳ Google SSO login at https://mcp.wildfireranch.us/kb
-- ⏳ Manual KB sync (requires GOOGLE_DOCS_KB_FOLDER_ID in Railway)
-- ⏳ Test KB search functionality
-- ⏳ Test agent KB integration
-- ⏳ Verify source citations
+**Discovery:**
+- Current code only syncs Google Docs in main folder (NOT subfolders)
+- Folder ID confirmed: `1P6Dez9BRnIxnt-UNJzC4Iwl4AXF5H5DB`
 
 **Documentation Created:**
 - SESSION_017_COMPLETION_SUMMARY.md (comprehensive summary)
 - KB_USER_TESTING_GUIDE.md (step-by-step testing guide)
+- SESSION_018_PROMPT.md (next session plan)
 
-**Next Steps:** User testing of KB sync and agent integration with real data
+**Next Session (018):** KB sync testing, agent integration testing, optional subfolder support
 
 ---
 
