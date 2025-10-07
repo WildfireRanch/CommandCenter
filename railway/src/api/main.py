@@ -383,6 +383,81 @@ def create_app() -> FastAPI:
                 detail=f"Schema initialization failed: {str(e)}"
             )
 
+    @app.post("/db/migrate-kb-schema")
+    async def migrate_kb_schema():
+        """
+        Migrate KB schema (add folder_path column).
+
+        WHAT: Adds folder_path column and index to kb_documents table
+        WHY: Support for recursive folder scanning (Session 018)
+        HOW: Checks if column exists, adds if missing, creates index
+
+        Returns:
+            dict: Success status and message
+
+        Raises:
+            HTTPException: If migration fails
+        """
+        try:
+            from ..utils.db import get_connection, execute, query_one
+
+            logger.info("kb_schema_migration_requested")
+
+            with get_connection() as conn:
+                # Check if folder_path column exists
+                result = query_one(
+                    conn,
+                    """
+                    SELECT column_name
+                    FROM information_schema.columns
+                    WHERE table_name = 'kb_documents'
+                    AND column_name = 'folder_path'
+                    """
+                )
+
+                if result:
+                    message = "folder_path column already exists"
+                    logger.info(message)
+                else:
+                    logger.info("Adding folder_path column...")
+                    execute(
+                        conn,
+                        "ALTER TABLE kb_documents ADD COLUMN folder_path VARCHAR(1000)",
+                        commit=True
+                    )
+                    message = "folder_path column added successfully"
+                    logger.info(message)
+
+                # Create index on folder_path for faster queries
+                logger.info("Creating index on folder_path...")
+                try:
+                    execute(
+                        conn,
+                        """
+                        CREATE INDEX IF NOT EXISTS idx_kb_documents_folder_path
+                        ON kb_documents(folder_path)
+                        """,
+                        commit=True
+                    )
+                    logger.info("Index created successfully")
+                except Exception as e:
+                    logger.warning(f"Index may already exist: {e}")
+
+            logger.info("kb_schema_migration_completed")
+
+            return {
+                "status": "success",
+                "message": f"KB schema migration completed: {message}",
+                "timestamp": time.time(),
+            }
+
+        except Exception as e:
+            logger.exception("kb_schema_migration_failed error=%s", e)
+            raise HTTPException(
+                status_code=500,
+                detail=f"KB schema migration failed: {str(e)}"
+            )
+
     @app.post("/db/init-kb-schema")
     async def initialize_kb_schema():
         """
