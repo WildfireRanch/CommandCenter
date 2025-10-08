@@ -14,6 +14,8 @@ CREATE TABLE IF NOT EXISTS kb_documents (
     google_doc_id VARCHAR(255) UNIQUE NOT NULL,
     title VARCHAR(500) NOT NULL,
     folder VARCHAR(255),                      -- Subfolder path (e.g., "context", "solar-shack-technical")
+    folder_path VARCHAR(1000),                -- Full folder path from Drive
+    mime_type VARCHAR(100),                   -- File type (Google Doc, PDF, Spreadsheet)
     full_content TEXT,                        -- Complete document text
     is_context_file BOOLEAN DEFAULT FALSE,    -- Tier 1 (always loaded) vs Tier 2 (searchable)
     token_count INTEGER,                      -- Approximate token count for cost tracking
@@ -54,6 +56,7 @@ CREATE TABLE IF NOT EXISTS kb_sync_log (
 CREATE INDEX IF NOT EXISTS idx_kb_documents_folder ON kb_documents(folder);
 CREATE INDEX IF NOT EXISTS idx_kb_documents_context ON kb_documents(is_context_file);
 CREATE INDEX IF NOT EXISTS idx_kb_documents_synced ON kb_documents(last_synced);
+CREATE INDEX IF NOT EXISTS idx_kb_documents_mime_type ON kb_documents(mime_type);
 CREATE INDEX IF NOT EXISTS idx_kb_chunks_document ON kb_chunks(document_id);
 
 -- IVFFlat index for fast vector similarity search
