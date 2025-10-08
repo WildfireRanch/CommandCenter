@@ -1,7 +1,8 @@
 'use client';
 
-import { useSession, signIn } from 'next-auth/react';
+import { useSession } from 'next-auth/react';
 import { useState, useEffect } from 'react';
+import ProtectedPage from '@/components/ProtectedPage';
 
 interface Document {
   id: number;
@@ -55,8 +56,8 @@ interface SyncHistory {
 
 type Tab = 'overview' | 'files' | 'settings';
 
-export default function KnowledgeBasePage() {
-  const { data: session, status } = useSession();
+function KnowledgeBaseDashboard() {
+  const { data: session } = useSession();
   const [activeTab, setActiveTab] = useState<Tab>('overview');
   const [documents, setDocuments] = useState<Document[]>([]);
   const [preview, setPreview] = useState<PreviewData | null>(null);
@@ -66,12 +67,11 @@ export default function KnowledgeBasePage() {
   const [showSyncModal, setShowSyncModal] = useState(false);
 
   useEffect(() => {
-    if (status === 'authenticated' && session) {
-      fetchDocuments();
-      fetchPreview();
-      fetchSyncHistory();
-    }
-  }, [status, session]);
+    // This component only renders when authenticated (via ProtectedPage wrapper)
+    fetchDocuments();
+    fetchPreview();
+    fetchSyncHistory();
+  }, []);
 
   const fetchDocuments = async () => {
     try {
@@ -180,31 +180,6 @@ export default function KnowledgeBasePage() {
       setSyncing(false);
     }
   };
-
-  if (status === 'loading') {
-    return (
-      <div className="flex items-center justify-center h-screen">
-        <p className="text-gray-600">Loading...</p>
-      </div>
-    );
-  }
-
-  if (status === 'unauthenticated') {
-    return (
-      <div className="max-w-md mx-auto mt-20 text-center">
-        <h1 className="text-2xl font-bold mb-4">Knowledge Base</h1>
-        <p className="mb-6 text-gray-600">
-          Sign in with Google to manage your knowledge base
-        </p>
-        <button
-          onClick={() => signIn('google')}
-          className="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition-colors"
-        >
-          Sign in with Google
-        </button>
-      </div>
-    );
-  }
 
   // Group documents by folder
   const groupedDocs = documents.reduce((acc, doc) => {
@@ -610,5 +585,14 @@ export default function KnowledgeBasePage() {
         </div>
       )}
     </div>
+  );
+}
+
+// Export the page wrapped with authentication protection
+export default function KnowledgeBasePage() {
+  return (
+    <ProtectedPage loadingMessage="Loading Knowledge Base...">
+      <KnowledgeBaseDashboard />
+    </ProtectedPage>
   );
 }
