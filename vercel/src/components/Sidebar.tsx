@@ -5,12 +5,13 @@ import Link from "next/link"
 import { usePathname } from "next/navigation"
 
 const links = [
-  { href: "/", label: "Home", icon: "/WildfireMang.png" },
+  { href: "/", label: "Ranch", icon: "/WildfireMang.png" },
   { href: "/dashboard", label: "Dashboard", icon: "/Hoody.png" },
   { href: "/chat", label: "Ask Agent", icon: "/Echo.png" },
-  { href: "/energy", label: "Energy", icon: "/PlannerCop.png" },
-  { href: "/logs", label: "Logs", icon: "/PigTails.png" },
+  { href: "/energy", label: "Power Plant", icon: "/PlannerCop.png" },
+  { href: "/logs", label: "Logs", icon: "/sunglass shadow" },
   { href: "/status", label: "Status", icon: "/beanie and smoke.png" },
+  { href: "/kb", label: "Library", icon: "/PigTails.png" },
 ]
 
 export default function Sidebar() {
