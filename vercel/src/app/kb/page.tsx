@@ -49,9 +49,10 @@ interface SyncHistory {
   started_at: string;
   completed_at: string | null;
   status: string;
-  files_processed: number | null;
-  files_succeeded: number | null;
-  files_failed: number | null;
+  documents_processed: number | null;
+  documents_updated: number | null;
+  documents_failed: number | null;
+  error_message: string | null;
 }
 
 type Tab = 'overview' | 'files' | 'settings';
@@ -339,9 +340,9 @@ function KnowledgeBaseDashboard() {
                       {sync.status === 'failed' && '❌ Failed'}
                       {sync.status === 'partial' && '⚠️ Partial'}
                     </span>
-                    {sync.files_succeeded !== null && (
+                    {sync.documents_processed !== null && (
                       <p className="text-sm text-gray-500 mt-1">
-                        {sync.files_succeeded} files
+                        {sync.documents_processed} files
                       </p>
                     )}
                   </div>
