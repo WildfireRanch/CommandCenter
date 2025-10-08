@@ -1,26 +1,28 @@
 # 📚 CommandCenter Documentation Index
 
-**Last Updated**: Session 010 Complete (October 5, 2025)
+**Last Updated**: Session 019 Complete (October 8, 2025)
+**Status**: V1.5 at 80% - Ready for Energy Orchestrator!
 
 ## 🚀 Quick Start Guides
 
 ### For New Users
 1. **[README.md](../README.md)** - Project overview and current status
-2. **[QUICKSTART_DASHBOARDS.md](../QUICKSTART_DASHBOARDS.md)** - Get dashboards running in 60 seconds
-3. **[STRONG_START.md](../STRONG_START.md)** - Session 010 achievements summary
+2. **[CODEBASE_AUDIT_OCT2025.md](CODEBASE_AUDIT_OCT2025.md)** ⭐ **Complete system inventory**
+3. **[08-Remaining_v1-5.md](08-Remaining_%20v1-5.md)** - V1.5 execution plan (updated)
 
 ### For Developers
 1. **[CommandCenter Code Style Guide.md](CommandCenter%20Code%20Style%20Guide.md)** - Coding standards
-2. **[05-architecture.md](05-architecture.md)** - System architecture overview
-3. **[03-requirements.md](03-requirements.md)** - Project requirements
+2. **[ORCHESTRATION_LAYER_DESIGN.md](ORCHESTRATION_LAYER_DESIGN.md)** 🆕 **Manager agent architecture**
+3. **[05-architecture.md](05-architecture.md)** - System architecture overview
+4. **[06-knowledge-base-design.md](06-knowledge-base-design.md)** - KB system design
 
 ## 📋 Session History
 
 ### Latest Sessions (Start Here!)
-- **[sessions/SESSION_011_PROMPT.md](sessions/SESSION_011_PROMPT.md)** ⭐ **NEXT SESSION START HERE**
-- **[sessions/SESSION_010_FINAL_SUMMARY.md](sessions/SESSION_010_FINAL_SUMMARY.md)** - Complete Session 010 summary
+- **[sessions/SESSION_019_ORCHESTRATION_SUMMARY.md](sessions/SESSION_019_ORCHESTRATION_SUMMARY.md)** ⭐ **LATEST - Orchestration Complete!**
+- **[SESSION_018D_SUMMARY.md](../SESSION_018D_SUMMARY.md)** - KB Dashboard operational
+- **[sessions/SESSION_010_FINAL_SUMMARY.md](sessions/SESSION_010_FINAL_SUMMARY.md)** - Frontend pages complete
 - **[sessions/SESSION_009_SUMMARY.md](sessions/SESSION_009_SUMMARY.md)** - MCP Server implementation
-- **[SESSION_008_SUMMARY.md](SESSION_008_SUMMARY.md)** - Agent memory + energy tracking
 
 ### Earlier Sessions
 - **[sessions/Session_008_Agent_Memory_and_Energy_Tracking.md](sessions/Session_008_Agent_Memory_and_Energy_Tracking.md)** - Agent memory + energy data
@@ -50,22 +52,26 @@
 - **[DASHBOARD_COMPLETE.md](DASHBOARD_COMPLETE.md)** - Ops dashboard completion guide
 - **[dashboards/README.md](../dashboards/README.md)** - Dashboard documentation
 
-### CrewAI Studio
-- **[CREWAI_STUDIO_SETUP.md](CREWAI_STUDIO_SETUP.md)** - Setup and deployment guide
-- **[crewai-studio/QUICKSTART.md](../crewai-studio/QUICKSTART.md)** - Quick start
-- **[crewai-studio/README.railway.md](../crewai-studio/README.railway.md)** - Railway deployment
+### ~~CrewAI Studio~~ (Removed in Session 019)
+- Third-party GUI removed to focus on our application
+- See Session 019 summary for details
 
 ## 🏗️ Architecture & Planning
 
-### Current Architecture
+### Current V1.5 Development
+- **[CODEBASE_AUDIT_OCT2025.md](CODEBASE_AUDIT_OCT2025.md)** 🆕 **Complete system audit (80% done!)**
+- **[ORCHESTRATION_LAYER_DESIGN.md](ORCHESTRATION_LAYER_DESIGN.md)** 🆕 **Manager agent design**
+- **[08-Remaining_v1-5.md](08-Remaining_%20v1-5.md)** - V1.5 execution plan (updated)
 - **[05-architecture.md](05-architecture.md)** - System architecture
-- **[04-port-plan.md](04-port-plan.md)** - Migration plan
-- **[03-requirements.md](03-requirements.md)** - Requirements
+- **[06-knowledge-base-design.md](06-knowledge-base-design.md)** - KB system design
+- **[07-knowledge-base-sync.md](07-knowledge-base-sync.md)** - KB sync implementation
 
 ### Historical Context
 - **[00-project-summary.md](00-project-summary.md)** - Project summary
 - **[01-discovery-phase.md](01-discovery-phase.md)** - Discovery phase
-- **[02-old-stack-audit.md](02-old-stack-audit.md)** - Old stack audit
+- **[02-old-stack-audit.md](02-old-stack-audit.md)** - Old Relay stack audit
+- **[04-port-plan.md](04-port-plan.md)** - Migration plan
+- **[03-requirements.md](03-requirements.md)** - Requirements
 
 ## 🔧 Technical Guides
 
@@ -105,22 +111,31 @@
 - Vercel deployment guides
 - Docker configurations
 
-## 🎯 Current Status (Session 010)
+## 🎯 Current Status (Session 019 - V1.5 at 80%)
 
 ### ✅ Completed
-- Railway API (Production)
-- PostgreSQL + TimescaleDB
-- MCP Server (Claude Desktop)
-- Streamlit Operations Dashboard (4 pages)
-- CrewAI Studio (Agent management)
-- Next.js Frontend (Main page working)
+- ✅ Railway API (18+ endpoints operational)
+- ✅ PostgreSQL + TimescaleDB + pgvector
+- ✅ Knowledge Base (sync, search, deletion)
+- ✅ Solar Controller Agent (with memory + KB search)
+- ✅ Manager Agent (intelligent orchestration) 🆕
+- ✅ Next.js Frontend (7 pages, all functional)
+- ✅ MCP Server (Claude Desktop ready)
+- ✅ Streamlit Operations Dashboard
 
-### 🔄 In Progress
-- Next.js additional pages (5 remaining)
+### 🔨 Next: Session 2 - Energy Orchestrator
+- [ ] Design Energy Orchestrator agent
+- [ ] Build battery optimizer tool
+- [ ] Build miner coordinator tool
+- [ ] Build energy planner tool
+- [ ] Add routing to Manager
+- [ ] Test and deploy
+- **ETA**: 6-8 hours
 
-### 📅 Next Session
-- **Start with**: [sessions/SESSION_011_PROMPT.md](sessions/SESSION_011_PROMPT.md)
-- **Goal**: Complete remaining Next.js pages
+### 📅 After That: Session 3 - Polish & Ship
+- [ ] Polish chat interface (show sources, status)
+- [ ] End-to-end testing
+- [ ] Tag V1.5 release
 - **ETA**: 2-3 hours
 
 ## 📞 Quick Links

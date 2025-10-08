@@ -1,8 +1,9 @@
 # CommandCenter - Project Progress
 
-Last Updated: October 7, 2025 - 17:30 UTC
+Last Updated: October 8, 2025 - Session 019 Complete
+Status: V1.5 at 80% - Ready for Energy Orchestrator!
 
-## Current Phase: Phase 6 - Agent KB Integration - BACKEND COMPLETE! ✅
+## Current Phase: Session 2 - Energy Orchestrator Agent 🔨
 
 ### Completed ✅
 - [x] GitHub repo created
@@ -49,38 +50,48 @@ Last Updated: October 7, 2025 - 17:30 UTC
 - ✅ Two-tier KB system (context + searchable)
 - ✅ API endpoints: /kb/sync, /kb/documents, /kb/search, /kb/stats
 
-### Phase 6 Complete! ✅ (Backend - Awaiting User Testing)
-**Agent KB Integration Implemented:**
-- ✅ **Fixed critical DB connection bug** (all KB endpoints now operational)
-- ✅ **KB search tool created** (`railway/src/tools/kb_search.py`)
-  - Semantic search with source citations
-  - Context file loader for system prompts
-  - Error handling and formatting
-- ✅ **Agent integration complete** (`railway/src/agents/solar_controller.py`)
-  - Added search_kb_tool to agent
-  - Updated agent backstory to mention KB access
-  - Agent can now cite sources
-- ✅ **Deployed to Railway** - all systems operational
+### Session 019 Complete! ✅ (Orchestration Layer)
+**Major Achievements:**
+- ✅ **Removed CrewAI Studio** (20+ files of third-party noise deleted)
+- ✅ **Created comprehensive codebase audit** (`docs/CODEBASE_AUDIT_OCT2025.md`)
+  - System is 75% complete
+  - All endpoints documented
+  - Clear roadmap for finishing V1.5
+- ✅ **Fixed critical chat bug** (endpoint was `/agent/ask` instead of `/ask`)
+- ✅ **Built intelligent orchestration layer** (`railway/src/agents/manager.py`)
+  - Manager agent routes queries to specialists
+  - Routes to Solar Controller for status queries
+  - Routes to KB search for documentation
+  - Future: will route to Energy Orchestrator
+- ✅ **Tested and deployed** - Manager successfully routes queries
 
-**Awaiting User Testing:**
-- ⏳ Test Google SSO login at https://mcp.wildfireranch.us/kb
-- ⏳ Run manual KB sync (requires GOOGLE_DOCS_KB_FOLDER_ID env var)
-- ⏳ Test KB search functionality
-- ⏳ Verify agent uses KB to answer questions
-- ⏳ Confirm source citations in agent responses
+**Files Created:**
+- `docs/CODEBASE_AUDIT_OCT2025.md` - Complete system inventory
+- `docs/ORCHESTRATION_LAYER_DESIGN.md` - Manager agent architecture
+- `railway/src/agents/manager.py` - Intelligent query router
+- `docs/sessions/SESSION_019_ORCHESTRATION_SUMMARY.md` - Session summary
 
-**Deferred to Future:**
-- [ ] Add automatic daily sync (cron job)
-- [ ] Load context files into agent system prompts (implemented but not tested)
+**Progress:** 65% → 80% complete toward V1.5 ship
 
-### Up Next (After Studio Integration) ⏳
-- Frontend UI improvements (energy charts, chat interface)
-- Authentication system
-- Real-time WebSocket updates
+### Up Next (Session 2) 🔨
+**Build Energy Orchestrator Agent:** (6-8 hours)
+- [ ] Create design document
+- [ ] Build battery optimizer tool
+- [ ] Build miner coordinator tool
+- [ ] Build energy planner tool
+- [ ] Create Energy Orchestrator agent
+- [ ] Add routing to Manager agent
+- [ ] Test and deploy
 
-### Up Next ⏳
-- Frontend UI improvements (energy charts, chat interface)
-- Authentication system
+**Then Session 3: Polish & Ship** (2-3 hours)
+- [ ] Polish chat interface (show sources, agent status)
+- [ ] End-to-end testing
+- [ ] Performance validation
+- [ ] Tag V1.5 release
+
+**Deferred to V2:**
+- Additional hardware tools (Shelly, Miners, Victron)
+- Auto-sync scheduler
 - Real-time WebSocket updates
 - Mobile app
 

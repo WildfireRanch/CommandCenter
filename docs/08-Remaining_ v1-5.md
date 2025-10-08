@@ -2,16 +2,22 @@
 **Goal:** Ship a working, intelligent system with KB + agents
 **Timeline:** 3 focused sessions (~15-20 hours)
 **Approach:** Test, Build, Polish, Ship
+**Current Status:** Session 019 Complete - 80% Done! 🚀
 
 ---
 
 ## 🎯 V1.5 Scope (What We're Finishing)
 
-### ✅ Must Finish:
-1. **Test & validate KB system** - Verify everything works
-2. **Build Energy Orchestrator agent** - Planning & coordination
-3. **Polish chat interface** - Better UX, show sources
-4. **End-to-end testing** - Everything working together
+### ✅ Completed:
+1. ✅ **Codebase audit** - System is 75% complete (Session 019)
+2. ✅ **KB system validated** - Working perfectly (Sessions 018C-D)
+3. ✅ **Orchestration layer** - Manager agent routing (Session 019)
+4. ✅ **Chat endpoint fixed** - Was calling wrong URL (Session 019)
+
+### 🔨 Must Finish:
+1. **Build Energy Orchestrator agent** - Planning & coordination
+2. **Polish chat interface** - Better UX, show sources
+3. **End-to-end testing** - Everything working together
 
 ### ⏳ Defer to V2:
 - Additional hardware tools (Shelly, Miners, Victron)
@@ -25,7 +31,27 @@
 
 ## 📋 Session-by-Session Breakdown
 
-## **Session 1: KB Testing & Validation** (3-4 hours)
+## **Session 1: KB Testing & Validation** ✅ COMPLETE (Session 019)
+
+**Status:** ✅ **SKIPPED** - KB system already validated in Sessions 018C-D
+**What Was Done Instead:**
+- Removed CrewAI Studio (20+ files)
+- Created comprehensive codebase audit
+- Fixed critical chat endpoint bug
+- Built intelligent orchestration layer with Manager agent
+- Tested and deployed successfully
+
+**Files Created:**
+- `docs/CODEBASE_AUDIT_OCT2025.md` - Complete system inventory
+- `docs/ORCHESTRATION_LAYER_DESIGN.md` - Manager agent architecture
+- `railway/src/agents/manager.py` - Intelligent query router
+- `docs/sessions/SESSION_019_ORCHESTRATION_SUMMARY.md`
+
+**Progress:** 65% → 80% complete
+
+---
+
+## **~~Session 1: KB Testing & Validation~~** (REPLACED BY SESSION 019)
 
 ### Part 1: Claude Code Codebase Audit (30 min)
 **Objective:** Understand what actually exists in the code
@@ -647,27 +673,30 @@ Please check:
 
 ## 📊 Progress Tracking
 
-### Session 1: KB Testing
-- [ ] Codebase audit complete
-- [ ] OAuth flow validated
-- [ ] Preview mode tested
-- [ ] Full sync successful
-- [ ] Agent KB search working
-- [ ] Test report created
+### Session 019: Orchestration & Audit ✅ COMPLETE
+- [x] Codebase audit complete
+- [x] Removed CrewAI Studio noise
+- [x] Fixed chat endpoint bug
+- [x] Built Manager agent (orchestration layer)
+- [x] Tested routing (Solar Controller works)
+- [x] Deployed to production
+- [x] Documentation updated
 
-### Session 2: Energy Orchestrator
+### Session 2: Energy Orchestrator (NEXT)
 - [ ] Design document created
 - [ ] Battery optimizer tool built
 - [ ] Miner coordinator tool built
 - [ ] Energy planner tool built
 - [ ] Agent created and configured
+- [ ] Add routing to Manager agent
 - [ ] Unit tests passing
 - [ ] Integration tests passing
 - [ ] Deployed to production
 
 ### Session 3: Polish & Ship
 - [ ] Chat interface improved
-- [ ] Agent selector added
+- [ ] Show KB sources in responses
+- [ ] Agent status indicators
 - [ ] End-to-end tests passing
 - [ ] Performance validated
 - [ ] Documentation updated
