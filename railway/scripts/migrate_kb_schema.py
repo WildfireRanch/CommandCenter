@@ -2,7 +2,7 @@
 """
 KB Schema Migration Script
 
-Adds folder_path column to kb_documents table if it doesn't exist.
+Adds folder_path and mime_type columns to kb_documents table if they don't exist.
 
 Usage:
     python3 scripts/migrate_kb_schema.py
@@ -18,7 +18,7 @@ from src.utils.db import get_connection, execute, query_one
 
 
 def migrate_schema():
-    """Add folder_path column to kb_documents table."""
+    """Add folder_path and mime_type columns to kb_documents table."""
 
     with get_connection() as conn:
         print("🔍 Checking KB schema...")
@@ -44,6 +44,28 @@ def migrate_schema():
                 commit=True
             )
             print("✅ folder_path column added")
+
+        # Check if mime_type column exists
+        result = query_one(
+            conn,
+            """
+            SELECT column_name
+            FROM information_schema.columns
+            WHERE table_name = 'kb_documents'
+            AND column_name = 'mime_type'
+            """
+        )
+
+        if result:
+            print("✅ mime_type column already exists")
+        else:
+            print("📝 Adding mime_type column...")
+            execute(
+                conn,
+                "ALTER TABLE kb_documents ADD COLUMN mime_type VARCHAR(200)",
+                commit=True
+            )
+            print("✅ mime_type column added")
 
         # Create index on folder_path for faster queries
         print("📝 Creating index on folder_path...")
