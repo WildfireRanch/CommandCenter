@@ -9,7 +9,7 @@ const links = [
   { href: "/dashboard", label: "Dashboard", icon: "/Hoody.png" },
   { href: "/chat", label: "Ask Agent", icon: "/Echo.png" },
   { href: "/energy", label: "Power Plant", icon: "/PlannerCop.png" },
-  { href: "/logs", label: "Logs", icon: "/sunglass shadow" },
+  { href: "/logs", label: "Logs", icon: "/sunglass shadow.png" },
   { href: "/status", label: "Status", icon: "/beanie and smoke.png" },
   { href: "/kb", label: "Library", icon: "/PigTails.png" },
 ]
