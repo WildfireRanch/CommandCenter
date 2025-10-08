@@ -46,10 +46,5 @@ export const authOptions: NextAuthOptions = {
       session.accessToken = token.accessToken as string;
       return session;
     }
-  },
-
-  pages: {
-    signIn: '/auth/signin',
-    error: '/auth/error'
   }
 };
