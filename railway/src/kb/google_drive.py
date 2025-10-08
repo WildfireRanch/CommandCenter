@@ -238,7 +238,7 @@ def fetch_pdf_content(drive_service, file_id: str) -> str:
         Extracted text content from PDF
     """
     import io
-    import PyPDF2
+    from pypdf import PdfReader
 
     try:
         # Download PDF file
@@ -254,8 +254,8 @@ def fetch_pdf_content(drive_service, file_id: str) -> str:
 
         file_content.seek(0)
 
-        # Extract text using PyPDF2
-        pdf_reader = PyPDF2.PdfReader(file_content)
+        # Extract text using pypdf
+        pdf_reader = PdfReader(file_content)
         text_content = []
 
         for page in pdf_reader.pages:
