@@ -38,6 +38,7 @@ interface ProgressUpdate {
   processed?: number;
   updated?: number;
   failed?: number;
+  deleted?: number;
   error?: string;
   message?: string;
 }
@@ -66,6 +67,7 @@ function KnowledgeBaseDashboard() {
   const [syncing, setSyncing] = useState(false);
   const [progress, setProgress] = useState<ProgressUpdate | null>(null);
   const [showSyncModal, setShowSyncModal] = useState(false);
+  const [expandedFolders, setExpandedFolders] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     // This component only renders when authenticated (via ProtectedPage wrapper)
@@ -180,6 +182,19 @@ function KnowledgeBaseDashboard() {
       setProgress({ status: 'failed', error: String(error) });
       setSyncing(false);
     }
+  };
+
+  // Toggle folder expansion
+  const toggleFolder = (folder: string) => {
+    setExpandedFolders(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(folder)) {
+        newSet.delete(folder);
+      } else {
+        newSet.add(folder);
+      }
+      return newSet;
+    });
   };
 
   // Group documents by folder
@@ -366,51 +381,74 @@ function KnowledgeBaseDashboard() {
 
       {/* Files Tab */}
       {activeTab === 'files' && (
-        <div className="space-y-4">
+        <div className="space-y-2">
           {Object.keys(groupedDocs).length === 0 ? (
             <div className="bg-white rounded-lg shadow p-8 text-center text-gray-500">
               No documents synced yet. Click "Full Sync" in the Overview tab to get started.
             </div>
           ) : (
-            Object.entries(groupedDocs).map(([folder, docs]) => (
-              <div key={folder} className="bg-white rounded-lg shadow">
-                <div className="p-4 bg-gray-50 border-b">
-                  <h3 className="font-semibold">
-                    📂 {folder} {folder === 'CONTEXT' && '(Tier 1: Context Files)'} - {docs.length} files
-                  </h3>
-                </div>
-                <div className="divide-y">
-                  {docs.map((doc) => (
-                    <div key={doc.id} className="p-4 hover:bg-gray-50 transition-colors">
-                      <div className="flex justify-between items-start">
-                        <div className="flex-1">
-                          <h4 className="font-medium">{doc.title}</h4>
-                          {doc.folder_path && (
-                            <p className="text-sm text-gray-500 mt-1">{doc.folder_path}</p>
-                          )}
-                          {doc.is_context_file && (
-                            <span className="inline-block mt-2 bg-green-100 text-green-800 text-xs px-2 py-1 rounded">
-                              Context File (Always Loaded)
-                            </span>
-                          )}
-                        </div>
-                        <div className="text-right text-sm text-gray-500 ml-4">
-                          <p>{doc.token_count?.toLocaleString() || 0} tokens</p>
-                          <p className="mt-1">
-                            {doc.last_synced
-                              ? new Date(doc.last_synced).toLocaleDateString('en-US', {
-                                  timeZone: 'America/Denver',
-                                  dateStyle: 'short'
-                                })
-                              : 'Never'}
-                          </p>
-                        </div>
+            Object.entries(groupedDocs).map(([folder, docs]) => {
+              const isExpanded = expandedFolders.has(folder);
+              const totalTokens = docs.reduce((sum, doc) => sum + (doc.token_count || 0), 0);
+
+              return (
+                <div key={folder} className="bg-white rounded-lg shadow overflow-hidden">
+                  {/* Folder Header - Clickable */}
+                  <button
+                    onClick={() => toggleFolder(folder)}
+                    className="w-full p-4 flex items-center justify-between hover:bg-gray-50 transition-colors text-left"
+                  >
+                    <div className="flex items-center gap-3">
+                      <span className="text-xl transition-transform duration-200" style={{ transform: isExpanded ? 'rotate(90deg)' : 'rotate(0deg)' }}>
+                        ▶
+                      </span>
+                      <div>
+                        <h3 className="font-semibold">
+                          📂 {folder} {folder === 'CONTEXT' && <span className="text-green-600">(Tier 1: Context Files)</span>}
+                        </h3>
+                        <p className="text-sm text-gray-500">
+                          {docs.length} {docs.length === 1 ? 'file' : 'files'} · {totalTokens.toLocaleString()} tokens
+                        </p>
                       </div>
                     </div>
-                  ))}
+                  </button>
+
+                  {/* Folder Contents - Collapsible */}
+                  {isExpanded && (
+                    <div className="border-t divide-y">
+                      {docs.map((doc) => (
+                        <div key={doc.id} className="p-4 pl-14 hover:bg-gray-50 transition-colors">
+                          <div className="flex justify-between items-start">
+                            <div className="flex-1">
+                              <h4 className="font-medium">{doc.title}</h4>
+                              {doc.folder_path && (
+                                <p className="text-sm text-gray-500 mt-1">{doc.folder_path}</p>
+                              )}
+                              {doc.is_context_file && (
+                                <span className="inline-block mt-2 bg-green-100 text-green-800 text-xs px-2 py-1 rounded">
+                                  Context File (Always Loaded)
+                                </span>
+                              )}
+                            </div>
+                            <div className="text-right text-sm text-gray-500 ml-4">
+                              <p>{doc.token_count?.toLocaleString() || 0} tokens</p>
+                              <p className="mt-1">
+                                {doc.last_synced
+                                  ? new Date(doc.last_synced).toLocaleDateString('en-US', {
+                                      timeZone: 'America/Denver',
+                                      dateStyle: 'short'
+                                    })
+                                  : 'Never'}
+                              </p>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
-              </div>
-            ))
+              );
+            })
           )}
         </div>
       )}
@@ -539,7 +577,7 @@ function KnowledgeBaseDashboard() {
 
             {progress.status === 'completed' && (
               <div className="space-y-4">
-                <div className="grid grid-cols-3 gap-4">
+                <div className="grid grid-cols-4 gap-4">
                   <div className="text-center p-4 bg-green-50 rounded">
                     <p className="text-2xl font-bold text-green-600">{progress.processed || 0}</p>
                     <p className="text-sm text-gray-600">Processed</p>
@@ -547,6 +585,10 @@ function KnowledgeBaseDashboard() {
                   <div className="text-center p-4 bg-blue-50 rounded">
                     <p className="text-2xl font-bold text-blue-600">{progress.updated || 0}</p>
                     <p className="text-sm text-gray-600">Updated</p>
+                  </div>
+                  <div className="text-center p-4 bg-orange-50 rounded">
+                    <p className="text-2xl font-bold text-orange-600">{progress.deleted || 0}</p>
+                    <p className="text-sm text-gray-600">Deleted</p>
                   </div>
                   <div className="text-center p-4 bg-red-50 rounded">
                     <p className="text-2xl font-bold text-red-600">{progress.failed || 0}</p>
