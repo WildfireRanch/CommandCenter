@@ -334,7 +334,7 @@ export default function KnowledgeBasePage() {
           <div className="bg-white rounded-lg shadow p-6">
             <h2 className="text-xl font-semibold mb-4">Recent Sync History (Last 5)</h2>
             <div className="space-y-2">
-              {syncHistory.slice(0, 5).map((sync) => (
+              {(syncHistory || []).slice(0, 5).map((sync) => (
                 <div key={sync.id} className="flex justify-between items-center border-b pb-2">
                   <div>
                     <p className="font-medium">
@@ -366,7 +366,7 @@ export default function KnowledgeBasePage() {
                   </div>
                 </div>
               ))}
-              {syncHistory.length === 0 && (
+              {(!syncHistory || syncHistory.length === 0) && (
                 <p className="text-gray-500 text-center py-4">No sync history yet</p>
               )}
             </div>
