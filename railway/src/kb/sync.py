@@ -202,17 +202,23 @@ async def sync_knowledge_base(
 
                             if last_synced.replace(tzinfo=None) >= modified_time.replace(tzinfo=None):
                                 processed += 1
-                                logger.info(f"Skipping unchanged file: {file_name}")
+                                logger.info(f"Skipping unchanged file: {file_name} (last_synced: {last_synced}, modified: {modified_time})")
                                 continue
+                            else:
+                                logger.info(f"File changed: {file_name} (last_synced: {last_synced}, modified: {modified_time})")
+                        else:
+                            logger.info(f"New file detected: {file_name} (not in database)")
 
                     # Fetch document content
                     logger.info(f"Syncing {idx + 1}/{total_files}: {folder_path}")
                     content = fetch_document_content(docs_service, file_id)
 
-                    if not content or len(content.strip()) < 10:
-                        logger.warning(f"Skipping empty document: {file_name}")
+                    if not content or len(content.strip()) == 0:
+                        logger.warning(f"Skipping empty document: {file_name} (no content)")
                         processed += 1
                         continue
+
+                    logger.info(f"Document {file_name} has {len(content)} characters")
 
                     # Chunk content
                     chunks = chunk_text(content)
