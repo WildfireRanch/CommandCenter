@@ -202,6 +202,8 @@ async def list_documents():
                     google_doc_id,
                     title,
                     folder,
+                    folder_path,
+                    mime_type,
                     is_context_file,
                     token_count,
                     last_synced,
