@@ -352,6 +352,42 @@ async def sync_knowledge_base(
                     failed += 1
                     continue
 
+            # Cleanup: Remove documents that no longer exist in Google Drive
+            synced_doc_ids = [f['id'] for f in doc_files]
+            logger.info(f"Checking for deleted documents (synced {len(synced_doc_ids)} files)")
+
+            existing_docs = query_all(
+                conn,
+                "SELECT id, google_doc_id, title FROM kb_documents",
+                as_dict=True
+            )
+
+            deleted_count = 0
+            for doc in existing_docs:
+                if doc['google_doc_id'] not in synced_doc_ids:
+                    logger.info(f"Removing deleted document: {doc['title']} (ID: {doc['google_doc_id']})")
+
+                    # Delete chunks first (foreign key constraint)
+                    execute(
+                        conn,
+                        "DELETE FROM kb_chunks WHERE document_id = %s",
+                        (doc['id'],),
+                        commit=True
+                    )
+
+                    # Delete document
+                    execute(
+                        conn,
+                        "DELETE FROM kb_documents WHERE id = %s",
+                        (doc['id'],),
+                        commit=True
+                    )
+
+                    deleted_count += 1
+
+            if deleted_count > 0:
+                logger.info(f"Removed {deleted_count} deleted documents from database")
+
             # Update sync log
             if sync_log_id:
                 execute(
@@ -374,7 +410,8 @@ async def sync_knowledge_base(
                 "total": total_files,
                 "processed": processed,
                 "updated": updated,
-                "failed": failed
+                "failed": failed,
+                "deleted": deleted_count
             }
 
         except Exception as e:
