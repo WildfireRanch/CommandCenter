@@ -386,11 +386,11 @@ def create_app() -> FastAPI:
     @app.post("/db/migrate-kb-schema")
     async def migrate_kb_schema():
         """
-        Migrate KB schema (add folder_path column).
+        Migrate KB schema (add folder_path and mime_type columns).
 
-        WHAT: Adds folder_path column and index to kb_documents table
-        WHY: Support for recursive folder scanning (Session 018)
-        HOW: Checks if column exists, adds if missing, creates index
+        WHAT: Adds folder_path and mime_type columns and index to kb_documents table
+        WHY: Support for recursive folder scanning and file type tracking (Session 018C)
+        HOW: Checks if columns exist, adds if missing, creates index
 
         Returns:
             dict: Success status and message
@@ -402,6 +402,7 @@ def create_app() -> FastAPI:
             from ..utils.db import get_connection, execute, query_one
 
             logger.info("kb_schema_migration_requested")
+            messages = []
 
             with get_connection() as conn:
                 # Check if folder_path column exists
@@ -416,8 +417,9 @@ def create_app() -> FastAPI:
                 )
 
                 if result:
-                    message = "folder_path column already exists"
-                    logger.info(message)
+                    msg = "folder_path column already exists"
+                    logger.info(msg)
+                    messages.append(msg)
                 else:
                     logger.info("Adding folder_path column...")
                     execute(
@@ -425,8 +427,35 @@ def create_app() -> FastAPI:
                         "ALTER TABLE kb_documents ADD COLUMN folder_path VARCHAR(1000)",
                         commit=True
                     )
-                    message = "folder_path column added successfully"
-                    logger.info(message)
+                    msg = "folder_path column added successfully"
+                    logger.info(msg)
+                    messages.append(msg)
+
+                # Check if mime_type column exists
+                result = query_one(
+                    conn,
+                    """
+                    SELECT column_name
+                    FROM information_schema.columns
+                    WHERE table_name = 'kb_documents'
+                    AND column_name = 'mime_type'
+                    """
+                )
+
+                if result:
+                    msg = "mime_type column already exists"
+                    logger.info(msg)
+                    messages.append(msg)
+                else:
+                    logger.info("Adding mime_type column...")
+                    execute(
+                        conn,
+                        "ALTER TABLE kb_documents ADD COLUMN mime_type VARCHAR(200)",
+                        commit=True
+                    )
+                    msg = "mime_type column added successfully"
+                    logger.info(msg)
+                    messages.append(msg)
 
                 # Create index on folder_path for faster queries
                 logger.info("Creating index on folder_path...")
@@ -447,7 +476,7 @@ def create_app() -> FastAPI:
 
             return {
                 "status": "success",
-                "message": f"KB schema migration completed: {message}",
+                "message": f"KB schema migration completed: {', '.join(messages)}",
                 "timestamp": time.time(),
             }
 
