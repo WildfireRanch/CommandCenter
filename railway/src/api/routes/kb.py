@@ -228,6 +228,41 @@ async def list_documents():
         )
 
 
+@router.get("/sync-history")
+async def get_sync_history():
+    """
+    Get recent sync history (last 10 syncs).
+
+    Returns:
+        Dict with history array
+    """
+    try:
+        with get_connection() as conn:
+            # Get recent syncs
+            history = query_all(
+                conn,
+                """
+                SELECT *
+                FROM kb_sync_log
+                ORDER BY started_at DESC
+                LIMIT 10
+                """,
+                as_dict=True
+            )
+
+        return {
+            "status": "success",
+            "history": history
+        }
+
+    except Exception as e:
+        logger.exception(f"Failed to get sync history: {e}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to get sync history: {str(e)}"
+        )
+
+
 @router.get("/sync-status")
 async def get_sync_status():
     """
