@@ -248,7 +248,11 @@ function KnowledgeBaseDashboard() {
                 <p className="text-sm text-gray-600">Last Sync</p>
                 <p className="text-lg font-semibold">
                   {syncHistory?.[0]?.completed_at
-                    ? new Date(syncHistory[0].completed_at).toLocaleString()
+                    ? new Date(syncHistory[0].completed_at).toLocaleString('en-US', {
+                        timeZone: 'America/Denver',
+                        dateStyle: 'short',
+                        timeStyle: 'short'
+                      })
                     : 'Never'}
                 </p>
               </div>
@@ -320,7 +324,11 @@ function KnowledgeBaseDashboard() {
                 <div key={sync.id} className="flex justify-between items-center border-b pb-2">
                   <div>
                     <p className="font-medium">
-                      {new Date(sync.started_at).toLocaleString()}
+                      {new Date(sync.started_at).toLocaleString('en-US', {
+                        timeZone: 'America/Denver',
+                        dateStyle: 'short',
+                        timeStyle: 'short'
+                      })}
                     </p>
                     <p className="text-sm text-gray-500">
                       {sync.sync_type} | {sync.triggered_by}
@@ -390,7 +398,10 @@ function KnowledgeBaseDashboard() {
                           <p>{doc.token_count?.toLocaleString() || 0} tokens</p>
                           <p className="mt-1">
                             {doc.last_synced
-                              ? new Date(doc.last_synced).toLocaleDateString()
+                              ? new Date(doc.last_synced).toLocaleDateString('en-US', {
+                                  timeZone: 'America/Denver',
+                                  dateStyle: 'short'
+                                })
                               : 'Never'}
                           </p>
                         </div>
