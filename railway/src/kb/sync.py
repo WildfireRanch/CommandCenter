@@ -15,6 +15,8 @@ from .google_drive import (
     list_files_in_folder,
     list_files_recursive,
     fetch_document_content,
+    fetch_pdf_content,
+    fetch_spreadsheet_content,
     get_folder_name
 )
 from ..utils.db import get_connection, query_one, query_all, execute
@@ -162,14 +164,24 @@ async def sync_knowledge_base(
                 ignore_patterns=["old.*", "archive", "trash", "backup", "deprecated"]
             )
 
-            # Filter to only Google Docs for now (can expand to PDFs, Sheets later)
+            # Filter to supported file types: Google Docs, PDFs, and Spreadsheets
+            supported_mimes = [
+                'application/vnd.google-apps.document',  # Google Docs
+                'application/pdf',  # PDFs
+                'application/vnd.google-apps.spreadsheet'  # Google Sheets
+            ]
+
             doc_files = [
                 f for f in files
-                if f['mimeType'] == 'application/vnd.google-apps.document'
+                if f['mimeType'] in supported_mimes
             ]
 
             total_files = len(doc_files)
-            logger.info(f"Found {len(files)} total files, {total_files} Google Docs")
+            google_docs = len([f for f in doc_files if f['mimeType'] == 'application/vnd.google-apps.document'])
+            pdfs = len([f for f in doc_files if f['mimeType'] == 'application/pdf'])
+            sheets = len([f for f in doc_files if f['mimeType'] == 'application/vnd.google-apps.spreadsheet'])
+
+            logger.info(f"Found {len(files)} total files: {google_docs} Google Docs, {pdfs} PDFs, {sheets} Spreadsheets")
 
             yield {
                 "status": "started",
@@ -209,9 +221,25 @@ async def sync_knowledge_base(
                         else:
                             logger.info(f"New file detected: {file_name} (not in database)")
 
-                    # Fetch document content
+                    # Fetch content based on file type
                     logger.info(f"Syncing {idx + 1}/{total_files}: {folder_path}")
-                    content = fetch_document_content(docs_service, file_id)
+                    mime_type = file['mimeType']
+
+                    try:
+                        if mime_type == 'application/vnd.google-apps.document':
+                            content = fetch_document_content(docs_service, file_id)
+                        elif mime_type == 'application/pdf':
+                            content = fetch_pdf_content(drive_service, file_id)
+                        elif mime_type == 'application/vnd.google-apps.spreadsheet':
+                            content = fetch_spreadsheet_content(drive_service, file_id)
+                        else:
+                            logger.warning(f"Unsupported file type: {mime_type} for {file_name}")
+                            processed += 1
+                            continue
+                    except Exception as e:
+                        logger.error(f"Failed to fetch content for {file_name}: {e}")
+                        failed += 1
+                        continue
 
                     if not content or len(content.strip()) == 0:
                         logger.warning(f"Skipping empty document: {file_name} (no content)")
@@ -233,31 +261,32 @@ async def sync_knowledge_base(
                         'context' in file_name.lower()
                     )
 
-                    # Store document with folder information
-                    # Try to use folder_path if column exists, otherwise just use folder
+                    # Store document with folder information and mime type
+                    # Try to use folder_path and mime_type if columns exist, otherwise use fallback
                     try:
                         execute(
                             conn,
                             """
-                            INSERT INTO kb_documents (google_doc_id, title, folder, folder_path, full_content, token_count, last_synced, is_context_file)
-                            VALUES (%s, %s, %s, %s, %s, %s, NOW(), %s)
+                            INSERT INTO kb_documents (google_doc_id, title, folder, folder_path, mime_type, full_content, token_count, last_synced, is_context_file)
+                            VALUES (%s, %s, %s, %s, %s, %s, %s, NOW(), %s)
                             ON CONFLICT (google_doc_id) DO UPDATE
                             SET title = EXCLUDED.title,
                                 folder = EXCLUDED.folder,
                                 folder_path = EXCLUDED.folder_path,
+                                mime_type = EXCLUDED.mime_type,
                                 full_content = EXCLUDED.full_content,
                                 token_count = EXCLUDED.token_count,
                                 last_synced = NOW(),
                                 is_context_file = EXCLUDED.is_context_file,
                                 updated_at = NOW()
                             """,
-                            (file_id, file_name, folder_name, folder_path, content, len(content) // 4, is_context),
+                            (file_id, file_name, folder_name, folder_path, mime_type, content, len(content) // 4, is_context),
                             commit=True
                         )
                     except Exception as e:
-                        # Fallback if folder_path column doesn't exist yet
-                        if "folder_path" in str(e):
-                            logger.warning("folder_path column not found, using folder only")
+                        # Fallback if new columns don't exist yet
+                        if "mime_type" in str(e) or "folder_path" in str(e):
+                            logger.warning(f"New columns not found, using basic insert: {e}")
                             execute(
                                 conn,
                                 """

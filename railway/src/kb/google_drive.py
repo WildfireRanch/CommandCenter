@@ -226,6 +226,102 @@ def fetch_document_content(docs_service, document_id: str) -> str:
         raise Exception(f"Failed to fetch document {document_id}: {e}")
 
 
+def fetch_pdf_content(drive_service, file_id: str) -> str:
+    """
+    Fetch text content from a PDF file stored in Google Drive.
+
+    Args:
+        drive_service: Google Drive API service
+        file_id: Google Drive file ID
+
+    Returns:
+        Extracted text content from PDF
+    """
+    import io
+    import PyPDF2
+
+    try:
+        # Download PDF file
+        request = drive_service.files().get_media(fileId=file_id)
+        file_content = io.BytesIO()
+
+        from googleapiclient.http import MediaIoBaseDownload
+        downloader = MediaIoBaseDownload(file_content, request)
+
+        done = False
+        while not done:
+            status, done = downloader.next_chunk()
+
+        file_content.seek(0)
+
+        # Extract text using PyPDF2
+        pdf_reader = PyPDF2.PdfReader(file_content)
+        text_content = []
+
+        for page in pdf_reader.pages:
+            text = page.extract_text()
+            if text:
+                text_content.append(text)
+
+        full_text = '\n\n'.join(text_content)
+        logger.info(f"Extracted {len(full_text)} characters from PDF {file_id}")
+        return full_text
+
+    except Exception as e:
+        logger.error(f"Failed to fetch PDF {file_id}: {e}")
+        raise Exception(f"Failed to fetch PDF {file_id}: {e}")
+
+
+def fetch_spreadsheet_content(drive_service, file_id: str) -> str:
+    """
+    Fetch content from a Google Spreadsheet and convert to text.
+
+    Args:
+        drive_service: Google Drive API service
+        file_id: Google Sheets file ID
+
+    Returns:
+        Spreadsheet content formatted as text
+    """
+    try:
+        # Get Sheets service
+        from googleapiclient.discovery import build
+        credentials = drive_service._http.credentials
+        sheets_service = build('sheets', 'v4', credentials=credentials)
+
+        # Get spreadsheet metadata
+        spreadsheet = sheets_service.spreadsheets().get(spreadsheetId=file_id).execute()
+        sheets = spreadsheet.get('sheets', [])
+
+        text_content = []
+
+        for sheet in sheets:
+            sheet_title = sheet['properties']['title']
+            text_content.append(f"=== Sheet: {sheet_title} ===\n")
+
+            # Get values from sheet
+            range_name = f"'{sheet_title}'"
+            result = sheets_service.spreadsheets().values().get(
+                spreadsheetId=file_id,
+                range=range_name
+            ).execute()
+
+            values = result.get('values', [])
+
+            if values:
+                # Format as CSV-like text
+                for row in values:
+                    text_content.append(' | '.join(str(cell) for cell in row))
+
+        full_text = '\n'.join(text_content)
+        logger.info(f"Extracted {len(full_text)} characters from Spreadsheet {file_id}")
+        return full_text
+
+    except Exception as e:
+        logger.error(f"Failed to fetch Spreadsheet {file_id}: {e}")
+        raise Exception(f"Failed to fetch Spreadsheet {file_id}: {e}")
+
+
 def list_subfolders(drive_service, folder_id: str) -> List[Dict]:
     """
     List all subfolders in a folder.
