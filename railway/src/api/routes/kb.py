@@ -3,7 +3,7 @@
 # PURPOSE: Knowledge Base API routes
 # ═══════════════════════════════════════════════════════════════════════════
 
-from fastapi import APIRouter, HTTPException, Header
+from fastapi import APIRouter, HTTPException, Header, Query
 from fastapi.responses import StreamingResponse
 from typing import Optional
 import json
@@ -21,27 +21,26 @@ logger = logging.getLogger(__name__)
 @router.post("/sync")
 async def trigger_sync(
     authorization: Optional[str] = Header(None),
-    folder_id: Optional[str] = None,
-    force: bool = False
+    folder_id: Optional[str] = Query(None),
+    force: bool = Query(False)
 ):
     """
-    Trigger KB sync from Google Drive.
+    Trigger KB sync from Google Drive using service account.
 
-    Requires Google OAuth access token in Authorization header.
-    Returns Server-Sent Events stream with progress updates.
+    Note: authorization header is checked for authentication but not used for API calls.
+    The service account is used to access Google Drive instead.
 
     Args:
-        authorization: Bearer token from NextAuth session
+        authorization: Bearer token from NextAuth session (for auth only)
         folder_id: Google Drive folder ID (optional, uses env var if not provided)
         force: Force re-sync even if files haven't changed
 
     Returns:
         StreamingResponse with text/event-stream content
     """
+    # Verify user is authenticated (but don't use their token for Drive API)
     if not authorization or not authorization.startswith("Bearer "):
         raise HTTPException(status_code=401, detail="Missing or invalid access token")
-
-    access_token = authorization.replace("Bearer ", "")
 
     # Use folder ID from env if not provided
     if not folder_id:
@@ -57,7 +56,8 @@ async def trigger_sync(
     # Stream progress updates
     async def generate():
         try:
-            async for update in sync_knowledge_base(access_token, folder_id, force=force):
+            # Use service account instead of user's OAuth token
+            async for update in sync_knowledge_base(folder_id, force=force):
                 yield f"data: {json.dumps(update)}\n\n"
         except Exception as e:
             logger.exception(f"Sync generator failed: {e}")
