@@ -5,20 +5,20 @@ AI-powered energy management system with CrewAI agents, MCP integration, and pro
 ## 🎯 Project Status
 
 **Current Phase:** Production Deployment Complete! 🚀
-**Progress:** 98% complete
-**Last Updated:** 2025-10-08 (Session 018C)
+**Progress:** 99% complete
+**Last Updated:** 2025-10-08 (Session 018D - KB Dashboard Operational!)
 
 ### Quick Stats
 - ✅ **Production Services:** 3 deployed (API, Frontend, KB Dashboard)
 - ✅ **Agents:** 1 operational (Solar Controller with memory)
-- ✅ **API Endpoints:** 15+ operational endpoints
+- ✅ **API Endpoints:** 18+ operational endpoints
 - ✅ **Frontend Pages:** 8 complete pages with live data
-- ✅ **Knowledge Base:** 15 documents synced (Docs, PDFs, Sheets)
+- ✅ **Knowledge Base:** ⚡ **OPERATIONAL!** 15 docs synced, deletion handling, collapsible UI
 - ✅ **MCP Server:** Ready for Claude Desktop
 - ✅ **CrewAI Studio:** Deployed to Railway (studio.wildfireranch.us)
 - ✅ **Streamlit Ops Dashboard:** 4 pages running locally
 - ✅ **Database:** PostgreSQL + TimescaleDB + pgvector on Railway
-- 🎉 **Status:** Production-ready!
+- 🎉 **Status:** Production-ready and battle-tested!
 
 ---
 
@@ -33,7 +33,8 @@ AI-powered energy management system with CrewAI agents, MCP integration, and pro
 │  ├─ / (Home - Live energy dashboard)                        │
 │  ├─ /dashboard (Historical charts)                          │
 │  ├─ /chat (Agent interaction)                               │
-│  ├─ /studio (CrewAI Studio iframe) ✨ NEW!                  │
+│  ├─ /kb (Knowledge Base Dashboard) ✨ OPERATIONAL!          │
+│  ├─ /studio (CrewAI Studio iframe)                          │
 │  ├─ /energy (Power flow details)                            │
 │  ├─ /logs (Activity history)                                │
 │  └─ /status (System health)                                 │
@@ -57,6 +58,7 @@ AI-powered energy management system with CrewAI agents, MCP integration, and pro
 ### Production URLs
 - **Frontend:** Your Vercel domain
 - **API:** https://api.wildfireranch.us
+- **KB Dashboard:** https://mcp.wildfireranch.us/kb ⚡ **NEW!**
 - **CrewAI Studio:** https://studio.wildfireranch.us
 - **API Docs:** https://api.wildfireranch.us/docs
 - **Database:** PostgreSQL on Railway (internal)
@@ -91,12 +93,16 @@ AI-powered energy management system with CrewAI agents, MCP integration, and pro
   - Multi-turn conversations with context
   - CrewAI-powered solar controller agent
   - Conversation history and retrieval
-- **Knowledge Base System:**
-  - Google Drive integration (service account)
+- **Knowledge Base System:** ⚡ **OPERATIONAL!**
+  - Google Drive integration (service account + OAuth)
   - Multi-format support (Google Docs, PDFs, Spreadsheets)
-  - Smart sync with change detection
-  - Vector embeddings with pgvector
+  - Full & Smart sync with real-time progress tracking
+  - Automatic deletion detection and cleanup
+  - Vector embeddings with pgvector (OpenAI)
   - Semantic search capabilities
+  - Context file management (CONTEXT folder)
+  - Collapsible folder tree UI
+  - 15 documents synced, 141k tokens indexed
 - **API Endpoints:**
   - `/health` - System health checks
   - `/energy/*` - Energy data and statistics
@@ -125,21 +131,22 @@ AI-powered energy management system with CrewAI agents, MCP integration, and pro
 - **Authentication:** NextAuth.js with Google OAuth
 
 ### In Progress 🔄
-- Knowledge Base Files tab testing
 - Production monitoring setup
-
-### Planned 📋
 - Additional hardware integrations (Shelly, Miners)
-- Optimization automation
-- Scheduled crew execution
-- Knowledge Base enhancements:
-  - Word/PowerPoint support
-  - Folder-specific sync
-  - Scheduled auto-sync
-  - Document deletion UI
-- WebSocket real-time updates
-- Redis caching layer
-- Mobile app (React Native)
+
+### Planned 📋 (See [KB_ROADMAP.md](KB_ROADMAP.md) for details)
+- **Knowledge Base Enhancements:**
+  - Settings implementation (auto-sync, configurable params)
+  - Advanced search with filters
+  - Additional file types (Word, PowerPoint, Markdown)
+  - Bulk operations (multi-select, delete, re-sync)
+  - Analytics dashboard
+- **System Enhancements:**
+  - Optimization automation
+  - Scheduled crew execution
+  - WebSocket real-time updates
+  - Redis caching layer
+  - Mobile app (React Native)
 
 ---
 
@@ -156,8 +163,14 @@ AI-powered energy management system with CrewAI agents, MCP integration, and pro
 - **[Streamlit Ops Dashboard](dashboards/README.md)** - Admin dashboard guide
 - **[Authentication Guide](docs/AUTHENTICATION_GUIDE.md)** - How to protect pages with OAuth
 
-### Session Notes
-- **[Session 018C Summary](docs/SESSION_018C_SYNC_IMPROVEMENTS.md)** - Latest session (KB sync improvements)
+### Knowledge Base Documentation
+- **[KB_ROADMAP.md](KB_ROADMAP.md)** - Complete feature roadmap and future plans
+- **[Session 018D Summary](docs/SESSION_018D_FILES_TAB_COMPLETION.md)** - Latest: Files tab + deletion handling
+- **[Session 018C Summary](docs/SESSION_018C_SYNC_IMPROVEMENTS.md)** - Sync improvements
+- **[Session 018B Testing Guide](docs/SESSION_018B_TESTING_GUIDE.md)** - End-to-end testing
+- **[Session 018 Summary](docs/SESSION_018_COMPLETION_SUMMARY.md)** - Initial KB implementation
+
+### Other Session Notes
 - **[Session 012 Summary](docs/sessions/SESSION_012_SUMMARY.md)** - Production deployment
 - **[Session 011 Summary](SESSION_011_SUMMARY.md)** - Frontend integration
 - **[All Session Notes](docs/sessions/)** - Complete development history
