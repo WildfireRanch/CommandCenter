@@ -265,7 +265,7 @@ export default function KnowledgeBasePage() {
               <div>
                 <p className="text-sm text-gray-600">Last Sync</p>
                 <p className="text-lg font-semibold">
-                  {syncHistory[0]?.completed_at
+                  {syncHistory?.[0]?.completed_at
                     ? new Date(syncHistory[0].completed_at).toLocaleString()
                     : 'Never'}
                 </p>
