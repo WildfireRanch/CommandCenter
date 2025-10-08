@@ -66,12 +66,12 @@ export default function KnowledgeBasePage() {
   const [showSyncModal, setShowSyncModal] = useState(false);
 
   useEffect(() => {
-    if (session) {
+    if (status === 'authenticated' && session) {
       fetchDocuments();
       fetchPreview();
       fetchSyncHistory();
     }
-  }, [session]);
+  }, [status, session]);
 
   const fetchDocuments = async () => {
     try {
