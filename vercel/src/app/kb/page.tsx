@@ -98,10 +98,16 @@ export default function KnowledgeBasePage() {
   const fetchSyncHistory = async () => {
     try {
       const res = await fetch('https://api.wildfireranch.us/kb/sync-history');
-      const data = await res.json();
-      setSyncHistory(data.history || []);
+      if (res.ok) {
+        const data = await res.json();
+        setSyncHistory(data.history || []);
+      } else {
+        // Endpoint doesn't exist yet, use empty array
+        setSyncHistory([]);
+      }
     } catch (error) {
       console.error('Failed to fetch sync history:', error);
+      setSyncHistory([]);
     }
   };
 
