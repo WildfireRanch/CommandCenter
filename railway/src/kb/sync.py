@@ -104,16 +104,14 @@ def generate_embeddings(texts: List[str]) -> List[List[float]]:
 
 
 async def sync_knowledge_base(
-    access_token: str,
     folder_id: str,
     sync_type: str = "full",
     force: bool = False
 ) -> AsyncGenerator[Dict, None]:
     """
-    Sync Google Docs to database with progress updates.
+    Sync Google Docs to database with progress updates using service account.
 
     Args:
-        access_token: Google OAuth access token
         folder_id: Google Drive folder ID to sync
         sync_type: "full" or "context-only"
         force: Re-sync even if unchanged
@@ -128,6 +126,8 @@ async def sync_knowledge_base(
             - updated: Files updated
             - failed: Files that failed
     """
+    from .google_drive import get_drive_service_with_service_account, get_docs_service_with_service_account
+
     with get_connection() as conn:
         # Log sync start
         sync_log_id = execute(
@@ -150,9 +150,9 @@ async def sync_knowledge_base(
         sync_log_id = log_result['id'] if log_result else None
 
         try:
-            # Get Google Drive service
-            drive_service = get_drive_service(access_token)
-            docs_service = get_docs_service(access_token)
+            # Get Google Drive service using service account
+            drive_service = get_drive_service_with_service_account()
+            docs_service = get_docs_service_with_service_account()
 
             # List files recursively from all subfolders
             logger.info(f"Starting recursive scan of folder {folder_id}")
