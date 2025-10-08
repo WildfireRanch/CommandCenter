@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect, useRef } from 'react'
-import { Send, Trash2, Download, RefreshCw } from 'lucide-react'
+import { Send, Trash2, Download } from 'lucide-react'
 
 interface Message {
   role: 'user' | 'assistant'
@@ -41,7 +41,7 @@ export default function ChatPage() {
 
     try {
       const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://api.wildfireranch.us'
-      const res = await fetch(`${API_URL}/agent/ask`, {
+      const res = await fetch(`${API_URL}/ask`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -209,7 +209,7 @@ export default function ChatPage() {
             type="text"
             value={input}
             onChange={(e) => setInput(e.target.value)}
-            onKeyPress={handleKeyPress}
+            onKeyDown={handleKeyPress}
             placeholder="Ask about your solar system..."
             disabled={loading}
             className="flex-1 px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-gray-100 disabled:cursor-not-allowed"

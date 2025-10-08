@@ -50,7 +50,7 @@ env_file = root_dir / ".env"
 load_dotenv(dotenv_path=env_file)
 
 # Import agents and utilities
-from ..agents.solar_controller import create_energy_crew
+from ..agents.manager import create_manager_crew
 from ..utils.db import check_connection as check_db_connection
 
 # Configure logging
@@ -859,8 +859,8 @@ def create_app() -> FastAPI:
                 content=request.message
             )
 
-            # Create crew with user's query and conversation context
-            crew = create_energy_crew(request.message, context)
+            # Create manager crew to route query intelligently
+            crew = create_manager_crew(request.message, context)
 
             # Run the crew (executes agent and task)
             result = crew.kickoff()
