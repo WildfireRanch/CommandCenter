@@ -9,13 +9,12 @@ AI-powered energy management system with CrewAI agents, MCP integration, and pro
 **Last Updated:** 2025-10-08 (Session 018D - KB Dashboard Operational!)
 
 ### Quick Stats
-- ✅ **Production Services:** 3 deployed (API, Frontend, KB Dashboard)
+- ✅ **Production Services:** 2 deployed (API, Frontend)
 - ✅ **Agents:** 1 operational (Solar Controller with memory)
 - ✅ **API Endpoints:** 18+ operational endpoints
-- ✅ **Frontend Pages:** 8 complete pages with live data
+- ✅ **Frontend Pages:** 7 complete pages with live data
 - ✅ **Knowledge Base:** ⚡ **OPERATIONAL!** 15 docs synced, deletion handling, collapsible UI
 - ✅ **MCP Server:** Ready for Claude Desktop
-- ✅ **CrewAI Studio:** Deployed to Railway (studio.wildfireranch.us)
 - ✅ **Streamlit Ops Dashboard:** 4 pages running locally
 - ✅ **Database:** PostgreSQL + TimescaleDB + pgvector on Railway
 - 🎉 **Status:** Production-ready and battle-tested!
@@ -34,19 +33,15 @@ AI-powered energy management system with CrewAI agents, MCP integration, and pro
 │  ├─ /dashboard (Historical charts)                          │
 │  ├─ /chat (Agent interaction)                               │
 │  ├─ /kb (Knowledge Base Dashboard) ✨ OPERATIONAL!          │
-│  ├─ /studio (CrewAI Studio iframe)                          │
 │  ├─ /energy (Power flow details)                            │
 │  ├─ /logs (Activity history)                                │
 │  └─ /status (System health)                                 │
 │         │                                                    │
-│         ├──────────→ Railway (FastAPI API)                  │
-│         │            └─ api.wildfireranch.us                │
-│         │                                                    │
-│         └──────────→ Railway (CrewAI Studio) ✨ NEW!        │
-│                      └─ studio.wildfireranch.us             │
+│         └──────────→ Railway (FastAPI API)                  │
+│                      └─ api.wildfireranch.us                │
 │                                                              │
 │  Railway PostgreSQL (TimescaleDB)                           │
-│  └─ Shared by API & Studio                                  │
+│  └─ Used by API                                             │
 │                                                              │
 │  Local Development Services:                                │
 │  ├─ Streamlit Ops Dashboard (Port 8502)                     │
@@ -59,7 +54,6 @@ AI-powered energy management system with CrewAI agents, MCP integration, and pro
 - **Frontend:** Your Vercel domain
 - **API:** https://api.wildfireranch.us
 - **KB Dashboard:** https://mcp.wildfireranch.us/kb ⚡ **NEW!**
-- **CrewAI Studio:** https://studio.wildfireranch.us
 - **API Docs:** https://api.wildfireranch.us/docs
 - **Database:** PostgreSQL on Railway (internal)
 
@@ -70,11 +64,10 @@ AI-powered energy management system with CrewAI agents, MCP integration, and pro
 ### Completed ✅
 
 #### Frontend (Next.js + TypeScript)
-- **8 Complete Pages:**
+- **7 Complete Pages:**
   - Home dashboard with real-time energy data
   - Energy analytics with Recharts visualizations
   - Agent chat interface
-  - CrewAI Studio operator interface (iframe embedded)
   - Knowledge Base dashboard (Google Drive sync)
   - Detailed energy metrics and power flow
   - Activity logs (conversations & energy data)

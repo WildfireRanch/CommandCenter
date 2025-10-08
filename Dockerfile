@@ -1,27 +1,22 @@
 # Baseimage
-FROM python:3.12.10-slim-bookworm
+FROM python:3.11-slim
 
 # Update Packages
 RUN apt update && apt upgrade -y
 RUN pip install --upgrade pip
-RUN apt-get install -y build-essential bash
 
 # Create app directory
-RUN mkdir -p /CrewAI-Studio
-WORKDIR /CrewAI-Studio
+WORKDIR /app
 
 # Install requirements
-COPY ./crewai-studio/requirements.txt .
-RUN pip install -r requirements.txt
+COPY ./railway/requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
 
-# Copy all files from crewai-studio
-COPY ./crewai-studio .
-
-# Make start.sh executable
-RUN chmod +x start.sh
+# Copy railway app
+COPY ./railway .
 
 # Expose port (Railway will override with PORT env var)
-EXPOSE 8080
+EXPOSE 8000
 
-# Run app using bash with explicit path
-CMD ["/bin/bash", "./start.sh"]
+# Run FastAPI app
+CMD ["uvicorn", "src.api.main:app", "--host", "0.0.0.0", "--port", "8000"]
