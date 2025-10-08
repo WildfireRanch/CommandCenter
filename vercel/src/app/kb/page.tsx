@@ -88,10 +88,16 @@ export default function KnowledgeBasePage() {
       const res = await fetch('https://api.wildfireranch.us/kb/preview', {
         method: 'POST'
       });
-      const data = await res.json();
-      setPreview(data);
+      if (res.ok) {
+        const data = await res.json();
+        setPreview(data);
+      } else {
+        console.error('Preview endpoint returned error:', res.status);
+        setPreview(null);
+      }
     } catch (error) {
       console.error('Failed to fetch preview:', error);
+      setPreview(null);
     }
   };
 
@@ -320,7 +326,7 @@ export default function KnowledgeBasePage() {
                 </div>
               </div>
               <div className="space-y-2">
-                {preview.folders.map((folder) => (
+                {preview.folders?.map((folder) => (
                   <div key={folder.path} className="border-l-4 border-blue-500 pl-4 py-2">
                     <p className="font-medium">📂 {folder.name} ({folder.file_count} files)</p>
                     <p className="text-sm text-gray-500">{folder.path}</p>
