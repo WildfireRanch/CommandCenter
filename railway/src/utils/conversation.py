@@ -84,14 +84,19 @@ def get_conversation(conversation_id: str) -> Optional[Dict[str, Any]]:
         conversation_id: UUID of the conversation
 
     Returns:
-        Dict with conversation data, or None if not found
+        Dict with conversation data, or None if not found or invalid UUID
     """
-    with get_connection() as conn:
-        return query_one(
-            conn,
-            "SELECT * FROM agent.conversations WHERE id = %s",
-            (conversation_id,)
-        )
+    try:
+        with get_connection() as conn:
+            return query_one(
+                conn,
+                "SELECT * FROM agent.conversations WHERE id = %s",
+                (conversation_id,)
+            )
+    except Exception as e:
+        # Handle invalid UUID format or other database errors gracefully
+        print(f"⚠️  Warning: Could not retrieve conversation {conversation_id}: {e}")
+        return None
 
 
 def update_conversation_summary(

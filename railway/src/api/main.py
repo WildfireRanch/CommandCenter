@@ -819,11 +819,21 @@ def create_app() -> FastAPI:
 
             # Handle session continuity
             if request.session_id:
-                # Continue existing conversation
-                conversation_id = request.session_id
-                existing_conv = get_conversation(conversation_id)
-                if not existing_conv:
-                    # Session ID invalid, create new conversation
+                # Validate UUID format
+                try:
+                    from uuid import UUID
+                    UUID(request.session_id)  # Validates format
+                    # Continue existing conversation
+                    conversation_id = request.session_id
+                    existing_conv = get_conversation(conversation_id)
+                    if not existing_conv:
+                        # Session ID doesn't exist in DB, create new conversation
+                        conversation_id = create_conversation(
+                            agent_role=agent_role,
+                            title=request.message[:100] if len(request.message) <= 100 else request.message[:97] + "..."
+                        )
+                except (ValueError, AttributeError):
+                    # Invalid UUID format, create new conversation
                     conversation_id = create_conversation(
                         agent_role=agent_role,
                         title=request.message[:100] if len(request.message) <= 100 else request.message[:97] + "..."
