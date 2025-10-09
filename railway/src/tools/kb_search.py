@@ -18,6 +18,7 @@
 # ═══════════════════════════════════════════════════════════════════════════
 
 from typing import Dict
+from crewai.tools import tool
 from ..kb.sync import search_kb
 
 
@@ -25,6 +26,7 @@ from ..kb.sync import search_kb
 # High-Level Interface (This is what agents use)
 # ─────────────────────────────────────────────────────────────────────────────
 
+@tool("Search Knowledge Base")
 def search_knowledge_base(query: str, limit: int = 5) -> str:
     """
     Search the knowledge base for relevant information.
@@ -184,7 +186,7 @@ if __name__ == "__main__":
     print("\nResults:")
     print("-" * 80)
 
-    result = search_knowledge_base(test_query, limit=3)
+    result = search_knowledge_base.func(test_query, limit=3)
     print(result)
     print("-" * 80)
 

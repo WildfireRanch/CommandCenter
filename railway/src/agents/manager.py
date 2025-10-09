@@ -20,6 +20,7 @@ from crewai import Agent, Crew, Task, Process
 from crewai.tools import tool
 
 from .solar_controller import create_energy_crew
+from .energy_orchestrator import create_orchestrator_crew
 from ..tools.kb_search import search_knowledge_base
 
 
@@ -60,6 +61,41 @@ def route_to_solar_controller(query: str) -> str:
         return f"Error routing to Solar Controller: {str(e)}"
 
 
+@tool("Route to Energy Orchestrator")
+def route_to_energy_orchestrator(query: str) -> str:
+    """
+    Route to Energy Orchestrator for planning and optimization queries.
+
+    Use when query is about:
+    - "Should we" questions (run miners, charge battery, etc.)
+    - Planning or scheduling
+    - Optimization recommendations
+    - Energy forecasts or predictions
+    - Miner control decisions
+    - Battery management strategies
+    - Creating energy plans
+
+    Examples:
+    - "Should we run the miners tonight?"
+    - "Create an energy plan for today"
+    - "What's the best time to charge the battery?"
+    - "When should we stop the miners?"
+    - "What's the battery optimization recommendation?"
+
+    Args:
+        query: Planning/optimization question
+
+    Returns:
+        Response from Energy Orchestrator agent
+    """
+    try:
+        crew = create_orchestrator_crew(query)
+        result = crew.kickoff()
+        return str(result)
+    except Exception as e:
+        return f"Error routing to Energy Orchestrator: {str(e)}"
+
+
 @tool("Search Knowledge Base")
 def search_kb_directly(query: str) -> str:
     """
@@ -86,7 +122,7 @@ def search_kb_directly(query: str) -> str:
         str: Relevant documentation with source citations
     """
     try:
-        return search_knowledge_base(query, limit=5)
+        return search_knowledge_base.func(query, limit=5)
     except Exception as e:
         return f"Error searching knowledge base: {str(e)}"
 
@@ -117,7 +153,10 @@ def create_manager_agent() -> Agent:
         1. Solar Controller Agent - Real-time monitoring specialist
            (current battery, solar production, power usage, status)
 
-        2. Knowledge Base - Documentation and procedures
+        2. Energy Orchestrator Agent - Planning and optimization specialist
+           (should we run miners, create energy plan, battery optimization)
+
+        3. Knowledge Base - Documentation and procedures
            (specifications, policies, how-to guides, thresholds)
 
         ROUTING GUIDELINES:
@@ -126,6 +165,12 @@ def create_manager_agent() -> Agent:
         - "What's my battery level?"
         - "How much solar am I producing?"
         - "What's the current status?"
+
+        For PLANNING/OPTIMIZATION questions → Use Energy Orchestrator
+        - "Should we run the miners?"
+        - "Create an energy plan"
+        - "When should we charge the battery?"
+        - "What's the best strategy for..."
 
         For DOCUMENTATION/POLICY questions → Search Knowledge Base
         - "What is the minimum SOC threshold?"
@@ -139,7 +184,7 @@ def create_manager_agent() -> Agent:
         You are CONCISE and DIRECT. You route queries to specialists - you
         don't try to answer technical questions yourself. Let the specialists
         do what they do best.""",
-        tools=[route_to_solar_controller, search_kb_directly],
+        tools=[route_to_solar_controller, route_to_energy_orchestrator, search_kb_directly],
         verbose=True,
         allow_delegation=True,
     )
@@ -182,6 +227,7 @@ Your process:
 1. Determine what the user is asking for
 2. Decide which tool to use:
    - Real-time status/monitoring → Route to Solar Controller
+   - Planning/optimization → Route to Energy Orchestrator
    - Documentation/procedures → Search Knowledge Base
    - Unclear intent → Ask clarifying question
 3. Use the appropriate tool
@@ -192,6 +238,7 @@ the tools to get accurate, up-to-date information. Your job is routing,
 not answering.""",
         expected_output="""One of:
         - Response from Solar Controller agent (for status queries)
+        - Response from Energy Orchestrator agent (for planning queries)
         - Response from Knowledge Base search (for documentation queries)
         - A specific clarifying question (if intent unclear)
 
