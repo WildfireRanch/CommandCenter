@@ -162,12 +162,9 @@ def search_kb_directly(query: str) -> str:
 
         kb_result = search_knowledge_base.func(query, limit=5)
 
-        # Return structured response with metadata (matching other routing tools)
-        return json.dumps({
-            "response": kb_result,
-            "agent_used": "Knowledge Base",
-            "agent_role": "Documentation Search"
-        })
+        # For KB search, return simple format that won't confuse the Manager agent
+        # The formatted text from KB search is ready to use as-is
+        return f"{kb_result}\n\n[Source: Knowledge Base Search]"
     except Exception as e:
         return json.dumps({
             "response": f"Error searching knowledge base: {str(e)}",
@@ -231,8 +228,8 @@ def create_manager_agent() -> Agent:
         Your output = Tool output (no changes).""",
         tools=[route_to_solar_controller, route_to_energy_orchestrator, search_kb_directly],
         verbose=True,
-        allow_delegation=True,
-        max_iter=10,  # Prevent infinite retry loops
+        allow_delegation=False,  # Don't delegate - just route and return
+        max_iter=3,  # Reduced: Call tool once, return result (was 10)
     )
 
 
@@ -295,24 +292,22 @@ CRITICAL RULES:
 - Do NOT tell users which agent to use - USE THE TOOL YOURSELF
 - Do NOT explain what the tools do - JUST USE THEM
 
-Final answer format: Return EXACTLY AND ONLY what the tool returns - verbatim, no changes.""",
-        expected_output="""Return the tool output with ZERO modifications.
+Final answer format: Return EXACTLY what the tool returns - no modifications.""",
+        expected_output="""Return the tool's output verbatim.
 
-If tool returns JSON like:
-{"response": "Battery is 40%", "agent_used": "Solar Controller", "agent_role": "..."}
+For Solar Controller and Energy Orchestrator:
+- These return JSON strings - return the complete JSON exactly
 
-Then your final answer must be EXACTLY that - do not extract just the response part.
-
-If tool returns text, return that exact text.
+For Knowledge Base:
+- Returns formatted text with sources - return that text exactly
 
 DO NOT:
-- Reformat or prettify the output
-- Extract only part of the JSON
-- Add explanations
-- Summarize the response
-- Add markdown formatting
+- Reformat, parse, or extract parts of the response
+- Add your own commentary or explanations
+- Change formatting or structure
+- Iterate multiple times trying to improve the response
 
-Your entire final answer = Tool's raw output (character-for-character match)""",
+Call the tool once, get the result, return it immediately as your final answer.""",
         agent=agent,
     )
 
