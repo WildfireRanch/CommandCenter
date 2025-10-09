@@ -40,10 +40,13 @@ with st.spinner("Fetching latest energy data..."):
     latest = api.get_latest_energy()
 
 if latest and "error" not in latest:
-    col1, col2, col3, col4 = st.columns(4)
+    # Extract data from API response
+    data = latest.get("data", {})
+
+    col1, col2, col3, col4, col5 = st.columns(5)
 
     with col1:
-        soc = latest.get("battery_soc", 0)
+        soc = data.get("soc", 0)
         st.metric(
             "🔋 Battery SOC",
             f"{soc:.1f}%",
@@ -52,28 +55,36 @@ if latest and "error" not in latest:
         )
 
     with col2:
-        solar = latest.get("solar_power", 0)
+        solar = data.get("pv_power", 0)
         st.metric(
             "☀️ Solar Power",
-            f"{solar:.0f} W",
+            f"{solar:,.0f}W",
             delta="Producing" if solar > 0 else "Idle"
         )
 
     with col3:
-        load = latest.get("load_power", 0)
+        load = data.get("load_power", 0)
         st.metric(
             "🏠 Load Power",
-            f"{load:.0f} W",
+            f"{load:,.0f}W",
             delta="Active"
         )
 
     with col4:
-        battery_pwr = latest.get("battery_power", 0)
+        battery_pwr = data.get("batt_power", 0)
         direction = "⬇️ Charging" if battery_pwr > 0 else "⬆️ Discharging" if battery_pwr < 0 else "⏸️ Idle"
         st.metric(
             "🔌 Battery Power",
-            f"{abs(battery_pwr):.0f} W",
+            f"{abs(battery_pwr):,.0f}W",
             delta=direction
+        )
+
+    with col5:
+        grid_export = data.get("pv_to_grid", 0)
+        st.metric(
+            "⚡ Grid Export",
+            f"{grid_export:,.0f}W",
+            delta="Exporting" if grid_export > 0 else "None"
         )
 
     # Detailed info
@@ -81,15 +92,17 @@ if latest and "error" not in latest:
         col1, col2 = st.columns(2)
 
         with col1:
-            st.markdown("**Battery Details**")
-            st.text(f"Voltage: {latest.get('battery_voltage', 0):.1f} V")
-            st.text(f"Current: {latest.get('battery_current', 0):.1f} A")
-            st.text(f"Temperature: {latest.get('battery_temp', 0):.1f} °C")
+            st.markdown("**Power Flows**")
+            st.text(f"PV to Battery: {data.get('pv_to_bat', 0):,.0f}W")
+            st.text(f"PV to Load: {data.get('pv_to_load', 0):,.0f}W")
+            st.text(f"PV to Grid: {data.get('pv_to_grid', 0):,.0f}W")
+            st.text(f"Battery to Load: {data.get('bat_to_load', 0):,.0f}W")
 
         with col2:
             st.markdown("**Grid & System**")
-            st.text(f"Grid Power: {latest.get('grid_power', 0):.0f} W")
-            st.text(f"Timestamp: {latest.get('timestamp', 'N/A')}")
+            st.text(f"Grid Power: {data.get('grid_power', 0):,.0f}W")
+            st.text(f"Grid to Load: {data.get('grid_to_load', 0):,.0f}W")
+            st.text(f"Timestamp: {data.get('created_at', 'N/A')}")
 
 else:
     st.error("❌ Could not fetch energy data")

@@ -4,7 +4,13 @@ Main entry point with custom sidebar navigation
 """
 
 import streamlit as st
+import sys
 from pathlib import Path
+
+# Add parent directory to path for imports
+sys.path.append(str(Path(__file__).parent))
+
+from components.api_client import api
 
 # Page config
 st.set_page_config(
@@ -95,34 +101,42 @@ st.info("""
 st.markdown("---")
 st.markdown("### 📊 Quick Overview")
 
+# Fetch latest energy data
+latest = api.get_latest_energy()
+energy_data = latest.get("data", {}) if latest and latest.get("status") == "success" else {}
+
 col1, col2, col3, col4 = st.columns(4)
 
 with col1:
+    soc = energy_data.get("soc", 0)
     st.metric(
-        label="🟢 System Status",
-        value="Healthy",
-        delta="All services operational"
+        label="🔋 Battery SOC",
+        value=f"{soc:.0f}%" if soc else "N/A",
+        delta="Charging" if energy_data.get("batt_power", 0) > 0 else "Discharging" if energy_data.get("batt_power", 0) < 0 else "Idle"
     )
 
 with col2:
+    solar = energy_data.get("pv_power", 0)
     st.metric(
-        label="⚡ Battery SOC",
-        value="Loading...",
-        delta="Real-time data"
+        label="☀️ Solar Power",
+        value=f"{solar:,.0f}W" if solar else "0W",
+        delta="Producing" if solar > 0 else "Idle"
     )
 
 with col3:
+    load = energy_data.get("load_power", 0)
     st.metric(
-        label="🤖 Agents Active",
-        value="1",
-        delta="Solar Controller"
+        label="🏠 House Load",
+        value=f"{load:,.0f}W" if load else "0W",
+        delta="Active"
     )
 
 with col4:
+    grid_export = energy_data.get("pv_to_grid", 0)
     st.metric(
-        label="💬 Conversations",
-        value="Loading...",
-        delta="Today"
+        label="⚡ Grid Export",
+        value=f"{grid_export:,.0f}W" if grid_export else "0W",
+        delta="Exporting" if grid_export > 0 else "None"
     )
 
 st.markdown("---")
