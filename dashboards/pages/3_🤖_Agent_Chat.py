@@ -56,12 +56,25 @@ with st.sidebar:
     st.markdown("---")
 
     st.markdown("### 💡 Example Questions")
+
+    st.markdown("**☀️ Status Queries** (Solar Controller)")
     st.markdown("""
     - What's my current battery level?
-    - How much solar power are we generating?
-    - Show me today's energy summary
-    - What's the load right now?
-    - Should I run heavy appliances?
+    - How much solar are we generating?
+    - What's the power usage right now?
+    """)
+
+    st.markdown("**⚡ Planning Queries** (Energy Orchestrator)")
+    st.markdown("""
+    - Should we run the miners?
+    - When's the best time to charge?
+    - Create an energy plan for today
+    """)
+
+    st.markdown("**📚 Knowledge Base**")
+    st.markdown("""
+    - What is the minimum SOC threshold?
+    - What are the solar specifications?
     """)
 
 st.markdown("---")
@@ -113,7 +126,14 @@ if user_input:
     # Get agent response
     with chat_container:
         with st.chat_message("assistant", avatar="🤖"):
-            with st.spinner("Thinking..."):
+            # Enhanced loading state
+            loading_messages = [
+                "Analyzing your query...",
+                "Routing to specialist agent...",
+                "Processing request..."
+            ]
+            import random
+            with st.spinner(random.choice(loading_messages)):
                 response = api.ask_agent(
                     message=user_input,
                     session_id=st.session_state.session_id
@@ -123,6 +143,30 @@ if user_input:
                 agent_reply = response["response"]
                 st.markdown(agent_reply)
 
+                # Enhanced agent metadata display with icons
+                if "agent_role" in response:
+                    agent_icons = {
+                        "Solar Controller": "☀️",
+                        "Energy Systems Monitor": "☀️",
+                        "Energy Orchestrator": "⚡",
+                        "Energy Operations Manager": "⚡",
+                        "Manager": "🎯",
+                        "Query Router and Coordinator": "🎯"
+                    }
+                    agent_role = response["agent_role"]
+                    icon = agent_icons.get(agent_role, "🤖")
+                    st.caption(f"{icon} **Answered by:** {agent_role}")
+
+                # Show duration if available
+                if "duration_ms" in response:
+                    duration_s = response["duration_ms"] / 1000
+                    st.caption(f"⏱️ Response time: {duration_s:.2f}s")
+
+                # Show source citations if KB was used
+                if any(keyword in agent_reply.lower() for keyword in ["source:", "sources consulted:", "citation"]):
+                    with st.expander("📚 Knowledge Base Sources", expanded=False):
+                        st.info("This response includes information from the knowledge base.")
+
                 # Add to message history
                 st.session_state.messages.append({
                     "role": "assistant",
@@ -131,11 +175,18 @@ if user_input:
                 })
 
             elif "error" in response:
-                error_msg = f"❌ Error: {response['error']}"
-                st.error(error_msg)
+                error_msg = response.get("error", "Unknown error")
+                detail = response.get("detail", "")
+
+                st.error(f"❌ Error: {error_msg}")
+
+                if detail:
+                    with st.expander("Error Details"):
+                        st.code(detail)
+
                 st.session_state.messages.append({
                     "role": "assistant",
-                    "content": error_msg,
+                    "content": f"❌ Error: {error_msg}",
                     "timestamp": datetime.now().isoformat()
                 })
             else:

@@ -1,5 +1,5 @@
 # ═══════════════════════════════════════════════════════════════════════════
-# FILE: railway/src/agents/energy_controller.py
+# FILE: railway/src/agents/solar_controller.py
 # PURPOSE: CrewAI agent for monitoring and managing energy systems
 #
 # WHAT IT DOES:
@@ -12,8 +12,8 @@
 #   - tools.solark (SolArk API integration)
 #
 # USAGE:
-#   from agents.energy_controller import create_energy_crew
-#   
+#   from agents.solar_controller import create_energy_crew
+#
 #   crew = create_energy_crew()
 #   result = crew.kickoff(inputs={"query": "What's my battery level?"})
 #   print(result)
@@ -29,33 +29,6 @@ from ..tools.kb_search import search_knowledge_base
 # ─────────────────────────────────────────────────────────────────────────────
 # Tool Definitions (CrewAI-compatible wrappers)
 # ─────────────────────────────────────────────────────────────────────────────
-
-@tool("Search Knowledge Base")
-def search_kb_tool(query: str) -> str:
-    """
-    Search the knowledge base for system documentation and procedures.
-
-    Use this tool when you need information about:
-    - Solar system specifications and limits
-    - Battery operating thresholds (min SOC, target SOC, etc.)
-    - Standard operating procedures
-    - System maintenance guidelines
-    - Hardware specifications
-    - Business or operational policies
-
-    Args:
-        query: Natural language search query
-
-    Returns:
-        str: Relevant information with source citations
-
-    Example:
-        "What is the minimum battery SOC threshold?"
-        "How should I handle low battery situations?"
-        "What are the solar panel specifications?"
-    """
-    return search_knowledge_base(query, limit=5)
-
 
 @tool("Get SolArk Status")
 def get_energy_status() -> str:
@@ -148,7 +121,7 @@ def create_energy_monitor_agent() -> Agent:
         operating procedures, and specifications. When you need information about
         thresholds, limits, or procedures, use the Search Knowledge Base tool.
         Always cite your sources when referencing information from the KB.""",
-        tools=[get_energy_status, get_detailed_status, search_kb_tool],
+        tools=[get_energy_status, get_detailed_status, search_knowledge_base],
         verbose=True,
         allow_delegation=False,
     )
@@ -158,13 +131,14 @@ def create_energy_monitor_agent() -> Agent:
 # Task Templates
 # ─────────────────────────────────────────────────────────────────────────────
 
-def create_status_task(query: str, conversation_context: str = "") -> Task:
+def create_status_task(query: str, conversation_context: str = "", agent: Agent = None) -> Task:
     """
     Create a task to answer energy status questions.
 
     Args:
         query: User's question (e.g., "What's my battery level?")
         conversation_context: Previous conversation history (optional)
+        agent: Pre-created agent instance (optional, will create if not provided)
 
     Returns:
         Task: Configured task for the energy monitor agent
@@ -173,6 +147,10 @@ def create_status_task(query: str, conversation_context: str = "") -> Task:
     context_section = ""
     if conversation_context:
         context_section = f"\n\n{conversation_context}\n\n"
+
+    # Create agent if not provided
+    if agent is None:
+        agent = create_energy_monitor_agent()
 
     return Task(
         description=f"""Answer this question about the energy system: {query}
@@ -193,7 +171,7 @@ def create_status_task(query: str, conversation_context: str = "") -> Task:
         - Brief context if helpful
         - References to previous conversations if relevant
         - No speculation or guessing""",
-        agent=create_energy_monitor_agent(),
+        agent=agent,
     )
 
 
@@ -222,7 +200,7 @@ def create_energy_crew(query: str, conversation_context: str = "") -> Crew:
         >>> print(result)
     """
     agent = create_energy_monitor_agent()
-    task = create_status_task(query, conversation_context)
+    task = create_status_task(query, conversation_context, agent=agent)
 
     return Crew(
         agents=[agent],

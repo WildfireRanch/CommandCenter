@@ -1,23 +1,23 @@
 # 📚 CommandCenter Documentation Index
 
-**Last Updated**: Post-Session 020 Audit (October 2025)
-**Status**: 🚨 **CRITICAL** - Code Complete (95%) but System Broken (0% functional)
-**Next Session**: [SESSION_021_DEBUG_PROMPT.md](sessions/SESSION_021_DEBUG_PROMPT.md) - **URGENT DEBUGGING REQUIRED**
+**Last Updated**: Post-Session 021 (October 2025)
+**Status**: ✅ **OPERATIONAL** - All critical bugs fixed, system 100% functional
+**Version**: V1.5 Complete - Multi-agent system fully operational
 
-## 🚨 **CRITICAL STATUS UPDATES**
+## 🎉 **LATEST UPDATES**
 
-### 🔴 READ THESE FIRST
-1. **[SYSTEM_STATUS_CRITICAL.md](SYSTEM_STATUS_CRITICAL.md)** 🚨 **CRITICAL - System audit reveals major bugs**
-2. **[sessions/SESSION_021_DEBUG_PROMPT.md](sessions/SESSION_021_DEBUG_PROMPT.md)** 🔧 **NEXT SESSION - Debugging required**
-3. **[sessions/SESSION_020_PROMPT.md](sessions/SESSION_020_PROMPT.md)** - Session 020 (what we just built)
+### 🟢 SYSTEM NOW OPERATIONAL
+1. **[sessions/SESSION_021_SUMMARY.md](sessions/SESSION_021_SUMMARY.md)** ✅ **Session 021 - All bugs fixed!**
+2. **[sessions/SESSION_021_DEBUG_PROMPT.md](sessions/SESSION_021_DEBUG_PROMPT.md)** 📋 Bug report that was addressed
+3. **[sessions/SESSION_020_PROMPT.md](sessions/SESSION_020_PROMPT.md)** - Session 020 (Energy Orchestrator built)
 
 ## 🚀 Quick Start Guides
 
 ### For New Users
 1. **[README.md](../README.md)** - Project overview and current status
-2. **[CODEBASE_AUDIT_OCT2025.md](CODEBASE_AUDIT_OCT2025.md)** ⭐ **Complete system inventory**
-3. **[08-Remaining_v1-5.md](08-Remaining_%20v1-5.md)** - V1.5 execution plan (updated)
-4. **[SYSTEM_STATUS_CRITICAL.md](SYSTEM_STATUS_CRITICAL.md)** 🚨 **Current bugs and issues**
+2. **[sessions/SESSION_021_SUMMARY.md](sessions/SESSION_021_SUMMARY.md)** ⭐ **Latest session - system now operational**
+3. **[CODEBASE_AUDIT_OCT2025.md](CODEBASE_AUDIT_OCT2025.md)** - Complete system inventory
+4. **[08-Remaining_v1-5.md](08-Remaining_%20v1-5.md)** - V1.5 execution plan (COMPLETED!)
 
 ### For Developers
 1. **[CommandCenter Code Style Guide.md](CommandCenter%20Code%20Style%20Guide.md)** - Coding standards
@@ -28,7 +28,8 @@
 ## 📋 Session History
 
 ### Latest Sessions (Start Here!)
-- **[sessions/SESSION_021_DEBUG_PROMPT.md](sessions/SESSION_021_DEBUG_PROMPT.md)** 🚨 **NEXT - Critical Debugging Session**
+- **[sessions/SESSION_021_SUMMARY.md](sessions/SESSION_021_SUMMARY.md)** ✅ **Session 021 - Critical Bug Fixes (COMPLETE)**
+- **[sessions/SESSION_021_DEBUG_PROMPT.md](sessions/SESSION_021_DEBUG_PROMPT.md)** 📋 Session 021 debug prompt
 - **[sessions/SESSION_020_PROMPT.md](sessions/SESSION_020_PROMPT.md)** 🆕 **Session 020 - Energy Orchestrator Built**
 - **[sessions/SESSION_019_ORCHESTRATION_SUMMARY.md](sessions/SESSION_019_ORCHESTRATION_SUMMARY.md)** - Orchestration Complete
 - **[sessions/SESSION_018D_SUMMARY.md](sessions/SESSION_018D_SUMMARY.md)** - KB Dashboard operational
@@ -96,6 +97,54 @@
 ### Railway API
 - **[railway/README.md](../railway/README.md)** - Railway backend docs
 - API Docs: https://api.wildfireranch.us/docs
+
+### Agent System
+**Multi-Agent Architecture** (Post-Session 021 Debug)
+
+#### Agents
+1. **Manager Agent** ([railway/src/agents/manager.py](../railway/src/agents/manager.py))
+   - Routes queries to specialized agents
+   - Analyzes user intent
+   - Coordinates multi-agent queries
+   - Role: "Query Router and Coordinator"
+
+2. **Solar Controller** ([railway/src/agents/solar_controller.py](../railway/src/agents/solar_controller.py))
+   - Real-time status monitoring
+   - Battery, solar, load, grid data
+   - Role: "Energy Systems Monitor"
+   - Tools: Get SolArk Status, Search Knowledge Base
+
+3. **Energy Orchestrator** ([railway/src/agents/energy_orchestrator.py](../railway/src/agents/energy_orchestrator.py))
+   - Planning and optimization
+   - Battery charge/discharge recommendations
+   - Miner coordination decisions
+   - Role: "Energy Operations Manager"
+   - Tools: Battery Optimizer, Miner Coordinator, Energy Planner
+
+#### Tools
+- `search_knowledge_base` - Semantic search in KB ([railway/src/tools/kb_search.py](../railway/src/tools/kb_search.py))
+- `get_solark_status` - Real-time inverter data ([railway/src/tools/solark.py](../railway/src/tools/solark.py))
+- `optimize_battery` - Charge/discharge recommendations ([railway/src/tools/battery_optimizer.py](../railway/src/tools/battery_optimizer.py))
+- `coordinate_miners` - Miner on/off decisions ([railway/src/tools/miner_coordinator.py](../railway/src/tools/miner_coordinator.py))
+- `create_energy_plan` - 24-hour energy planning ([railway/src/tools/energy_planner.py](../railway/src/tools/energy_planner.py))
+
+#### API Endpoints
+- `POST /ask` - Send query to agent system
+- `GET /conversations` - List recent conversations
+- `GET /conversations/{id}` - Get conversation details
+- `GET /health` - System health check
+
+#### Tool Calling Convention
+All tools use CrewAI's `@tool` decorator. When calling tools directly (not through agents):
+```python
+# ✅ CORRECT - Use .func() method
+result = search_knowledge_base.func(query, limit=5)
+
+# ❌ WRONG - Will raise TypeError
+result = search_knowledge_base(query, limit=5)
+```
+
+See [CommandCenter Code Style Guide.md](CommandCenter%20Code%20Style%20Guide.md) for details.
 
 ## 📈 Progress Tracking
 

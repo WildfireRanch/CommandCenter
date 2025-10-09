@@ -69,11 +69,15 @@ def create_energy_orchestrator() -> Agent:
     )
 
 
-def create_orchestrator_task(query: str, context: str = "") -> Task:
+def create_orchestrator_task(query: str, context: str = "", agent: Agent = None) -> Task:
     """Create planning/optimization task."""
     context_section = ""
     if context:
         context_section = f"\n\nPrevious conversation context:\n{context}\n"
+
+    # Create agent if not provided
+    if agent is None:
+        agent = create_energy_orchestrator()
 
     return Task(
         description=f"""Handle this energy planning or optimization query: {query}
@@ -95,14 +99,14 @@ def create_orchestrator_task(query: str, context: str = "") -> Task:
         - Any relevant warnings or considerations
         - Citations to knowledge base when applicable
         - No speculation - use tools to get real data""",
-        agent=create_energy_orchestrator(),
+        agent=agent,
     )
 
 
 def create_orchestrator_crew(query: str, context: str = "") -> Crew:
     """Create crew for energy planning queries."""
     agent = create_energy_orchestrator()
-    task = create_orchestrator_task(query, context)
+    task = create_orchestrator_task(query, context, agent=agent)
 
     return Crew(
         agents=[agent],

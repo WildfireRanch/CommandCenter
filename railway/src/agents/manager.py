@@ -53,12 +53,23 @@ def route_to_solar_controller(query: str) -> str:
     Returns:
         str: Response from Solar Controller agent with current data
     """
+    import json
     try:
         crew = create_energy_crew(query)
         result = crew.kickoff()
-        return str(result)
+
+        # Return structured response with metadata
+        return json.dumps({
+            "response": str(result),
+            "agent_used": "Solar Controller",
+            "agent_role": "Energy Systems Monitor"
+        })
     except Exception as e:
-        return f"Error routing to Solar Controller: {str(e)}"
+        return json.dumps({
+            "response": f"Error routing to Solar Controller: {str(e)}",
+            "agent_used": "Solar Controller",
+            "error": True
+        })
 
 
 @tool("Route to Energy Orchestrator")
@@ -88,12 +99,23 @@ def route_to_energy_orchestrator(query: str) -> str:
     Returns:
         Response from Energy Orchestrator agent
     """
+    import json
     try:
         crew = create_orchestrator_crew(query)
         result = crew.kickoff()
-        return str(result)
+
+        # Return structured response with metadata
+        return json.dumps({
+            "response": str(result),
+            "agent_used": "Energy Orchestrator",
+            "agent_role": "Energy Operations Manager"
+        })
     except Exception as e:
-        return f"Error routing to Energy Orchestrator: {str(e)}"
+        return json.dumps({
+            "response": f"Error routing to Energy Orchestrator: {str(e)}",
+            "agent_used": "Energy Orchestrator",
+            "error": True
+        })
 
 
 @tool("Search Knowledge Base")
@@ -194,13 +216,14 @@ def create_manager_agent() -> Agent:
 # Task Definition
 # ─────────────────────────────────────────────────────────────────────────────
 
-def create_routing_task(query: str, context: str = "") -> Task:
+def create_routing_task(query: str, context: str = "", agent: Agent = None) -> Task:
     """
     Create task for manager to analyze and route the query.
 
     Args:
         query: User's question
         context: Previous conversation history (optional)
+        agent: Pre-created agent instance (optional, will create if not provided)
 
     Returns:
         Task: Configured routing task
@@ -216,6 +239,10 @@ You can use this context to better understand the user's current question.
 If they say "is that good?" or "what about now?" - they're likely referring
 to something from the previous conversation.
 """
+
+    # Create agent if not provided
+    if agent is None:
+        agent = create_manager_agent()
 
     return Task(
         description=f"""Analyze this user query and route it to get the best answer:
@@ -243,7 +270,7 @@ not answering.""",
         - A specific clarifying question (if intent unclear)
 
         The response should directly answer the user's question.""",
-        agent=create_manager_agent(),
+        agent=agent,
     )
 
 
@@ -272,7 +299,7 @@ def create_manager_crew(query: str, context: str = "") -> Crew:
         >>> print(result)  # Returns Solar Controller response
     """
     agent = create_manager_agent()
-    task = create_routing_task(query, context)
+    task = create_routing_task(query, context, agent=agent)
 
     return Crew(
         agents=[agent],

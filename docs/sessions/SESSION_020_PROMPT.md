@@ -633,7 +633,7 @@ python -m src.agents.energy_orchestrator "What's the battery optimization recomm
 
 ---
 
-## 🔀 Part 3: Update Manager Agent Routing (1 hour)
+##c
 
 **Edit file:** `railway/src/agents/manager.py`
 

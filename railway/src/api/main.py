@@ -864,16 +864,29 @@ def create_app() -> FastAPI:
 
             # Run the crew (executes agent and task)
             result = crew.kickoff()
+            result_str = str(result)
 
             # Calculate duration
             duration_ms = int((time.time() - start_time) * 1000)
+
+            # Try to parse result as JSON (from routing tools)
+            agent_used = "Manager"  # Default
+            try:
+                import json
+                result_data = json.loads(result_str)
+                if "agent_used" in result_data:
+                    agent_used = result_data["agent_used"]
+                    agent_role = result_data.get("agent_role", agent_role)
+                    result_str = result_data["response"]
+            except:
+                pass  # Not JSON, use result as-is
 
             # Store assistant response
             add_message(
                 conversation_id=conversation_id,
                 role="assistant",
-                content=str(result),
-                agent_role=agent_role,
+                content=result_str,
+                agent_role=agent_used,
                 duration_ms=duration_ms
             )
 
@@ -881,17 +894,17 @@ def create_app() -> FastAPI:
             log_event(
                 level="info",
                 event_type="task_complete",
-                message=f"Query completed in {duration_ms}ms",
-                agent_role=agent_role,
+                message=f"Query completed in {duration_ms}ms by {agent_used}",
+                agent_role=agent_used,
                 conversation_id=conversation_id,
-                data={"duration_ms": duration_ms}
+                data={"duration_ms": duration_ms, "agent_used": agent_used}
             )
 
             # Return response with session_id for multi-turn conversations
             return AskResponse(
-                response=str(result),
+                response=result_str,
                 query=request.message,
-                agent_role=agent_role,
+                agent_role=agent_used,
                 duration_ms=duration_ms,
                 session_id=conversation_id,
             )

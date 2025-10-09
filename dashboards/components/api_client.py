@@ -54,7 +54,7 @@ class RailwayAPIClient:
         payload = {"message": message}
         if session_id:
             payload["session_id"] = session_id
-        return self._post("/agent/ask", payload) or {"error": "Failed to contact agent"}
+        return self._post("/ask", payload) or {"error": "Failed to contact agent"}
 
     def get_conversation(self, session_id: str) -> Dict[str, Any]:
         """Get conversation history"""
@@ -62,7 +62,7 @@ class RailwayAPIClient:
 
     def get_recent_conversations(self, limit: int = 10) -> Dict[str, Any]:
         """Get recent conversations"""
-        return self._get(f"/conversations/recent?limit={limit}") or {"error": "No conversations"}
+        return self._get(f"/conversations?limit={limit}") or {"error": "No conversations"}
 
 
 # Singleton instance

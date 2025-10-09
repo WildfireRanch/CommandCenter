@@ -248,20 +248,118 @@ def connect\_database():
 
 \---
 
+\#\# Tool Calling Conventions
+
+\#\#\# CrewAI Tool Pattern
+
+All tools in CommandCenter use CrewAI's `@tool` decorator. This creates a wrapper object that agents can use, but requires special handling for direct calls.
+
+\#\#\#\# Using Tools in Agent Definitions
+
+When adding tools to an agent's tool array:
+
+\`\`\`python
+from crewai import Agent
+from ..tools.kb_search import search_knowledge_base
+
+agent = Agent(
+    role="My Agent",
+    tools=[search_knowledge_base],  # ✅ Pass tool object directly
+)
+\`\`\`
+
+\#\#\#\# Calling Tools Directly
+
+When calling a tool from another tool or utility function:
+
+\`\`\`python
+from ..tools.kb_search import search_knowledge_base
+
+# ✅ CORRECT - Use .func() method
+result = search_knowledge_base.func(query, limit=5)
+
+# ❌ WRONG - Will raise TypeError: 'StructuredTool' object is not callable
+result = search_knowledge_base(query, limit=5)
+\`\`\`
+
+\#\#\#\# Why This Matters
+
+The `@tool` decorator wraps your function in a CrewAI `StructuredTool` object. This object:
+- Provides schema information for agents
+- Validates parameters
+- Handles error wrapping
+
+To access the actual function, use `.func()`.
+
+\#\#\#\# Creating New Tools
+
+Template for new tools:
+
+\`\`\`python
+from crewai.tools import tool
+import logging
+
+logger = logging.getLogger(__name__)
+
+@tool("My Tool Name")
+def my_tool(param: str, optional: int = 10) -> str:
+    """
+    One-line description of what this tool does.
+
+    Detailed explanation of when and how to use this tool.
+    Include examples of queries or situations where it's appropriate.
+
+    Args:
+        param: Description of required parameter
+        optional: Description of optional parameter (default: 10)
+
+    Returns:
+        str: Description of return value
+
+    Example:
+        >>> my_tool.func("test")
+        "Result for test"
+    """
+    try:
+        # Implementation here
+        result = do_something(param, optional)
+        return result
+    except Exception as e:
+        logger.error(f"Tool error: {e}")
+        return f"Error in my_tool: {str(e)}"
+
+
+# CLI Testing Interface
+if __name__ == "__main__":
+    import sys
+    test_input = sys.argv[1] if len(sys.argv) > 1 else "default"
+    print(my_tool.func(test_input))
+\`\`\`
+
+\*\*Key Points:\*\*
+1. ✅ Use `@tool("Descriptive Name")` decorator
+2. ✅ Add comprehensive docstring
+3. ✅ Type hint all parameters
+4. ✅ Handle errors gracefully (return error strings, don't raise)
+5. ✅ Add CLI test interface at bottom
+6. ✅ Use `.func()` for direct calls
+
+\---
+
 \#\# Summary
 
-\*\*Every file should have:\*\*  
-1\. ✅ Clear file path at top  
-2\. ✅ Purpose statement  
-3\. ✅ Section headers  
-4\. ✅ Function docstrings with WHAT/WHY/HOW  
-5\. ✅ Inline comments for tricky parts  
-6\. ✅ TODO markers for incomplete work  
+\*\*Every file should have:\*\*
+1\. ✅ Clear file path at top
+2\. ✅ Purpose statement
+3\. ✅ Section headers
+4\. ✅ Function docstrings with WHAT/WHY/HOW
+5\. ✅ Inline comments for tricky parts
+6\. ✅ TODO markers for incomplete work
 7\. ✅ Troubleshooting hints
 
-\*\*This makes it easy to:\*\*  
-\- Find the right file quickly  
-\- Navigate to the right section  
-\- Understand what code does  
-\- Debug when things break  
+\*\*This makes it easy to:\*\*
+\- Find the right file quickly
+\- Navigate to the right section
+\- Understand what code does
+\- Debug when things break
 \- Patch specific features
