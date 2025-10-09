@@ -153,15 +153,27 @@ def search_kb_directly(query: str) -> str:
     Returns:
         str: Relevant documentation with source citations
     """
+    import json
     try:
         # Ensure query is a string (handle cases where LLM passes dict)
         if isinstance(query, dict):
             query = query.get('query') or query.get('description') or str(query)
         query = str(query)
 
-        return search_knowledge_base.func(query, limit=5)
+        kb_result = search_knowledge_base.func(query, limit=5)
+
+        # Return structured response with metadata (matching other routing tools)
+        return json.dumps({
+            "response": kb_result,
+            "agent_used": "Knowledge Base",
+            "agent_role": "Documentation Search"
+        })
     except Exception as e:
-        return f"Error searching knowledge base: {str(e)}"
+        return json.dumps({
+            "response": f"Error searching knowledge base: {str(e)}",
+            "agent_used": "Knowledge Base",
+            "error": True
+        })
 
 
 # ─────────────────────────────────────────────────────────────────────────────
