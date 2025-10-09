@@ -870,10 +870,12 @@ def create_app() -> FastAPI:
             )
 
             # FAST PATH: Direct KB search for documentation queries (bypass Manager agent timeout)
-            # Detect KB queries with simple keyword matching
+            # Detect KB queries with simple keyword matching (avoid false positives)
             query_lower = request.message.lower()
-            kb_keywords = ['what is', 'how to', 'specification', 'specs', 'threshold', 'policy',
-                          'procedure', 'maintain', 'documentation', 'guide']
+            kb_keywords = ['specification', 'specs', 'threshold', 'policy', 'policies',
+                          'procedure', 'maintain', 'maintenance', 'documentation', 'guide',
+                          'manual', 'instructions', 'how do i', 'how to']
+            # Avoid: "what is" (too broad - catches "what is my battery level")
             is_kb_query = any(keyword in query_lower for keyword in kb_keywords)
 
             if is_kb_query and len(request.message) > 10:
