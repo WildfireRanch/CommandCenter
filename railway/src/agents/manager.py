@@ -48,13 +48,18 @@ def route_to_solar_controller(query: str) -> str:
     - "Am I using grid power right now?"
 
     Args:
-        query: The user's question about current/real-time status
+        query (str): The user's question about current/real-time status. Must be a simple string.
 
     Returns:
-        str: Response from Solar Controller agent with current data
+        str: JSON response from Solar Controller agent with current data
     """
     import json
     try:
+        # Ensure query is a string (handle cases where LLM passes dict)
+        if isinstance(query, dict):
+            query = query.get('query') or query.get('description') or str(query)
+        query = str(query)
+
         crew = create_energy_crew(query)
         result = crew.kickoff()
 
@@ -94,13 +99,18 @@ def route_to_energy_orchestrator(query: str) -> str:
     - "What's the battery optimization recommendation?"
 
     Args:
-        query: Planning/optimization question
+        query (str): Planning/optimization question. Must be a simple string.
 
     Returns:
-        Response from Energy Orchestrator agent
+        str: JSON response from Energy Orchestrator agent
     """
     import json
     try:
+        # Ensure query is a string (handle cases where LLM passes dict)
+        if isinstance(query, dict):
+            query = query.get('query') or query.get('description') or str(query)
+        query = str(query)
+
         crew = create_orchestrator_crew(query)
         result = crew.kickoff()
 
@@ -138,12 +148,17 @@ def search_kb_directly(query: str) -> str:
     - "What's the policy for running miners?"
 
     Args:
-        query: The documentation or information question
+        query (str): The documentation or information question. Must be a simple string.
 
     Returns:
         str: Relevant documentation with source citations
     """
     try:
+        # Ensure query is a string (handle cases where LLM passes dict)
+        if isinstance(query, dict):
+            query = query.get('query') or query.get('description') or str(query)
+        query = str(query)
+
         return search_knowledge_base.func(query, limit=5)
     except Exception as e:
         return f"Error searching knowledge base: {str(e)}"
@@ -199,9 +214,15 @@ def create_manager_agent() -> Agent:
         - "How do I maintain the panels?"
         - "What are the specifications?"
 
-        For UNCLEAR questions → Ask for clarification
-        - "Help me" → Ask what they need help with
-        - "What should I do?" → Ask what they're trying to achieve
+        For UNCLEAR or OFF-TOPIC questions → Provide helpful response
+        - If the question is not related to energy/solar systems, politely
+          explain this is an energy management assistant
+        - If unclear what they need, ask for clarification
+        - Examples: "who am I", "hello", "help" → Be friendly but direct
+
+        IMPORTANT: When using tools, ALWAYS pass the original user query as a
+        simple string to the 'query' parameter. Do NOT create complex objects
+        or use different field names.
 
         You are CONCISE and DIRECT. You route queries to specialists - you
         don't try to answer technical questions yourself. Let the specialists
@@ -209,6 +230,7 @@ def create_manager_agent() -> Agent:
         tools=[route_to_solar_controller, route_to_energy_orchestrator, search_kb_directly],
         verbose=True,
         allow_delegation=True,
+        max_iter=10,  # Prevent infinite retry loops
     )
 
 
