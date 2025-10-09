@@ -27,7 +27,7 @@ Build the **Energy Orchestrator Agent** - an intelligent planning system that:
 
 ## 📖 Full Instructions
 
-**👉 Open this file:** [docs/NEXT_SESSION_PROMPT_020.md](docs/NEXT_SESSION_PROMPT_020.md)
+**👉 Open this file:** [docs/sessions/NEXT_SESSION_PROMPT_020.md](docs/sessions/NEXT_SESSION_PROMPT_020.md)
 
 This file contains:
 - Complete step-by-step instructions
@@ -120,7 +120,7 @@ Before you start coding, skim these (5-10 min):
 
 ## 🚀 Ready to Start?
 
-1. Open [docs/NEXT_SESSION_PROMPT_020.md](docs/NEXT_SESSION_PROMPT_020.md)
+1. Open [docs/sessions/NEXT_SESSION_PROMPT_020.md](docs/sessions/NEXT_SESSION_PROMPT_020.md)
 2. Copy the entire contents
 3. Start a new Claude Code chat
 4. Paste the prompt

@@ -20,7 +20,10 @@
 
 ### Latest Sessions (Start Here!)
 - **[sessions/SESSION_019_ORCHESTRATION_SUMMARY.md](sessions/SESSION_019_ORCHESTRATION_SUMMARY.md)** ⭐ **LATEST - Orchestration Complete!**
-- **[SESSION_018D_SUMMARY.md](../SESSION_018D_SUMMARY.md)** - KB Dashboard operational
+- **[sessions/NEXT_SESSION_PROMPT_020.md](sessions/NEXT_SESSION_PROMPT_020.md)** 🆕 **Next: Energy Orchestrator**
+- **[sessions/SESSION_018D_SUMMARY.md](sessions/SESSION_018D_SUMMARY.md)** - KB Dashboard operational
+- **[sessions/SESSION_018_COMPLETION_SUMMARY.md](sessions/SESSION_018_COMPLETION_SUMMARY.md)** - Session 018 complete
+- **[sessions/SESSION_015_COMPLETION_SUMMARY.md](sessions/SESSION_015_COMPLETION_SUMMARY.md)** - Session 015 complete
 - **[sessions/SESSION_010_FINAL_SUMMARY.md](sessions/SESSION_010_FINAL_SUMMARY.md)** - Frontend pages complete
 - **[sessions/SESSION_009_SUMMARY.md](sessions/SESSION_009_SUMMARY.md)** - MCP Server implementation
 
@@ -87,7 +90,8 @@
 ## 📈 Progress Tracking
 
 - **[progress.md](progress.md)** - Overall progress tracker
-- **[SESSION_010_RECAP.md](../SESSION_010_RECAP.md)** - Latest session recap
+- **[sessions/SESSION_010_RECAP.md](sessions/SESSION_010_RECAP.md)** - Session 010 recap
+- **[sessions/SESSION_012_RECAP.md](sessions/SESSION_012_RECAP.md)** - Session 012 recap
 
 ## 🗂️ Organization by Topic
 
@@ -157,7 +161,7 @@
 ## 📝 How to Use This Index
 
 **Starting a new session?**
-→ Read [sessions/SESSION_011_PROMPT.md](sessions/SESSION_011_PROMPT.md)
+→ Read [sessions/NEXT_SESSION_PROMPT_020.md](sessions/NEXT_SESSION_PROMPT_020.md)
 
 **Need to understand the system?**
 → Read [05-architecture.md](05-architecture.md)
@@ -173,6 +177,6 @@
 
 ---
 
-**Last Session**: 010 - CrewAI Studio + Dashboards + Frontend
-**Next Session**: 011 - Complete Next.js pages
-**Status**: Strong foundation, ready to finish! 💪
+**Last Session**: 019 - Orchestration Layer Complete
+**Next Session**: 020 - Build Energy Orchestrator Agent
+**Status**: V1.5 at 80% - Almost there! 💪
