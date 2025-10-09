@@ -267,31 +267,48 @@ to something from the previous conversation.
         agent = create_manager_agent()
 
     return Task(
-        description=f"""Analyze this user query and route it to get the best answer:
+        description=f"""YOU MUST USE A TOOL FOR THIS QUERY. Do not respond without calling a tool first.
 
 User query: "{query}"
 {context_section}
 
-Your process:
-1. Determine what the user is asking for
-2. Decide which tool to use:
-   - Real-time status/monitoring → Route to Solar Controller
-   - Planning/optimization → Route to Energy Orchestrator
-   - Documentation/procedures → Search Knowledge Base
-   - Unclear intent → Ask clarifying question
-3. Use the appropriate tool
-4. Return the response
+MANDATORY TOOL USAGE - You must call ONE of these tools:
 
-IMPORTANT: Do NOT try to answer technical questions yourself. Always use
-the tools to get accurate, up-to-date information. Your job is routing,
-not answering.""",
-        expected_output="""One of:
-        - Response from Solar Controller agent (for status queries)
-        - Response from Energy Orchestrator agent (for planning queries)
-        - Response from Knowledge Base search (for documentation queries)
-        - A specific clarifying question (if intent unclear)
+1. If query is about CURRENT/REAL-TIME data (battery level, solar production, power usage, status):
+   → CALL TOOL: route_to_solar_controller with parameter query="{query}"
 
-        The response should directly answer the user's question.""",
+2. If query is about PLANNING/DECISIONS (should we run miners, create plan, optimization):
+   → CALL TOOL: route_to_energy_orchestrator with parameter query="{query}"
+
+3. If query is about DOCUMENTATION/SPECS (thresholds, policies, how-to, specifications):
+   → CALL TOOL: search_kb_directly with parameter query="{query}"
+
+4. ONLY if query is completely off-topic (greetings, unrelated questions):
+   → You may respond directly with a brief helpful message
+
+CRITICAL RULES:
+- You MUST call a tool for energy/solar queries - do not explain routing, DO THE ROUTING
+- Pass the query as a simple string parameter
+- Return ONLY the tool's output - no additional commentary
+- Do NOT tell users which agent to use - USE THE TOOL YOURSELF
+- Do NOT explain what the tools do - JUST USE THEM
+
+Final answer format: Return exactly what the tool returns, nothing more.""",
+        expected_output="""The direct output from whichever tool you called.
+
+VALID outputs:
+- Solar data from route_to_solar_controller tool
+- Planning recommendation from route_to_energy_orchestrator tool
+- Documentation from search_kb_directly tool
+- Brief helpful message (only for off-topic queries)
+
+INVALID outputs (never do these):
+- "I suggest using the Energy Orchestrator agent"
+- "You should ask about..."
+- Explanations of routing logic
+- Descriptions of what tools are available
+
+You must return the actual answer, not routing advice.""",
         agent=agent,
     )
 
