@@ -22,6 +22,76 @@ st.set_page_config(
     layout="wide"
 )
 
+# Compressed vertical spacing CSS
+st.markdown("""
+<style>
+    /* Compress vertical spacing */
+    .block-container {
+        padding-top: 2rem !important;
+        padding-bottom: 1rem !important;
+    }
+
+    .element-container {
+        margin-bottom: 0.5rem !important;
+    }
+
+    /* Compress metric cards */
+    [data-testid="stMetric"] {
+        background-color: white;
+        padding: 0.75rem !important;
+        border-radius: 8px;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    }
+
+    [data-testid="stMetricLabel"] {
+        padding-bottom: 0.25rem !important;
+    }
+
+    [data-testid="stMetricValue"] {
+        font-size: 2rem;
+        font-weight: 600;
+        padding-top: 0 !important;
+        padding-bottom: 0.25rem !important;
+    }
+
+    [data-testid="stMetricDelta"] {
+        padding-top: 0 !important;
+    }
+
+    /* Headers - reduce margin */
+    h1, h2, h3, h4 {
+        margin-top: 0.75rem !important;
+        margin-bottom: 0.5rem !important;
+    }
+
+    /* Horizontal rules */
+    hr {
+        margin-top: 1rem !important;
+        margin-bottom: 1rem !important;
+    }
+
+    /* Column gaps */
+    [data-testid="column"] {
+        padding: 0.25rem !important;
+    }
+
+    /* Buttons */
+    .stButton {
+        margin-top: 0.5rem !important;
+    }
+
+    /* Expanders */
+    .streamlit-expanderHeader {
+        padding: 0.5rem !important;
+    }
+
+    /* Charts - reduce top margin */
+    .stPlotlyChart {
+        margin-top: 0.5rem !important;
+    }
+</style>
+""", unsafe_allow_html=True)
+
 st.title("⚡ Energy Monitoring Dashboard")
 st.caption("Solar production, battery status, and power flow")
 

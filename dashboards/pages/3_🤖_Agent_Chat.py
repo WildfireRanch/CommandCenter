@@ -21,6 +21,44 @@ st.set_page_config(
     layout="wide"
 )
 
+# Compressed vertical spacing CSS
+st.markdown("""
+<style>
+    .block-container {
+        padding-top: 2rem !important;
+        padding-bottom: 1rem !important;
+    }
+
+    .element-container {
+        margin-bottom: 0.5rem !important;
+    }
+
+    [data-testid="stMetric"] {
+        padding: 0.75rem !important;
+    }
+
+    h1, h2, h3 {
+        margin-top: 0.75rem !important;
+        margin-bottom: 0.5rem !important;
+    }
+
+    hr {
+        margin-top: 1rem !important;
+        margin-bottom: 1rem !important;
+    }
+
+    .stButton {
+        margin-top: 0.5rem !important;
+    }
+
+    /* Chat messages - keep readable but reduce spacing */
+    [data-testid="stChatMessage"] {
+        padding: 0.75rem !important;
+        margin-bottom: 0.5rem !important;
+    }
+</style>
+""", unsafe_allow_html=True)
+
 # Initialize session state
 if "session_id" not in st.session_state:
     st.session_state.session_id = str(uuid.uuid4())

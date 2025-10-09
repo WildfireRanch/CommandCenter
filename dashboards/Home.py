@@ -20,7 +20,7 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# Custom CSS to match Next.js design
+# Custom CSS to match Next.js design with compressed vertical spacing
 st.markdown("""
 <style>
     /* Sidebar styling */
@@ -34,40 +34,88 @@ st.markdown("""
         background-color: #f9fafb;
     }
 
-    /* Cards */
-    .stCard {
+    /* Compress vertical spacing - reduce padding throughout */
+    .block-container {
+        padding-top: 2rem !important;
+        padding-bottom: 1rem !important;
+    }
+
+    /* Reduce space between elements */
+    .element-container {
+        margin-bottom: 0.5rem !important;
+    }
+
+    /* Compress metric cards */
+    [data-testid="stMetric"] {
         background-color: white;
+        padding: 0.75rem !important;
         border-radius: 8px;
-        padding: 1.5rem;
         box-shadow: 0 1px 3px rgba(0,0,0,0.1);
     }
 
-    /* Headers */
-    h1, h2, h3 {
-        color: #111827;
+    /* Metric labels - reduce spacing */
+    [data-testid="stMetricLabel"] {
+        padding-bottom: 0.25rem !important;
     }
 
-    /* Metric cards */
+    /* Metric values - keep font size, reduce padding */
     [data-testid="stMetricValue"] {
         font-size: 2rem;
         font-weight: 600;
+        padding-top: 0 !important;
+        padding-bottom: 0.25rem !important;
     }
 
-    /* Buttons */
+    /* Metric delta - compress */
+    [data-testid="stMetricDelta"] {
+        padding-top: 0 !important;
+    }
+
+    /* Headers - reduce margin */
+    h1 {
+        color: #111827;
+        margin-top: 0.5rem !important;
+        margin-bottom: 0.5rem !important;
+        padding-top: 0 !important;
+    }
+
+    h2, h3 {
+        color: #111827;
+        margin-top: 0.75rem !important;
+        margin-bottom: 0.5rem !important;
+    }
+
+    /* Info boxes - compress */
+    .stAlert {
+        padding: 0.75rem !important;
+        margin-bottom: 0.75rem !important;
+    }
+
+    /* Buttons - keep size, reduce margin */
     .stButton>button {
         border-radius: 6px;
         font-weight: 500;
+        padding: 0.5rem 1rem !important;
     }
 
-    /* Logo and branding */
-    .sidebar-logo {
-        display: flex;
-        align-items: center;
-        gap: 0.5rem;
-        font-size: 1.125rem;
-        font-weight: 700;
-        margin-bottom: 1.5rem;
-        padding: 0.5rem;
+    .stButton {
+        margin-top: 0.5rem !important;
+    }
+
+    /* Horizontal rules - reduce margin */
+    hr {
+        margin-top: 1rem !important;
+        margin-bottom: 1rem !important;
+    }
+
+    /* Column gaps - reduce */
+    [data-testid="column"] {
+        padding: 0.25rem !important;
+    }
+
+    /* Markdown blocks - reduce spacing */
+    .stMarkdown {
+        margin-bottom: 0.5rem !important;
     }
 </style>
 """, unsafe_allow_html=True)
