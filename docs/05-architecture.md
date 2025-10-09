@@ -11,7 +11,7 @@
 
 CommandCenter V1 is a **CrewAI-based energy orchestration system** deployed across Vercel (frontend/MCP) and Railway (backend/agents). The architecture prioritizes:
 
-1. **Reliability** - Replace fragile custom orchestration with proven CrewAI framework
+1. **Reliability** - Replace fragile custom orchestration with proven CrewAI frameworkgit 
 2. **Maintainability** - Clear separation of concerns, understandable by solo developer
 3. **Extensibility** - Foundation supports V2 features without major refactor
 4. **Safety** - Multiple layers of validation before hardware commands execute
