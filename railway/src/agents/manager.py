@@ -182,51 +182,41 @@ def create_manager_agent() -> Agent:
     return Agent(
         role="Query Router and Coordinator",
         goal="Analyze user queries and route them to the most appropriate specialist or information source",
-        backstory="""You are an intelligent query router for the Wildfire Ranch
-        solar energy management system. Your job is to understand what the user
-        is asking for and get them the right answer from the right source.
+        backstory="""You are a ROUTING-ONLY agent. Your ONLY job is to call the right
+        tool and return its output EXACTLY as received - DO NOT reformat, summarize,
+        or add commentary.
 
-        You have access to:
-        1. Solar Controller Agent - Real-time monitoring specialist
-           (current battery, solar production, power usage, status)
+        CRITICAL: You must return tool output VERBATIM. Do not interpret, reformat,
+        or explain the tool's response. Just return it exactly as the tool gives it.
 
-        2. Energy Orchestrator Agent - Planning and optimization specialist
-           (should we run miners, create energy plan, battery optimization)
+        Your tools:
+        1. route_to_solar_controller - For real-time status queries
+        2. route_to_energy_orchestrator - For planning/optimization queries
+        3. search_kb_directly - For documentation/specification queries
 
-        3. Knowledge Base - Documentation and procedures
-           (specifications, policies, how-to guides, thresholds)
+        ROUTING RULES (call tool immediately):
 
-        ROUTING GUIDELINES:
+        Real-time questions → route_to_solar_controller(query)
+        Examples: battery level, solar production, current power, status
 
-        For CURRENT/REAL-TIME questions → Use Solar Controller
-        - "What's my battery level?"
-        - "How much solar am I producing?"
-        - "What's the current status?"
+        Planning questions → route_to_energy_orchestrator(query)
+        Examples: should we run miners, create plan, optimization, decisions
 
-        For PLANNING/OPTIMIZATION questions → Use Energy Orchestrator
-        - "Should we run the miners?"
-        - "Create an energy plan"
-        - "When should we charge the battery?"
-        - "What's the best strategy for..."
+        Documentation questions → search_kb_directly(query)
+        Examples: thresholds, specifications, policies, how-to guides
 
-        For DOCUMENTATION/POLICY questions → Search Knowledge Base
-        - "What is the minimum SOC threshold?"
-        - "How do I maintain the panels?"
-        - "What are the specifications?"
+        Off-topic/greetings → Respond briefly (only case where you don't use a tool)
+        Examples: hello, who am I, unrelated topics
 
-        For UNCLEAR or OFF-TOPIC questions → Provide helpful response
-        - If the question is not related to energy/solar systems, politely
-          explain this is an energy management assistant
-        - If unclear what they need, ask for clarification
-        - Examples: "who am I", "hello", "help" → Be friendly but direct
+        CRITICAL OUTPUT RULE:
+        When you call a tool, return EXACTLY what the tool returns. Do not:
+        - Reformat the response
+        - Add your own commentary
+        - Summarize or interpret
+        - Change any formatting
 
-        IMPORTANT: When using tools, ALWAYS pass the original user query as a
-        simple string to the 'query' parameter. Do NOT create complex objects
-        or use different field names.
-
-        You are CONCISE and DIRECT. You route queries to specialists - you
-        don't try to answer technical questions yourself. Let the specialists
-        do what they do best.""",
+        If the tool returns JSON, return that JSON. If it returns text, return that text.
+        Your output = Tool output (no changes).""",
         tools=[route_to_solar_controller, route_to_energy_orchestrator, search_kb_directly],
         verbose=True,
         allow_delegation=True,
@@ -293,22 +283,24 @@ CRITICAL RULES:
 - Do NOT tell users which agent to use - USE THE TOOL YOURSELF
 - Do NOT explain what the tools do - JUST USE THEM
 
-Final answer format: Return exactly what the tool returns, nothing more.""",
-        expected_output="""The direct output from whichever tool you called.
+Final answer format: Return EXACTLY AND ONLY what the tool returns - verbatim, no changes.""",
+        expected_output="""Return the tool output with ZERO modifications.
 
-VALID outputs:
-- Solar data from route_to_solar_controller tool
-- Planning recommendation from route_to_energy_orchestrator tool
-- Documentation from search_kb_directly tool
-- Brief helpful message (only for off-topic queries)
+If tool returns JSON like:
+{"response": "Battery is 40%", "agent_used": "Solar Controller", "agent_role": "..."}
 
-INVALID outputs (never do these):
-- "I suggest using the Energy Orchestrator agent"
-- "You should ask about..."
-- Explanations of routing logic
-- Descriptions of what tools are available
+Then your final answer must be EXACTLY that - do not extract just the response part.
 
-You must return the actual answer, not routing advice.""",
+If tool returns text, return that exact text.
+
+DO NOT:
+- Reformat or prettify the output
+- Extract only part of the JSON
+- Add explanations
+- Summarize the response
+- Add markdown formatting
+
+Your entire final answer = Tool's raw output (character-for-character match)""",
         agent=agent,
     )
 
