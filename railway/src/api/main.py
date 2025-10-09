@@ -883,12 +883,30 @@ def create_app() -> FastAPI:
             agent_used = "Manager"  # Default
             try:
                 import json
-                result_data = json.loads(result_str)
-                if "agent_used" in result_data:
+                import re
+
+                # Try direct JSON parse first
+                try:
+                    result_data = json.loads(result_str)
+                except json.JSONDecodeError:
+                    # Try to extract JSON from markdown code blocks or text
+                    json_match = re.search(r'```(?:json)?\s*(\{.*?\})\s*```', result_str, re.DOTALL)
+                    if json_match:
+                        result_data = json.loads(json_match.group(1))
+                    else:
+                        # Try to find any JSON object in the string
+                        json_match = re.search(r'(\{[^{}]*"agent_used"[^{}]*\})', result_str, re.DOTALL)
+                        if json_match:
+                            result_data = json.loads(json_match.group(1))
+                        else:
+                            result_data = None
+
+                if result_data and "agent_used" in result_data:
                     agent_used = result_data["agent_used"]
                     agent_role = result_data.get("agent_role", agent_role)
                     result_str = result_data["response"]
-            except:
+            except Exception as e:
+                logger.warning(f"Could not parse agent routing JSON: {e}")
                 pass  # Not JSON, use result as-is
 
             # Store assistant response
