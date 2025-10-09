@@ -1,7 +1,15 @@
 # 📚 CommandCenter Documentation Index
 
-**Last Updated**: Session 019 Complete (October 8, 2025)
-**Status**: V1.5 at 80% - Ready for Energy Orchestrator!
+**Last Updated**: Post-Session 020 Audit (October 2025)
+**Status**: 🚨 **CRITICAL** - Code Complete (95%) but System Broken (0% functional)
+**Next Session**: [SESSION_021_DEBUG_PROMPT.md](sessions/SESSION_021_DEBUG_PROMPT.md) - **URGENT DEBUGGING REQUIRED**
+
+## 🚨 **CRITICAL STATUS UPDATES**
+
+### 🔴 READ THESE FIRST
+1. **[SYSTEM_STATUS_CRITICAL.md](SYSTEM_STATUS_CRITICAL.md)** 🚨 **CRITICAL - System audit reveals major bugs**
+2. **[sessions/SESSION_021_DEBUG_PROMPT.md](sessions/SESSION_021_DEBUG_PROMPT.md)** 🔧 **NEXT SESSION - Debugging required**
+3. **[sessions/SESSION_020_PROMPT.md](sessions/SESSION_020_PROMPT.md)** - Session 020 (what we just built)
 
 ## 🚀 Quick Start Guides
 
@@ -9,6 +17,7 @@
 1. **[README.md](../README.md)** - Project overview and current status
 2. **[CODEBASE_AUDIT_OCT2025.md](CODEBASE_AUDIT_OCT2025.md)** ⭐ **Complete system inventory**
 3. **[08-Remaining_v1-5.md](08-Remaining_%20v1-5.md)** - V1.5 execution plan (updated)
+4. **[SYSTEM_STATUS_CRITICAL.md](SYSTEM_STATUS_CRITICAL.md)** 🚨 **Current bugs and issues**
 
 ### For Developers
 1. **[CommandCenter Code Style Guide.md](CommandCenter%20Code%20Style%20Guide.md)** - Coding standards
@@ -19,8 +28,9 @@
 ## 📋 Session History
 
 ### Latest Sessions (Start Here!)
-- **[sessions/SESSION_019_ORCHESTRATION_SUMMARY.md](sessions/SESSION_019_ORCHESTRATION_SUMMARY.md)** ⭐ **LATEST - Orchestration Complete!**
-- **[sessions/NEXT_SESSION_PROMPT_020.md](sessions/NEXT_SESSION_PROMPT_020.md)** 🆕 **Next: Energy Orchestrator**
+- **[sessions/SESSION_021_DEBUG_PROMPT.md](sessions/SESSION_021_DEBUG_PROMPT.md)** 🚨 **NEXT - Critical Debugging Session**
+- **[sessions/SESSION_020_PROMPT.md](sessions/SESSION_020_PROMPT.md)** 🆕 **Session 020 - Energy Orchestrator Built**
+- **[sessions/SESSION_019_ORCHESTRATION_SUMMARY.md](sessions/SESSION_019_ORCHESTRATION_SUMMARY.md)** - Orchestration Complete
 - **[sessions/SESSION_018D_SUMMARY.md](sessions/SESSION_018D_SUMMARY.md)** - KB Dashboard operational
 - **[sessions/SESSION_018_COMPLETION_SUMMARY.md](sessions/SESSION_018_COMPLETION_SUMMARY.md)** - Session 018 complete
 - **[sessions/SESSION_015_COMPLETION_SUMMARY.md](sessions/SESSION_015_COMPLETION_SUMMARY.md)** - Session 015 complete

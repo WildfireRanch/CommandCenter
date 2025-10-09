@@ -1,9 +1,16 @@
 # CommandCenter - Project Progress
 
-Last Updated: October 8, 2025 - Session 019 Complete
-Status: V1.5 at 80% - Ready for Energy Orchestrator!
+**Last Updated:** October 2025 - Post-Session 020 Audit
+**Status:** 🚨 **CRITICAL** - Code 95% Complete, System 0% Functional
+**Next:** [SESSION_021_DEBUG_PROMPT.md](sessions/SESSION_021_DEBUG_PROMPT.md) - **URGENT DEBUGGING REQUIRED**
 
-## Current Phase: Session 2 - Energy Orchestrator Agent 🔨
+## 🚨 CRITICAL STATUS
+
+**Session 020 Built:** Energy Orchestrator with 3 tools
+**Session 020 Broke:** Everything - major bugs discovered in audit
+**See:** [SYSTEM_STATUS_CRITICAL.md](SYSTEM_STATUS_CRITICAL.md) for full details
+
+## Current Phase: Session 021 - Critical Debugging 🔧
 
 ### Completed ✅
 - [x] GitHub repo created
@@ -73,19 +80,39 @@ Status: V1.5 at 80% - Ready for Energy Orchestrator!
 
 **Progress:** 65% → 80% complete toward V1.5 ship
 
-### Up Next (Session 2) 🔨
-**Build Energy Orchestrator Agent:** (6-8 hours)
-- [ ] Create design document
-- [ ] Build battery optimizer tool
-- [ ] Build miner coordinator tool
-- [ ] Build energy planner tool
-- [ ] Create Energy Orchestrator agent
-- [ ] Add routing to Manager agent
-- [ ] Test and deploy
+### Session 020 Results (October 2025)
+**What Was Built:** ✅
+- [x] Battery optimizer tool (charge/discharge recommendations)
+- [x] Miner coordinator tool (on/off decisions based on power/SOC)
+- [x] Energy planner tool (24-hour scheduling)
+- [x] Energy Orchestrator agent (planning & optimization specialist)
+- [x] Manager routing updated (routes to Orchestrator for planning queries)
 
-**Then Session 3: Polish & Ship** (2-3 hours)
+**What Was Broken:** ❌
+- [ ] Tool calling pattern inconsistent (.func() vs direct calls)
+- [ ] Agent file naming conflict (solar_controller vs energy_controller)
+- [ ] Duplicate agent creation in all crews
+- [ ] Frontend API endpoints wrong (/agent/ask vs /ask)
+- [ ] KB search tool defined twice with different names
+- [ ] Agent role tracking broken
+- [ ] Context not passed to child agents
+- [ ] No error handling in routing layer
+- [ ] End-to-end flow completely broken
+
+### Up Next (Session 021) 🔧 **CRITICAL**
+**Fix All Bugs:** (7 hours)
+- [ ] Fix frontend API endpoints (/agent/ask → /ask)
+- [ ] Standardize tool calling pattern (.func())
+- [ ] Fix agent file naming (solar_controller headers)
+- [ ] Eliminate duplicate agent creation
+- [ ] Consolidate KB search tool wrappers
+- [ ] Add agent role tracking
+- [ ] Test end-to-end flow
+- [ ] Create integration tests
+- [ ] Update documentation
+
+**Then Session 022: Polish & Ship** (2-3 hours)
 - [ ] Polish chat interface (show sources, agent status)
-- [ ] End-to-end testing
 - [ ] Performance validation
 - [ ] Tag V1.5 release
 
