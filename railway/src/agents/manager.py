@@ -271,19 +271,22 @@ to something from the previous conversation.
 User query: "{query}"
 {context_section}
 
-MANDATORY TOOL USAGE - You must call ONE of these tools:
+MANDATORY TOOL USAGE - You MUST call a tool immediately:
 
-1. If query is about CURRENT/REAL-TIME data (battery level, solar production, power usage, status):
-   → CALL TOOL: route_to_solar_controller with parameter query="{query}"
+1. REAL-TIME queries (battery, solar, power, status, current, now):
+   → IMMEDIATELY call: route_to_solar_controller("{query}")
 
-2. If query is about PLANNING/DECISIONS (should we run miners, create plan, optimization):
-   → CALL TOOL: route_to_energy_orchestrator with parameter query="{query}"
+2. PLANNING queries (should we, create plan, optimize, decide, when):
+   → IMMEDIATELY call: route_to_energy_orchestrator("{query}")
 
-3. If query is about DOCUMENTATION/SPECS (thresholds, policies, how-to, specifications):
-   → CALL TOOL: search_kb_directly with parameter query="{query}"
+3. DOCUMENTATION queries (what is, how to, specifications, specs, threshold, policy):
+   → IMMEDIATELY call: search_kb_directly("{query}")
 
-4. ONLY if query is completely off-topic (greetings, unrelated questions):
-   → You may respond directly with a brief helpful message
+4. OFF-TOPIC only (hello, who am I, unrelated):
+   → Brief response
+
+CRITICAL: For queries #1-3, your FIRST action must be calling the tool.
+Do not think, analyze, or explain - JUST CALL THE TOOL IMMEDIATELY.
 
 CRITICAL RULES:
 - You MUST call a tool for energy/solar queries - do not explain routing, DO THE ROUTING

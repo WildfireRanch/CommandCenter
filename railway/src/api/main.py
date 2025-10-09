@@ -869,18 +869,36 @@ def create_app() -> FastAPI:
                 content=request.message
             )
 
-            # Create manager crew to route query intelligently
-            crew = create_manager_crew(request.message, context)
+            # FAST PATH: Direct KB search for documentation queries (bypass Manager agent timeout)
+            # Detect KB queries with simple keyword matching
+            query_lower = request.message.lower()
+            kb_keywords = ['what is', 'how to', 'specification', 'specs', 'threshold', 'policy',
+                          'procedure', 'maintain', 'documentation', 'guide']
+            is_kb_query = any(keyword in query_lower for keyword in kb_keywords)
 
-            # Run the crew (executes agent and task)
-            result = crew.kickoff()
-            result_str = str(result)
+            if is_kb_query and len(request.message) > 10:
+                # Direct KB search - bypass Manager agent to prevent timeout
+                from ..tools.kb_search import search_knowledge_base
+                logger.info(f"Direct KB search for query: {request.message}")
+                result_str = search_knowledge_base.func(request.message, limit=5)
+                agent_used = "Knowledge Base"
+                agent_role = "Documentation Search"
+            else:
+                # Create manager crew to route query intelligently
+                crew = create_manager_crew(request.message, context)
+
+                # Run the crew (executes agent and task)
+                result = crew.kickoff()
+                result_str = str(result)
+                agent_used = "Manager"  # Will be updated by JSON parsing below
 
             # Calculate duration
             duration_ms = int((time.time() - start_time) * 1000)
 
             # Try to parse result as JSON (from routing tools)
-            agent_used = "Manager"  # Default
+            # Skip if we already set agent_used via KB fast path
+            if 'agent_used' not in locals():
+                agent_used = "Manager"  # Default
             try:
                 import json
                 import re
