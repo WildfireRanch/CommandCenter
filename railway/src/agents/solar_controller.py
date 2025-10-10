@@ -24,6 +24,7 @@ from crewai.tools import tool
 
 from ..tools.solark import get_solark_status, format_status_summary
 from ..tools.kb_search import search_knowledge_base
+from ..utils.solark_storage import get_energy_stats, get_recent_data
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -67,11 +68,11 @@ def get_energy_status() -> str:
 def get_detailed_status() -> dict:
     """
     Get detailed energy system data (raw numbers).
-    
+
     Returns complete data structure with all metrics.
     Use this when you need specific numeric values for calculations
     or detailed analysis.
-    
+
     Returns:
         dict: Detailed energy data with keys:
             - soc: Battery % (0-100)
@@ -90,6 +91,112 @@ def get_detailed_status() -> dict:
         return {k: v for k, v in status.items() if k != 'raw'}
     except Exception as e:
         return {"error": str(e)}
+
+
+@tool("Get Historical Energy Statistics")
+def get_historical_stats(hours: int = 24) -> str:
+    """
+    Get aggregated energy statistics over a time period.
+
+    Returns statistical summary of energy data from the database including:
+    - Average, minimum, and maximum battery SOC (%)
+    - Average and peak solar production (W)
+    - Average and peak load consumption (W)
+    - Total number of data points analyzed
+
+    Use this tool when the user asks about:
+    - Historical averages (e.g., "What was my average solar production yesterday?")
+    - Peak values (e.g., "What was my max solar output today?")
+    - Battery trends (e.g., "How low did my battery go last night?")
+
+    Args:
+        hours: Number of hours to look back (default: 24)
+
+    Returns:
+        str: Formatted statistics summary
+
+    Example output:
+        "📊 Last 24 hours (based on 1,440 data points):
+         🔋 Battery SOC: avg 67.2%, min 42.0%, max 98.5%
+         ☀️ Solar: avg 2,341W, peak 5,847W
+         ⚡ Load: avg 1,823W, peak 4,250W"
+    """
+    try:
+        stats = get_energy_stats(hours=hours)
+
+        if not stats or stats.get('total_records', 0) == 0:
+            return f"No energy data available for the last {hours} hours."
+
+        # Format the statistics
+        result = f"📊 Last {hours} hours (based on {stats['total_records']:,} data points):\n"
+        result += f"🔋 Battery SOC: avg {stats['avg_soc']:.1f}%, min {stats['min_soc']:.1f}%, max {stats['max_soc']:.1f}%\n"
+        result += f"☀️ Solar: avg {stats['avg_pv_power']:.0f}W, peak {stats['max_pv_power']:.0f}W\n"
+        result += f"⚡ Load: avg {stats['avg_load_power']:.0f}W, peak {stats['max_load_power']:.0f}W"
+
+        return result
+    except Exception as e:
+        return f"❌ Error fetching historical statistics: {str(e)}"
+
+
+@tool("Get Time Series Energy Data")
+def get_time_series_data(hours: int = 24, limit: int = 100) -> str:
+    """
+    Get raw time-series energy data points from the database.
+
+    Returns list of timestamped energy records showing exact values at specific times.
+    This is essential for answering time-specific questions.
+
+    Use this tool when the user asks about:
+    - Specific times (e.g., "What time did I hit 2500W yesterday?")
+    - Exact values at a point in time (e.g., "What was my SOC at 3pm?")
+    - Trends over time (e.g., "Show me solar production this morning")
+    - Finding when thresholds were crossed
+
+    Args:
+        hours: Number of hours to look back (default: 24)
+        limit: Maximum number of records to return (default: 100, max: 1000)
+
+    Returns:
+        str: Formatted list of timestamped data points
+
+    Example output:
+        "📈 Last 24 hours of data (100 most recent points):
+         2025-10-10 14:35:22 | SOC: 67% | Solar: 3,240W | Load: 1,850W | Battery: +1,390W (charging)
+         2025-10-10 14:30:18 | SOC: 66% | Solar: 3,180W | Load: 1,920W | Battery: +1,260W (charging)
+         ..."
+    """
+    try:
+        # Limit to reasonable max
+        limit = min(limit, 1000)
+
+        records = get_recent_data(hours=hours, limit=limit)
+
+        if not records:
+            return f"No energy data available for the last {hours} hours."
+
+        # Format the records
+        result = f"📈 Last {hours} hours of data ({len(records)} records, most recent first):\n\n"
+
+        for record in records:
+            timestamp = record['created_at']
+            soc = record['soc']
+            pv = record['pv_power']
+            load = record['load_power']
+            batt = record['batt_power']
+
+            # Determine battery state
+            if batt > 0:
+                batt_state = "charging"
+            elif batt < 0:
+                batt_state = "discharging"
+            else:
+                batt_state = "idle"
+
+            result += f"{timestamp} | SOC: {soc:.0f}% | Solar: {pv:,}W | Load: {load:,}W | Battery: {batt:+,}W ({batt_state})\n"
+
+        return result
+    except Exception as e:
+        return f"❌ Error fetching time-series data: {str(e)}"
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -120,8 +227,19 @@ def create_energy_monitor_agent() -> Agent:
         You have access to a knowledge base with detailed system documentation,
         operating procedures, and specifications. When you need information about
         thresholds, limits, or procedures, use the Search Knowledge Base tool.
-        Always cite your sources when referencing information from the KB.""",
-        tools=[get_energy_status, get_detailed_status, search_knowledge_base],
+        Always cite your sources when referencing information from the KB.
+
+        IMPORTANT: When users ask about historical data, time-based questions, or
+        specific times/dates, you MUST use the Get Time Series Energy Data tool
+        to query the database. NEVER guess or make up times - always check the
+        actual data.""",
+        tools=[
+            get_energy_status,
+            get_detailed_status,
+            get_historical_stats,
+            get_time_series_data,
+            search_knowledge_base
+        ],
         verbose=True,
         allow_delegation=False,
     )
@@ -156,18 +274,25 @@ def create_status_task(query: str, conversation_context: str = "", agent: Agent 
         description=f"""Answer this question about the energy system: {query}
         {context_section}
         Instructions:
-        1. Use the 'Get SolArk Status' tool to fetch current data
-        2. Answer the specific question asked
-        3. Provide helpful context if relevant
-        4. Use clear language and accurate numbers
-        5. If the data shows something noteworthy (like low battery), mention it
-        6. If there are previous conversations, you can reference them for context
+        1. For CURRENT status questions: Use 'Get SolArk Status' tool
+        2. For HISTORICAL questions (yesterday, last hour, average, peak, "hour-by-hour", trends, etc.):
+           - Use 'Get Historical Energy Statistics' for averages/peaks/summary stats
+           - Use 'Get Time Series Energy Data' for detailed breakdowns, specific times, or hourly data
+        3. For questions asking for "breakdowns", "hourly data", "over time", or "what time did X happen?":
+           YOU MUST use 'Get Time Series Energy Data' tool - this data EXISTS in the database
+        4. Answer the specific question asked with REAL DATA from tools
+        5. Provide helpful context if relevant
+        6. Use clear language and accurate numbers
+        7. NEVER say "data is not available" without trying the historical tools first
+        8. NEVER guess times, dates, or values - always query the database
+        9. If the data shows something noteworthy (like low battery), mention it
 
         The user's question: {query}
         """,
         expected_output="""A clear, accurate answer to the user's question with:
         - Direct answer to what was asked
-        - Specific numbers from current data
+        - Specific numbers from ACTUAL DATA (not guesses)
+        - Timestamps when answering time-based questions
         - Brief context if helpful
         - References to previous conversations if relevant
         - No speculation or guessing""",

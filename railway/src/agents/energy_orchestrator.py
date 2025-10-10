@@ -11,6 +11,7 @@ from ..tools.miner_coordinator import coordinate_miners
 from ..tools.energy_planner import create_energy_plan
 from ..tools.kb_search import search_knowledge_base
 from ..tools.solark import get_solark_status, format_status_summary
+from ..utils.solark_storage import get_energy_stats, get_recent_data
 
 
 # Wrapper tool to get current status for planning
@@ -27,6 +28,99 @@ def get_current_status() -> str:
         return format_status_summary(status)
     except Exception as e:
         return f"Error getting status: {str(e)}"
+
+
+@tool("Get Historical Energy Statistics")
+def get_historical_stats(hours: int = 24) -> str:
+    """
+    Get aggregated energy statistics over a time period.
+
+    Returns statistical summary of energy data from the database including:
+    - Average, minimum, and maximum battery SOC (%)
+    - Average and peak solar production (W)
+    - Average and peak load consumption (W)
+    - Total number of data points analyzed
+
+    Use this tool when planning decisions require historical context:
+    - Understanding typical load patterns
+    - Analyzing battery discharge rates
+    - Planning based on solar production trends
+
+    Args:
+        hours: Number of hours to look back (default: 24)
+
+    Returns:
+        str: Formatted statistics summary
+    """
+    try:
+        stats = get_energy_stats(hours=hours)
+
+        if not stats or stats.get('total_records', 0) == 0:
+            return f"No energy data available for the last {hours} hours."
+
+        # Format the statistics
+        result = f"📊 Last {hours} hours (based on {stats['total_records']:,} data points):\n"
+        result += f"🔋 Battery SOC: avg {stats['avg_soc']:.1f}%, min {stats['min_soc']:.1f}%, max {stats['max_soc']:.1f}%\n"
+        result += f"☀️ Solar: avg {stats['avg_pv_power']:.0f}W, peak {stats['max_pv_power']:.0f}W\n"
+        result += f"⚡ Load: avg {stats['avg_load_power']:.0f}W, peak {stats['max_load_power']:.0f}W"
+
+        return result
+    except Exception as e:
+        return f"❌ Error fetching historical statistics: {str(e)}"
+
+
+@tool("Get Time Series Energy Data")
+def get_time_series_data(hours: int = 24, limit: int = 100) -> str:
+    """
+    Get raw time-series energy data points from the database.
+
+    Returns list of timestamped energy records showing exact values at specific times.
+    Useful for analyzing patterns and trends for planning decisions.
+
+    Use this tool when planning requires understanding:
+    - Energy usage patterns over time
+    - When peak loads typically occur
+    - Solar production curves throughout the day
+
+    Args:
+        hours: Number of hours to look back (default: 24)
+        limit: Maximum number of records to return (default: 100, max: 1000)
+
+    Returns:
+        str: Formatted list of timestamped data points
+    """
+    try:
+        # Limit to reasonable max
+        limit = min(limit, 1000)
+
+        records = get_recent_data(hours=hours, limit=limit)
+
+        if not records:
+            return f"No energy data available for the last {hours} hours."
+
+        # Format the records
+        result = f"📈 Last {hours} hours of data ({len(records)} records, most recent first):\n\n"
+
+        for record in records:
+            timestamp = record['created_at']
+            soc = record['soc']
+            pv = record['pv_power']
+            load = record['load_power']
+            batt = record['batt_power']
+
+            # Determine battery state
+            if batt > 0:
+                batt_state = "charging"
+            elif batt < 0:
+                batt_state = "discharging"
+            else:
+                batt_state = "idle"
+
+            result += f"{timestamp} | SOC: {soc:.0f}% | Solar: {pv:,}W | Load: {load:,}W | Battery: {batt:+,}W ({batt_state})\n"
+
+        return result
+    except Exception as e:
+        return f"❌ Error fetching time-series data: {str(e)}"
 
 
 def create_energy_orchestrator() -> Agent:
@@ -56,9 +150,14 @@ def create_energy_orchestrator() -> Agent:
         4. Mining profitability (when conditions allow)
 
         You make data-driven decisions, cite policies from the knowledge base,
-        and provide clear reasoning for all recommendations.""",
+        and provide clear reasoning for all recommendations.
+
+        IMPORTANT: Use historical data tools to inform your planning decisions.
+        Never guess about past energy patterns - query the database.""",
         tools=[
             get_current_status,
+            get_historical_stats,
+            get_time_series_data,
             optimize_battery,
             coordinate_miners,
             create_energy_plan,
@@ -83,22 +182,24 @@ def create_orchestrator_task(query: str, context: str = "", agent: Agent = None)
         description=f"""Handle this energy planning or optimization query: {query}
         {context_section}
         Instructions:
-        1. If asking about current status, use Get Current Energy Status tool
-        2. For battery questions, use Battery Optimizer tool
-        3. For miner questions, use Miner Coordinator tool
-        4. For planning/scheduling, use Energy Planner tool
-        5. For policies/thresholds, search Knowledge Base
-        6. Provide clear recommendations with reasoning
-        7. Cite sources when referencing policies
+        1. For current status: use Get Current Energy Status tool
+        2. For historical context: use Get Historical Energy Statistics or Get Time Series Energy Data
+        3. For battery optimization: use Battery Optimizer tool
+        4. For miner coordination: use Miner Coordinator tool
+        5. For planning/scheduling: use Energy Planner tool
+        6. For policies/thresholds: search Knowledge Base
+        7. Base ALL planning decisions on REAL DATA from tools
+        8. Provide clear recommendations with reasoning
+        9. Cite sources when referencing policies
 
         The user's question: {query}
         """,
         expected_output="""A clear, actionable response with:
         - Specific recommendations or plans
-        - Reasoning based on current state and policies
+        - Reasoning based on ACTUAL DATA (current + historical)
         - Any relevant warnings or considerations
         - Citations to knowledge base when applicable
-        - No speculation - use tools to get real data""",
+        - No speculation or guessing""",
         agent=agent,
     )
 
