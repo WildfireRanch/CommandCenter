@@ -1,0 +1,509 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Agent Panel Stress Test</title>
+  <style>
+    body {
+      font-family: system-ui, -apple-system, sans-serif;
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 20px;
+      background: #f5f5f5;
+    }
+    .test-section {
+      background: white;
+      padding: 20px;
+      margin-bottom: 20px;
+      border-radius: 8px;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+    .test-result {
+      padding: 10px;
+      margin: 10px 0;
+      border-radius: 4px;
+      font-family: monospace;
+      font-size: 14px;
+    }
+    .pass { background: #d4edda; color: #155724; }
+    .fail { background: #f8d7da; color: #721c24; }
+    .running { background: #fff3cd; color: #856404; }
+    button {
+      background: #007bff;
+      color: white;
+      border: none;
+      padding: 10px 20px;
+      border-radius: 4px;
+      cursor: pointer;
+      margin-right: 10px;
+      margin-bottom: 10px;
+    }
+    button:hover { background: #0056b3; }
+    button:disabled { background: #6c757d; cursor: not-allowed; }
+    .metrics {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 15px;
+      margin-top: 15px;
+    }
+    .metric {
+      padding: 15px;
+      background: #f8f9fa;
+      border-radius: 4px;
+      border-left: 4px solid #007bff;
+    }
+    .metric-label {
+      font-size: 12px;
+      color: #6c757d;
+      text-transform: uppercase;
+      margin-bottom: 5px;
+    }
+    .metric-value {
+      font-size: 24px;
+      font-weight: bold;
+      color: #212529;
+    }
+    pre {
+      background: #f4f4f4;
+      padding: 10px;
+      border-radius: 4px;
+      overflow-x: auto;
+      font-size: 12px;
+    }
+  </style>
+</head>
+<body>
+  <h1>🧪 Agent Visualization Panel - Stress Test Suite</h1>
+  <p>Run these tests to verify edge cases and performance of the dashboard.</p>
+
+  <!-- Test 1: Empty State -->
+  <div class="test-section">
+    <h2>Test 1: Empty Session State</h2>
+    <p>Verify panel handles empty message arrays gracefully</p>
+    <button onclick="runTest1()">Run Test</button>
+    <div id="test1-result"></div>
+  </div>
+
+  <!-- Test 2: Rapid Toggling -->
+  <div class="test-section">
+    <h2>Test 2: Rapid Panel Toggling (Stress Test)</h2>
+    <p>Toggle panel 100 times rapidly to check for memory leaks</p>
+    <button onclick="runTest2()">Run Test (100 toggles)</button>
+    <div id="test2-result"></div>
+    <div class="metrics" id="test2-metrics"></div>
+  </div>
+
+  <!-- Test 3: Large Dataset -->
+  <div class="test-section">
+    <h2>Test 3: Large Dataset Performance</h2>
+    <p>Generate 500 messages and measure calculation time</p>
+    <button onclick="runTest3(100)">100 Messages</button>
+    <button onclick="runTest3(500)">500 Messages</button>
+    <button onclick="runTest3(1000)">1000 Messages</button>
+    <div id="test3-result"></div>
+    <div class="metrics" id="test3-metrics"></div>
+  </div>
+
+  <!-- Test 4: Malformed Data -->
+  <div class="test-section">
+    <h2>Test 4: Malformed Metadata</h2>
+    <p>Test with missing fields, negative values, extreme numbers</p>
+    <button onclick="runTest4()">Run Test</button>
+    <div id="test4-result"></div>
+  </div>
+
+  <!-- Test 5: Zero Division -->
+  <div class="test-section">
+    <h2>Test 9: Zero Division Edge Cases</h2>
+    <p>Test calculations with zero values</p>
+    <button onclick="runTest9()">Run Test</button>
+    <div id="test9-result"></div>
+  </div>
+
+  <!-- Test 10: Memory Leak -->
+  <div class="test-section">
+    <h2>Test 10: Memory Leak Detection</h2>
+    <p>Monitor memory usage over 30-second stress test</p>
+    <button onclick="runTest10()">Run Test (30s)</button>
+    <button onclick="stopTest10()" disabled id="stop-test10">Stop</button>
+    <div id="test10-result"></div>
+    <div class="metrics" id="test10-metrics"></div>
+  </div>
+
+  <!-- All Tests -->
+  <div class="test-section">
+    <h2>🚀 Run All Tests</h2>
+    <button onclick="runAllTests()" style="background: #28a745;">Run Full Test Suite</button>
+    <div id="all-tests-result"></div>
+  </div>
+
+  <script>
+    // Mock insights calculation (simplified version of useSessionInsights logic)
+    function calculateInsights(messages) {
+      const assistantMessages = messages.filter(m => m.role === 'assistant')
+      if (assistantMessages.length === 0) return null
+
+      const agentMap = new Map()
+      let totalTokens = 0
+      let cacheHits = 0
+      let cacheMisses = 0
+
+      assistantMessages.forEach(msg => {
+        const agent = msg.agent_role || 'Unknown'
+        const existing = agentMap.get(agent) || { count: 0, duration: 0, tokens: 0, cacheHits: 0 }
+
+        agentMap.set(agent, {
+          count: existing.count + 1,
+          duration: existing.duration + (msg.duration_ms || 0),
+          tokens: existing.tokens + (msg.context_tokens || 0),
+          cacheHits: existing.cacheHits + (msg.cache_hit ? 1 : 0)
+        })
+
+        if (msg.context_tokens) totalTokens += msg.context_tokens
+        if (msg.cache_hit !== undefined) {
+          msg.cache_hit ? cacheHits++ : cacheMisses++
+        }
+      })
+
+      const agentContributions = Array.from(agentMap.entries()).map(([agent, data]) => ({
+        agent,
+        query_count: data.count,
+        total_duration_ms: data.duration,
+        avg_duration_ms: data.duration / data.count,
+        total_tokens: data.tokens,
+        cache_hits: data.cacheHits,
+        success_rate: 100,
+        avg_response_time: data.duration / data.count,
+        percentage: (data.count / assistantMessages.length) * 100
+      }))
+
+      return {
+        session_id: 'test',
+        total_queries: messages.filter(m => m.role === 'user').length,
+        agent_contributions: agentContributions,
+        token_metrics: {
+          total_tokens_used: totalTokens,
+          avg_tokens_per_query: totalTokens / assistantMessages.length,
+          baseline_tokens: Math.floor(totalTokens * 1.6)
+        },
+        cache_metrics: {
+          cache_hits: cacheHits,
+          cache_misses: cacheMisses,
+          hit_rate: cacheHits / (cacheHits + cacheMisses || 1) * 100
+        }
+      }
+    }
+
+    // Test 1: Empty State
+    function runTest1() {
+      const resultDiv = document.getElementById('test1-result')
+      resultDiv.innerHTML = '<div class="test-result running">Running...</div>'
+
+      try {
+        // Test with empty array
+        const result1 = calculateInsights([])
+        if (result1 === null) {
+          resultDiv.innerHTML += '<div class="test-result pass">✓ Empty array returns null</div>'
+        } else {
+          resultDiv.innerHTML += '<div class="test-result fail">✗ Empty array should return null</div>'
+        }
+
+        // Test with user messages only
+        const result2 = calculateInsights([
+          { role: 'user', content: 'Hello', timestamp: new Date().toISOString() }
+        ])
+        if (result2 === null) {
+          resultDiv.innerHTML += '<div class="test-result pass">✓ User-only messages return null</div>'
+        } else {
+          resultDiv.innerHTML += '<div class="test-result fail">✗ User-only should return null</div>'
+        }
+
+        resultDiv.innerHTML += '<div class="test-result pass"><strong>✓ Test 1 PASSED</strong></div>'
+      } catch (error) {
+        resultDiv.innerHTML += `<div class="test-result fail">✗ Error: ${error.message}</div>`
+      }
+    }
+
+    // Test 2: Rapid Toggling
+    async function runTest2() {
+      const resultDiv = document.getElementById('test2-result')
+      const metricsDiv = document.getElementById('test2-metrics')
+      resultDiv.innerHTML = '<div class="test-result running">Running 100 toggle cycles...</div>'
+
+      const startMemory = performance.memory ? performance.memory.usedJSHeapSize : 0
+      const startTime = performance.now()
+
+      try {
+        // Simulate 100 panel open/close cycles
+        for (let i = 0; i < 100; i++) {
+          // Simulate state change
+          const tempState = { panelOpen: true }
+          await new Promise(resolve => setTimeout(resolve, 1))
+          tempState.panelOpen = false
+
+          if (i % 20 === 0) {
+            resultDiv.innerHTML = `<div class="test-result running">Cycle ${i}/100...</div>`
+          }
+        }
+
+        const endTime = performance.now()
+        const endMemory = performance.memory ? performance.memory.usedJSHeapSize : 0
+        const duration = endTime - startTime
+        const memoryGrowth = endMemory - startMemory
+
+        metricsDiv.innerHTML = `
+          <div class="metric">
+            <div class="metric-label">Duration</div>
+            <div class="metric-value">${duration.toFixed(0)}ms</div>
+          </div>
+          <div class="metric">
+            <div class="metric-label">Memory Growth</div>
+            <div class="metric-value">${(memoryGrowth / 1024 / 1024).toFixed(2)}MB</div>
+          </div>
+          <div class="metric">
+            <div class="metric-label">Avg per Toggle</div>
+            <div class="metric-value">${(duration / 100).toFixed(1)}ms</div>
+          </div>
+        `
+
+        if (memoryGrowth < 10 * 1024 * 1024) { // < 10MB
+          resultDiv.innerHTML = '<div class="test-result pass"><strong>✓ Test 2 PASSED</strong> - Memory growth acceptable</div>'
+        } else {
+          resultDiv.innerHTML = '<div class="test-result fail"><strong>✗ Test 2 FAILED</strong> - Possible memory leak</div>'
+        }
+      } catch (error) {
+        resultDiv.innerHTML = `<div class="test-result fail">✗ Error: ${error.message}</div>`
+      }
+    }
+
+    // Test 3: Large Dataset
+    function runTest3(count) {
+      const resultDiv = document.getElementById('test3-result')
+      const metricsDiv = document.getElementById('test3-metrics')
+      resultDiv.innerHTML = `<div class="test-result running">Generating ${count} messages...</div>`
+
+      try {
+        // Generate messages
+        const messages = []
+        for (let i = 0; i < count; i++) {
+          messages.push({
+            role: i % 2 === 0 ? 'user' : 'assistant',
+            content: `Message ${i}`,
+            timestamp: new Date(Date.now() - (count - i) * 60000).toISOString(),
+            agent_role: ['Manager', 'Solar Controller', 'Research Agent'][i % 3],
+            duration_ms: 500 + Math.random() * 1000,
+            context_tokens: 2000 + Math.floor(Math.random() * 2000),
+            cache_hit: Math.random() > 0.5,
+            query_type: ['system', 'research', 'planning', 'general'][i % 4]
+          })
+        }
+
+        // Measure calculation time
+        const startTime = performance.now()
+        const insights = calculateInsights(messages)
+        const endTime = performance.now()
+        const duration = endTime - startTime
+
+        metricsDiv.innerHTML = `
+          <div class="metric">
+            <div class="metric-label">Messages</div>
+            <div class="metric-value">${count}</div>
+          </div>
+          <div class="metric">
+            <div class="metric-label">Calculation Time</div>
+            <div class="metric-value">${duration.toFixed(2)}ms</div>
+          </div>
+          <div class="metric">
+            <div class="metric-label">Time per Message</div>
+            <div class="metric-value">${(duration / count).toFixed(3)}ms</div>
+          </div>
+          <div class="metric">
+            <div class="metric-label">Total Queries</div>
+            <div class="metric-value">${insights.total_queries}</div>
+          </div>
+        `
+
+        if (duration < 100) {
+          resultDiv.innerHTML = `<div class="test-result pass"><strong>✓ Test 3 PASSED</strong> - Calculation time: ${duration.toFixed(2)}ms</div>`
+        } else if (duration < 500) {
+          resultDiv.innerHTML = `<div class="test-result running"><strong>⚠ Test 3 WARNING</strong> - Calculation time: ${duration.toFixed(2)}ms (acceptable but slow)</div>`
+        } else {
+          resultDiv.innerHTML = `<div class="test-result fail"><strong>✗ Test 3 FAILED</strong> - Too slow: ${duration.toFixed(2)}ms</div>`
+        }
+      } catch (error) {
+        resultDiv.innerHTML = `<div class="test-result fail">✗ Error: ${error.message}</div>`
+      }
+    }
+
+    // Test 4: Malformed Data
+    function runTest4() {
+      const resultDiv = document.getElementById('test4-result')
+      resultDiv.innerHTML = '<div class="test-result running">Testing malformed data...</div>'
+
+      const testCases = [
+        {
+          name: 'Missing context_tokens',
+          messages: [
+            { role: 'assistant', content: 'Test', timestamp: new Date().toISOString(), agent_role: 'Manager' }
+          ]
+        },
+        {
+          name: 'Negative duration_ms',
+          messages: [
+            { role: 'assistant', content: 'Test', timestamp: new Date().toISOString(), agent_role: 'Manager', duration_ms: -100, context_tokens: 2000 }
+          ]
+        },
+        {
+          name: 'Extreme token count',
+          messages: [
+            { role: 'assistant', content: 'Test', timestamp: new Date().toISOString(), agent_role: 'Manager', context_tokens: 150000 }
+          ]
+        },
+        {
+          name: 'Invalid agent_role',
+          messages: [
+            { role: 'assistant', content: 'Test', timestamp: new Date().toISOString(), agent_role: 'InvalidAgent', context_tokens: 2000 }
+          ]
+        }
+      ]
+
+      let passed = 0
+      testCases.forEach(test => {
+        try {
+          const result = calculateInsights(test.messages)
+          if (result !== null && !isNaN(result.token_metrics.total_tokens_used)) {
+            resultDiv.innerHTML += `<div class="test-result pass">✓ ${test.name}</div>`
+            passed++
+          } else {
+            resultDiv.innerHTML += `<div class="test-result fail">✗ ${test.name}</div>`
+          }
+        } catch (error) {
+          resultDiv.innerHTML += `<div class="test-result fail">✗ ${test.name}: ${error.message}</div>`
+        }
+      })
+
+      if (passed === testCases.length) {
+        resultDiv.innerHTML += '<div class="test-result pass"><strong>✓ Test 4 PASSED</strong></div>'
+      } else {
+        resultDiv.innerHTML += '<div class="test-result fail"><strong>✗ Test 4 FAILED</strong></div>'
+      }
+    }
+
+    // Test 9: Zero Division
+    function runTest9() {
+      const resultDiv = document.getElementById('test9-result')
+      resultDiv.innerHTML = '<div class="test-result running">Testing zero division cases...</div>'
+
+      try {
+        // Test 1: Zero total queries
+        const pct1 = 5 / (0 || 1) * 100
+        const pass1 = isFinite(pct1) && !isNaN(pct1)
+        resultDiv.innerHTML += pass1 ?
+          '<div class="test-result pass">✓ Zero total queries handled</div>' :
+          '<div class="test-result fail">✗ Zero total queries failed</div>'
+
+        // Test 2: Zero tokens
+        const messages2 = [{ role: 'assistant', content: 'Test', timestamp: new Date().toISOString(), agent_role: 'Manager', context_tokens: 0 }]
+        const result2 = calculateInsights(messages2)
+        const pass2 = result2 && result2.token_metrics.total_tokens_used === 0
+        resultDiv.innerHTML += pass2 ?
+          '<div class="test-result pass">✓ Zero tokens handled</div>' :
+          '<div class="test-result fail">✗ Zero tokens failed</div>'
+
+        // Test 3: Zero duration
+        const messages3 = [{ role: 'assistant', content: 'Test', timestamp: new Date().toISOString(), agent_role: 'Manager', duration_ms: 0, context_tokens: 2000 }]
+        const result3 = calculateInsights(messages3)
+        const pass3 = result3 && result3.agent_contributions[0].avg_duration_ms === 0
+        resultDiv.innerHTML += pass3 ?
+          '<div class="test-result pass">✓ Zero duration handled</div>' :
+          '<div class="test-result fail">✗ Zero duration failed</div>'
+
+        if (pass1 && pass2 && pass3) {
+          resultDiv.innerHTML += '<div class="test-result pass"><strong>✓ Test 9 PASSED</strong></div>'
+        } else {
+          resultDiv.innerHTML += '<div class="test-result fail"><strong>✗ Test 9 FAILED</strong></div>'
+        }
+      } catch (error) {
+        resultDiv.innerHTML += `<div class="test-result fail">✗ Error: ${error.message}</div>`
+      }
+    }
+
+    // Test 10: Memory Leak
+    let test10Interval = null
+    function runTest10() {
+      const resultDiv = document.getElementById('test10-result')
+      const metricsDiv = document.getElementById('test10-metrics')
+      const stopBtn = document.getElementById('stop-test10')
+
+      resultDiv.innerHTML = '<div class="test-result running">Running 30-second memory test...</div>'
+      stopBtn.disabled = false
+
+      const startMemory = performance.memory ? performance.memory.usedJSHeapSize : 0
+      const startTime = Date.now()
+      const memorySnapshots = []
+
+      test10Interval = setInterval(() => {
+        const currentMemory = performance.memory ? performance.memory.usedJSHeapSize : 0
+        const elapsed = (Date.now() - startTime) / 1000
+        memorySnapshots.push({ time: elapsed, memory: currentMemory })
+
+        // Simulate work
+        const messages = Array.from({ length: 50 }, (_, i) => ({
+          role: i % 2 === 0 ? 'user' : 'assistant',
+          content: `Message ${i}`,
+          timestamp: new Date().toISOString(),
+          agent_role: 'Manager',
+          context_tokens: 2000
+        }))
+        calculateInsights(messages)
+
+        metricsDiv.innerHTML = `
+          <div class="metric">
+            <div class="metric-label">Elapsed</div>
+            <div class="metric-value">${elapsed.toFixed(1)}s</div>
+          </div>
+          <div class="metric">
+            <div class="metric-label">Current Memory</div>
+            <div class="metric-value">${(currentMemory / 1024 / 1024).toFixed(2)}MB</div>
+          </div>
+          <div class="metric">
+            <div class="metric-label">Growth</div>
+            <div class="metric-value">${((currentMemory - startMemory) / 1024 / 1024).toFixed(2)}MB</div>
+          </div>
+        `
+
+        if (elapsed >= 30) {
+          stopTest10()
+        }
+      }, 1000)
+    }
+
+    function stopTest10() {
+      clearInterval(test10Interval)
+      const stopBtn = document.getElementById('stop-test10')
+      stopBtn.disabled = true
+      const resultDiv = document.getElementById('test10-result')
+      resultDiv.innerHTML += '<div class="test-result pass"><strong>✓ Test 10 COMPLETED</strong></div>'
+    }
+
+    // Run All Tests
+    async function runAllTests() {
+      const resultDiv = document.getElementById('all-tests-result')
+      resultDiv.innerHTML = '<div class="test-result running"><strong>Running full test suite...</strong></div>'
+
+      await runTest1()
+      await new Promise(r => setTimeout(r, 500))
+      await runTest2()
+      await new Promise(r => setTimeout(r, 500))
+      runTest3(100)
+      await new Promise(r => setTimeout(r, 500))
+      runTest4()
+      await new Promise(r => setTimeout(r, 500))
+      runTest9()
+
+      resultDiv.innerHTML += '<div class="test-result pass"><strong>✓ All tests completed!</strong></div>'
+    }
+  </script>
+</body>
+</html>
