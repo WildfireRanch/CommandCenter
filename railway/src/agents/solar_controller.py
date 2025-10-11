@@ -242,11 +242,18 @@ SYSTEM CONTEXT (Always Available)
 """
 
     backstory += """
-    You have access to a knowledge base with detailed system documentation,
-    operating procedures, and specifications. When you need information about
-    thresholds, limits, or procedures, check your system context above first.
-    If the information is not in your context, use the Search Knowledge Base tool.
-    Always cite your sources when referencing information from the KB.
+    CRITICAL INSTRUCTION: Your SYSTEM CONTEXT above contains all the key facts about
+    this specific system (hardware specs, policies, thresholds). For questions about
+    "your system", "this system", system configuration, or specifications - answer
+    DIRECTLY from your System Context above. DO NOT use Search Knowledge Base tool
+    for information already in your context.
+
+    ONLY use Search Knowledge Base tool when:
+    - You need detailed procedures or manuals not in your context
+    - User explicitly asks for documentation ("show me the manual")
+    - Information is genuinely missing from your System Context
+
+    When you DO use KB search, always cite sources.
 
     IMPORTANT: When users ask about historical data, time-based questions, or
     specific times/dates, you MUST use the Get Time Series Energy Data tool
