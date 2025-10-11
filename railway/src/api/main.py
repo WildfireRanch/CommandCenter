@@ -869,19 +869,26 @@ def create_app() -> FastAPI:
                 content=request.message
             )
 
-            # FAST PATH: Direct KB search for documentation queries (bypass Manager agent timeout)
-            # Detect KB queries with simple keyword matching (avoid false positives)
+            # FAST PATH: Direct KB search for GENERAL documentation queries only
+            # System-specific questions should route through Manager to Solar Controller
             query_lower = request.message.lower()
-            kb_keywords = ['specification', 'specs', 'threshold', 'policy', 'policies',
-                          'procedure', 'maintain', 'maintenance', 'documentation', 'guide',
-                          'manual', 'instructions', 'how do i', 'how to']
-            # Avoid: "what is" (too broad - catches "what is my battery level")
-            is_kb_query = any(keyword in query_lower for keyword in kb_keywords)
 
-            if is_kb_query and len(request.message) > 10:
+            # Keywords for GENERAL documentation (not system-specific)
+            general_doc_keywords = ['manual', 'documentation', 'guide', 'instructions',
+                                   'how do i', 'how to', 'show me the']
+
+            # Exclude system-specific question patterns
+            system_specific_patterns = ['your', 'my', 'our', 'this system', 'you have',
+                                        'what is the', 'what are the']
+
+            is_general_doc = any(keyword in query_lower for keyword in general_doc_keywords)
+            is_system_specific = any(pattern in query_lower for pattern in system_specific_patterns)
+
+            # Only use Fast-Path for general documentation, NOT system-specific questions
+            if is_general_doc and not is_system_specific and len(request.message) > 10:
                 # Direct KB search - bypass Manager agent to prevent timeout
                 from ..tools.kb_search import search_knowledge_base
-                logger.info(f"Direct KB search for query: {request.message}")
+                logger.info(f"Fast-path KB search for general documentation: {request.message}")
                 result_str = search_knowledge_base.func(request.message, limit=5)
                 agent_used = "Knowledge Base"
                 agent_role = "Documentation Search"
