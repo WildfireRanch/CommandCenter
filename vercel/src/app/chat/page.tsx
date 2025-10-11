@@ -9,6 +9,10 @@ interface Message {
   timestamp: string
   agent_role?: string  // Which agent handled this (Solar Controller, Research Agent, etc.)
   duration_ms?: number // How long the agent took to respond
+  // V1.8: Smart Context metadata
+  context_tokens?: number  // Tokens used for context
+  cache_hit?: boolean      // Was context loaded from cache?
+  query_type?: string      // Query classification (system/research/planning/general)
 }
 
 export default function ChatPage() {
@@ -60,7 +64,11 @@ export default function ChatPage() {
           content: data.response || 'No response received',
           timestamp: new Date().toISOString(),
           agent_role: data.agent_role || 'Unknown Agent',
-          duration_ms: data.duration_ms || 0
+          duration_ms: data.duration_ms || 0,
+          // V1.8: Smart Context metadata
+          context_tokens: data.context_tokens,
+          cache_hit: data.cache_hit,
+          query_type: data.query_type
         }
         setMessages(prev => [...prev, assistantMessage])
       } else {
@@ -188,13 +196,33 @@ export default function ChatPage() {
                 <div className="flex items-start gap-3">
                   <div className="text-2xl">{msg.role === 'user' ? '🧑' : '🤖'}</div>
                   <div className="flex-1">
-                    <div className="flex items-center gap-2 mb-1">
+                    <div className="flex items-center gap-2 mb-1 flex-wrap">
                       <div className="text-sm font-medium">
                         {msg.role === 'user' ? 'You' : msg.agent_role || 'Agent'}
                       </div>
                       {msg.duration_ms && msg.duration_ms > 0 && (
                         <div className="text-xs text-gray-400 bg-gray-100 px-2 py-0.5 rounded">
                           {(msg.duration_ms / 1000).toFixed(1)}s
+                        </div>
+                      )}
+                      {/* V1.8: Smart Context metadata badges */}
+                      {msg.query_type && (
+                        <div className="text-xs text-blue-600 bg-blue-50 px-2 py-0.5 rounded border border-blue-200">
+                          {msg.query_type}
+                        </div>
+                      )}
+                      {msg.context_tokens !== undefined && (
+                        <div className="text-xs text-green-600 bg-green-50 px-2 py-0.5 rounded border border-green-200">
+                          {msg.context_tokens.toLocaleString()} tokens
+                        </div>
+                      )}
+                      {msg.cache_hit !== undefined && (
+                        <div className={`text-xs px-2 py-0.5 rounded border ${
+                          msg.cache_hit
+                            ? 'text-purple-600 bg-purple-50 border-purple-200'
+                            : 'text-gray-500 bg-gray-50 border-gray-200'
+                        }`}>
+                          {msg.cache_hit ? '⚡ cached' : 'fresh'}
                         </div>
                       )}
                     </div>

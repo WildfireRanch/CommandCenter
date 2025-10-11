@@ -69,12 +69,14 @@ class AskRequest(BaseModel):
     """Request model for /ask endpoint."""
     message: str
     session_id: Optional[str] = None  # For multi-turn conversations
+    user_id: Optional[str] = None  # For context personalization (V1.8+)
 
     class Config:
         json_schema_extra = {
             "example": {
                 "message": "What's my battery level?",
-                "session_id": "optional-conversation-uuid"
+                "session_id": "optional-conversation-uuid",
+                "user_id": "optional-user-id"
             }
         }
 
@@ -86,6 +88,10 @@ class AskResponse(BaseModel):
     agent_role: str
     duration_ms: int
     session_id: str  # Conversation ID for continuing the conversation
+    # V1.8: Smart Context metadata
+    context_tokens: Optional[int] = None  # Tokens used for context
+    cache_hit: Optional[bool] = None  # Was context loaded from cache?
+    query_type: Optional[str] = None  # Classified query type (system/research/planning/general)
 
     class Config:
         json_schema_extra = {
@@ -94,7 +100,10 @@ class AskResponse(BaseModel):
                 "query": "What's my battery level?",
                 "agent_role": "Energy Systems Monitor",
                 "duration_ms": 1250,
-                "session_id": "abc123-uuid"
+                "session_id": "abc123-uuid",
+                "context_tokens": 2400,
+                "cache_hit": False,
+                "query_type": "system"
             }
         }
 
@@ -927,12 +936,13 @@ def create_app() -> FastAPI:
                     target_agent = routing_decision.get("agent")
                     logger.info(f"Manager routing to: {target_agent}")
 
-                    # Route to appropriate specialist WITH context
+                    # Route to appropriate specialist WITH context (V1.8: pass user_id)
                     if target_agent == "Solar Controller":
                         from ..agents.solar_controller import create_energy_crew
                         specialist_crew = create_energy_crew(
                             query=request.message,
-                            conversation_context=context
+                            conversation_context=context,
+                            user_id=request.user_id  # V1.8: Smart context
                         )
                         result = specialist_crew.kickoff()
                         result_str = str(result)
@@ -943,7 +953,8 @@ def create_app() -> FastAPI:
                         from ..agents.energy_orchestrator import create_orchestrator_crew
                         specialist_crew = create_orchestrator_crew(
                             query=request.message,
-                            context=context
+                            context=context,
+                            user_id=request.user_id  # V1.8: Smart context
                         )
                         result = specialist_crew.kickoff()
                         result_str = str(result)
@@ -952,7 +963,10 @@ def create_app() -> FastAPI:
 
                     elif target_agent == "Research Agent":
                         from ..agents.research_agent import create_research_crew
-                        specialist_crew = create_research_crew(query=request.message)
+                        specialist_crew = create_research_crew(
+                            query=request.message,
+                            user_id=request.user_id  # V1.8: Smart context
+                        )
                         result = specialist_crew.kickoff()
                         result_str = str(result)
                         agent_used = "Research Agent"
@@ -970,6 +984,36 @@ def create_app() -> FastAPI:
             # Calculate duration
             duration_ms = int((time.time() - start_time) * 1000)
 
+            # V1.8: Get context metadata (if ContextManager was used)
+            context_tokens = None
+            cache_hit = None
+            query_type = None
+            try:
+                from ..services.context_manager import ContextManager
+                from ..services.context_classifier import classify_query
+
+                # Classify query to get type
+                classified_type, confidence = classify_query(request.message)
+                query_type = classified_type.value
+
+                # Try to get context stats from ContextManager
+                # Note: This is a simplified approach - in production, agents should return this metadata
+                context_manager = ContextManager()
+                test_bundle = context_manager.get_relevant_context(
+                    query=request.message,
+                    user_id=request.user_id,
+                    max_tokens=3000
+                )
+                context_tokens = test_bundle.total_tokens
+                cache_hit = test_bundle.cache_hit
+
+                logger.info(
+                    f"Context metadata: tokens={context_tokens}, "
+                    f"cache_hit={cache_hit}, type={query_type}"
+                )
+            except Exception as e:
+                logger.warning(f"Failed to get context metadata: {e}")
+
             # Store assistant response
             add_message(
                 conversation_id=conversation_id,
@@ -986,7 +1030,13 @@ def create_app() -> FastAPI:
                 message=f"Query completed in {duration_ms}ms by {agent_used}",
                 agent_role=agent_used,
                 conversation_id=conversation_id,
-                data={"duration_ms": duration_ms, "agent_used": agent_used}
+                data={
+                    "duration_ms": duration_ms,
+                    "agent_used": agent_used,
+                    "context_tokens": context_tokens,  # V1.8
+                    "cache_hit": cache_hit,  # V1.8
+                    "query_type": query_type  # V1.8
+                }
             )
 
             # Return response with session_id for multi-turn conversations
@@ -996,6 +1046,10 @@ def create_app() -> FastAPI:
                 agent_role=agent_used,
                 duration_ms=duration_ms,
                 session_id=conversation_id,
+                # V1.8: Context metadata
+                context_tokens=context_tokens,
+                cache_hit=cache_hit,
+                query_type=query_type,
             )
 
         except Exception as e:

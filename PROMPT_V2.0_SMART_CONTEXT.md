@@ -1,4 +1,4 @@
-# Implementation Prompt: V2.0 Smart Context Loading
+# Implementation Prompt: V1.8 Smart Context Loading
 
 ## Objective
 
@@ -548,7 +548,7 @@ crew = create_energy_crew(query, context)
 
 ---
 
-**Task:** Implement V2.0 Smart Context Loading with Redis caching
+**Task:** Implement 1.8.0 Smart Context Loading with Redis caching
 
 **Goal:** Reduce token usage by 40% and improve response times by intelligently loading only relevant context.
 

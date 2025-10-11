@@ -36,3 +36,6 @@ pypdf==4.0.0
 # MCP Client (for Research Agent web search)
 mcp>=0.5.0
 httpx>=0.24.0
+
+# Redis (for context caching - V1.8)
+redis>=5.0.0

@@ -23,41 +23,49 @@
 
 from crewai import Agent, Crew, Task
 
-from ..tools.kb_search import search_knowledge_base, get_context_files
+from ..tools.kb_search import search_knowledge_base
 from ..tools.mcp_client import tavily_search, tavily_extract
 from ..utils.agent_telemetry import track_agent_execution
+from ..services.context_manager import ContextManager
 
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Agent Definition
 # ─────────────────────────────────────────────────────────────────────────────
 
-def create_research_agent() -> Agent:
+def create_research_agent(context_bundle=None) -> Agent:
     """
     Create the Research Agent with full context + web search.
 
     WHAT: Generalist agent for abstract questions, industry research, comparisons
     WHY: Users need research-backed insights for planning and decision-making
-    HOW: Combines full system context + KB search + web search (Tavily MCP)
+    HOW: Combines smart context + KB search + web search (Tavily MCP)
+
+    Args:
+        context_bundle: Optional ContextBundle from ContextManager (V1.8+)
 
     Returns:
         Agent: Configured CrewAI agent for research and strategic analysis
     """
-    # Load ALL context (24KB) - Research Agent needs comprehensive understanding
-    full_context = get_context_files()
-
-    backstory = f"""You are a senior energy systems consultant with deep expertise
+    backstory = """You are a senior energy systems consultant with deep expertise
     in off-grid solar installations, battery storage, and sustainable energy systems.
 
     You specialize in research, strategic planning, and technology analysis. Your
     role is to provide research-backed recommendations, industry comparisons, and
     long-term strategic insights.
 
-    ═══════════════════════════════════════════════════════════════════
-    COMPLETE SYSTEM CONTEXT
-    ═══════════════════════════════════════════════════════════════════
+    """
 
-    {full_context}
+    # Add context from ContextManager (V1.8+)
+    if context_bundle:
+        formatted_context = context_bundle.format_for_agent()
+        if formatted_context:
+            backstory += f"""
+═══════════════════════════════════════════════════════════════════
+COMPLETE SYSTEM CONTEXT
+═══════════════════════════════════════════════════════════════════
+
+{formatted_context}
 
     ═══════════════════════════════════════════════════════════════════
 
@@ -226,7 +234,8 @@ def create_research_task(query: str, agent: Agent = None) -> Task:
 # Crew Factory
 # ─────────────────────────────────────────────────────────────────────────────
 
-def create_research_crew(query: str) -> Crew:
+@track_agent_execution("Research Agent")
+def create_research_crew(query: str, user_id: str = None) -> Crew:
     """
     Create a crew with the Research Agent.
 
@@ -236,12 +245,35 @@ def create_research_crew(query: str) -> Crew:
 
     Args:
         query: User's research question
+        user_id: User ID for smart context loading (V1.8+)
 
     Returns:
         Crew: Configured crew ready to process research queries
     """
-    # Create the agent
-    agent = create_research_agent()
+    # V1.8: Use ContextManager for smart context loading
+    context_bundle = None
+    try:
+        context_manager = ContextManager()
+        context_bundle = context_manager.get_relevant_context(
+            query=query,
+            user_id=user_id,
+            max_tokens=4000  # Research queries get largest budget
+        )
+        import logging
+        logger = logging.getLogger(__name__)
+        logger.info(
+            f"Smart context loaded: {context_bundle.total_tokens} tokens, "
+            f"type={context_bundle.query_type.value}, "
+            f"cache_hit={context_bundle.cache_hit}"
+        )
+    except Exception as e:
+        import logging
+        logger = logging.getLogger(__name__)
+        logger.warning(f"ContextManager failed, using legacy context: {e}")
+        context_bundle = None
+
+    # Create the agent with smart context
+    agent = create_research_agent(context_bundle=context_bundle)
 
     # Create the task with query
     task = create_research_task(query, agent=agent)

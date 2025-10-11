@@ -23,9 +23,10 @@ from crewai import Agent, Crew, Task
 from crewai.tools import tool
 
 from ..tools.solark import get_solark_status, format_status_summary
-from ..tools.kb_search import search_knowledge_base, get_context_files
+from ..tools.kb_search import search_knowledge_base
 from ..utils.solark_storage import get_energy_stats, get_recent_data
 from ..utils.agent_telemetry import track_agent_execution
+from ..services.context_manager import ContextManager
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -204,7 +205,7 @@ def get_time_series_data(hours: int = 24, limit: int = 100) -> str:
 # Agent Definition
 # ─────────────────────────────────────────────────────────────────────────────
 
-def create_energy_monitor_agent() -> Agent:
+def create_energy_monitor_agent(context_bundle=None) -> Agent:
     """
     Create the Energy Monitor agent.
 
@@ -212,12 +213,12 @@ def create_energy_monitor_agent() -> Agent:
     WHY: Users need to check battery, solar, and power status
     HOW: Uses SolArk tools to fetch and interpret real-time data
 
+    Args:
+        context_bundle: Optional ContextBundle from ContextManager (V1.8+)
+
     Returns:
         Agent: Configured CrewAI agent for energy monitoring
     """
-    # Load system context from knowledge base
-    system_context = get_context_files()
-
     # Build backstory with system context
     backstory = """You are an expert energy systems analyst specializing in
     solar + battery installations. You monitor a SolArk inverter system and
@@ -228,14 +229,16 @@ def create_energy_monitor_agent() -> Agent:
 
     """
 
-    # Add system context if available
-    if system_context:
-        backstory += f"""
+    # Add context from ContextManager (V1.8+)
+    if context_bundle:
+        formatted_context = context_bundle.format_for_agent()
+        if formatted_context:
+            backstory += f"""
 ═══════════════════════════════════════════
 SYSTEM CONTEXT (Always Available)
 ═══════════════════════════════════════════
 
-{system_context}
+{formatted_context}
 
 ═══════════════════════════════════════════
 
@@ -336,28 +339,57 @@ def create_status_task(query: str, conversation_context: str = "", agent: Agent 
 # ─────────────────────────────────────────────────────────────────────────────
 
 @track_agent_execution("Solar Controller")
-def create_energy_crew(query: str, conversation_context: str = "") -> Crew:
+def create_energy_crew(query: str, conversation_context: str = "", user_id: str = None) -> Crew:
     """
     Create a crew to handle energy monitoring queries.
 
     WHAT: Assembles agent + task into executable crew
     WHY: CrewAI needs a crew to run tasks
-    HOW: Combines energy monitor agent with status task, includes conversation history
+    HOW: Uses ContextManager for smart context loading (V1.8+), combines agent with task
 
     Args:
         query: User's question about energy system
-        conversation_context: Previous conversation history (optional)
+        conversation_context: Previous conversation history (optional, legacy)
+        user_id: User ID for smart context loading (V1.8+)
 
     Returns:
         Crew: Ready-to-execute crew
 
     Example:
-        >>> crew = create_energy_crew("What's my battery level?")
+        >>> crew = create_energy_crew("What's my battery level?", user_id="user123")
         >>> result = crew.kickoff()
         >>> print(result)
     """
-    agent = create_energy_monitor_agent()
-    task = create_status_task(query, conversation_context, agent=agent)
+    # V1.8: Use ContextManager for smart context loading
+    context_bundle = None
+    try:
+        context_manager = ContextManager()
+        context_bundle = context_manager.get_relevant_context(
+            query=query,
+            user_id=user_id,
+            max_tokens=3000  # Default budget for solar controller
+        )
+        import logging
+        logger = logging.getLogger(__name__)
+        logger.info(
+            f"Smart context loaded: {context_bundle.total_tokens} tokens, "
+            f"type={context_bundle.query_type.value}, "
+            f"cache_hit={context_bundle.cache_hit}"
+        )
+    except Exception as e:
+        import logging
+        logger = logging.getLogger(__name__)
+        logger.warning(f"ContextManager failed, using legacy context: {e}")
+        context_bundle = None
+
+    # Create agent with smart context
+    agent = create_energy_monitor_agent(context_bundle=context_bundle)
+
+    # Create task (use legacy conversation_context if provided and no context_bundle)
+    if context_bundle is None and conversation_context:
+        task = create_status_task(query, conversation_context, agent=agent)
+    else:
+        task = create_status_task(query, "", agent=agent)
 
     return Crew(
         agents=[agent],
