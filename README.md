@@ -4,23 +4,22 @@ AI-powered energy management system with CrewAI agents, MCP integration, and pro
 
 ## 🎯 Project Status
 
-**Current Phase:** ✅ **V1.5 COMPLETE & OPERATIONAL** 🎉
-**Status:** 100% Functional - All Systems Green
-**Last Updated:** 2025-10-09 (Session 021 - All Critical Bugs Fixed!)
+**Current Phase:** ✅ **V1.6 COMPLETE & VALIDATED** 🎉
+**Status:** Production Stable - All Systems Operational
+**Last Updated:** 2025-10-11 (Session 028 - Context Management Complete!)
 
-### Quick Stats
-- ✅ **Production Services:** 3 deployed (API, Frontend, Ops Dashboard)
-- ✅ **Agents:** 3 operational (Manager, Solar Controller, Energy Orchestrator)
-- ✅ **Tools:** 6 working (KB search, SolArk, battery optimizer, miner coordinator, energy planner, detailed status)
-- ✅ **API Endpoints:** 18+ operational endpoints
-- ✅ **Frontend Pages:** 7 complete pages with live data
-- ✅ **Knowledge Base:** Fully operational (sync, search, deletion)
-- ✅ **Orchestration:** Intelligent multi-agent routing
-- ✅ **Agent Tracking:** Metadata tracking which agent answered
-- ✅ **MCP Server:** Ready for Claude Desktop
-- ✅ **Database:** PostgreSQL + TimescaleDB + pgvector
-- ✅ **Tests:** Agent routing + integration test suites
-- 🎯 **Next:** Session 022 - Production testing & polish
+### Quick Stats (V1.6)
+- ✅ **Production Services:** API + Dashboard deployed on Railway
+- ✅ **Agents:** 3 operational with embedded system context (24KB)
+- ✅ **Intelligent Routing:** System questions → Solar Controller, Planning → Orchestrator
+- ✅ **Knowledge Base:** 4 context files + 10 searchable documents (147K tokens)
+- ✅ **Context Management:** Embedded in agent backstories (V1.6 innovation)
+- ✅ **KB Fast-Path:** 400ms documentation queries (refined for system-specific)
+- ✅ **Multi-Turn Context:** Conversation memory preserved across turns
+- ✅ **API Endpoints:** 18+ operational (including /kb/context-test diagnostic)
+- ✅ **Database:** PostgreSQL 15 + TimescaleDB + pgvector
+- ✅ **Validation:** All critical tests passing
+- 🎯 **Next:** Monitor V1.6 stability → V2.0 planning (hardware control)
 
 ---
 
@@ -159,12 +158,16 @@ AI-powered energy management system with CrewAI agents, MCP integration, and pro
 - **[Streamlit Ops Dashboard](dashboards/README.md)** - Admin dashboard guide
 - **[Authentication Guide](docs/AUTHENTICATION_GUIDE.md)** - How to protect pages with OAuth
 
+### Latest Documentation (V1.6)
+- **[PROJECT_STATUS.md](PROJECT_STATUS.md)** - Current system status and metrics
+- **[V1.6_VALIDATION_RESULTS.md](V1.6_VALIDATION_RESULTS.md)** - Complete test results
+- **[V1.6_UPDATE_NOTES.md](docs/V1.6_UPDATE_NOTES.md)** - Release documentation
+- **[SESSION_028_SUMMARY.md](SESSION_028_SUMMARY.md)** - Context management fixes
+
 ### Knowledge Base Documentation
 - **[KB_ROADMAP.md](KB_ROADMAP.md)** - Complete feature roadmap and future plans
-- **[Session 018D Summary](docs/SESSION_018D_FILES_TAB_COMPLETION.md)** - Latest: Files tab + deletion handling
+- **[Session 018D Summary](docs/SESSION_018D_FILES_TAB_COMPLETION.md)** - Files tab + deletion handling
 - **[Session 018C Summary](docs/SESSION_018C_SYNC_IMPROVEMENTS.md)** - Sync improvements
-- **[Session 018B Testing Guide](docs/SESSION_018B_TESTING_GUIDE.md)** - End-to-end testing
-- **[Session 018 Summary](docs/SESSION_018_COMPLETION_SUMMARY.md)** - Initial KB implementation
 
 ### Other Session Notes
 - **[Session 012 Summary](docs/sessions/SESSION_012_SUMMARY.md)** - Production deployment
@@ -383,28 +386,27 @@ Private Project - WildfireRanch © 2025
 
 ## 🎉 Recent Updates
 
-**Session 018C (2025-10-08):**
-- ✅ Implemented Google OAuth auto-redirect authentication
-- ✅ Added PDF document support to Knowledge Base
-- ✅ Added Google Sheets support to Knowledge Base
-- ✅ Fixed smart sync change detection
-- ✅ Enhanced sync logging and debugging
-- ✅ All 15 files syncing successfully (7 Docs, 7 PDFs, 1 Sheet)
+**Session 028 (2025-10-11) - V1.6 Context Management:**
+- ✅ **Embedded System Context:** 24KB context loaded in agent backstories
+- ✅ **Intelligent Routing Fix:** System questions now route to agents with context
+- ✅ **KB Fast-Path Refinement:** Excludes system-specific patterns
+- ✅ **Complete Validation:** All 4 critical tests passing
+- ✅ **Diagnostic Tools:** Added /kb/context-test endpoint + logging
+- ✅ **Documentation:** V1.6 validation results, update notes, project status
+- 📊 **Performance:** No degradation, improved accuracy for system questions
 
-**Session 012 (2025-10-05):**
-- ✅ Deployed CrewAI Studio to Railway
-- ✅ Fixed git submodule blocking commits
-- ✅ Resolved Railway PORT variable issue
-- ✅ Created comprehensive deployment docs
-- ✅ Production-ready deployment complete!
+**Session 027 (2025-10-10) - Agent Architecture Review:**
+- ✅ Analyzed agent routing and edge cases
+- ✅ Identified KB Fast-Path improvements needed
+- ✅ Created comprehensive system documentation
 
-**Session 011 (2025-10-05):**
-- ✅ Built all 7 Next.js frontend pages
-- ✅ Integrated CrewAI Studio as "Operator"
-- ✅ Added smart fallback UI
-- ✅ Created testing infrastructure
+**Session 018C (2025-10-08) - Knowledge Base Expansion:**
+- ✅ Google OAuth auto-redirect authentication
+- ✅ PDF and Google Sheets support
+- ✅ Smart sync with change detection
+- ✅ 15 documents syncing (141K tokens)
 
-See [Session Notes](docs/sessions/) for complete history.
+See [Session Notes](docs/sessions/) and [PROJECT_STATUS.md](PROJECT_STATUS.md) for complete history.
 
 ---
 
