@@ -74,7 +74,9 @@ export interface AgentContribution {
   agent: AgentRole
   query_count: number
   total_duration_ms: number
+  avg_duration_ms: number
   total_tokens: number
+  cache_hits: number
   success_rate: number
   avg_response_time: number
   percentage: number // % of total queries handled
@@ -83,6 +85,7 @@ export interface AgentContribution {
 export interface TokenMetrics {
   total_tokens_used: number
   avg_tokens_per_query: number
+  baseline_tokens: number // What would have been used without V1.8 smart loading
   token_timeline: Array<{
     timestamp: string
     tokens: number

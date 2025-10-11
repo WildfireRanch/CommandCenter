@@ -1,7 +1,9 @@
 'use client'
 
 import { useState, useEffect, useRef } from 'react'
-import { Send, Trash2, Download } from 'lucide-react'
+import { Send, Trash2, Download, BarChart3 } from 'lucide-react'
+import ChatAgentPanel from '@/components/chat/ChatAgentPanel'
+import { useSessionInsights } from '@/hooks/useSessionInsights'
 
 interface Message {
   role: 'user' | 'assistant'
@@ -20,7 +22,16 @@ export default function ChatPage() {
   const [input, setInput] = useState('')
   const [loading, setLoading] = useState(false)
   const [sessionId, setSessionId] = useState('')
+  const [panelOpen, setPanelOpen] = useState(false)
   const messagesEndRef = useRef<HTMLDivElement>(null)
+
+  // V2.0: Session insights hook
+  const { insights, liveMetrics } = useSessionInsights({
+    sessionId,
+    messages,
+    enabled: true,
+    refreshInterval: 5000
+  })
 
   useEffect(() => {
     // Generate session ID on mount
@@ -144,19 +155,31 @@ export default function ChatPage() {
           </div>
           <div className="flex gap-2">
             <button
+              onClick={() => setPanelOpen(!panelOpen)}
+              className={`px-4 py-2 text-sm font-medium border rounded-lg flex items-center gap-2 transition-colors ${
+                panelOpen
+                  ? 'bg-blue-600 text-white border-blue-600 hover:bg-blue-700'
+                  : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
+              }`}
+              title="Toggle insights panel"
+            >
+              <BarChart3 className="w-4 h-4" />
+              <span className="hidden sm:inline">Insights</span>
+            </button>
+            <button
               onClick={exportChat}
               disabled={messages.length === 0}
               className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
             >
               <Download className="w-4 h-4" />
-              Export
+              <span className="hidden sm:inline">Export</span>
             </button>
             <button
               onClick={clearChat}
               className="px-4 py-2 text-sm font-medium text-white bg-red-600 rounded-lg hover:bg-red-700 flex items-center gap-2"
             >
               <Trash2 className="w-4 h-4" />
-              Clear
+              <span className="hidden sm:inline">Clear</span>
             </button>
           </div>
         </div>
@@ -276,6 +299,15 @@ export default function ChatPage() {
         </div>
         <p className="text-xs text-gray-500 mt-2">Press Enter to send, Shift+Enter for new line</p>
       </div>
+
+      {/* Agent Insights Panel */}
+      <ChatAgentPanel
+        isOpen={panelOpen}
+        onClose={() => setPanelOpen(false)}
+        sessionId={sessionId}
+        insights={insights}
+        liveMetrics={liveMetrics}
+      />
     </div>
   )
 }

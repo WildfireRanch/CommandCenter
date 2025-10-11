@@ -151,7 +151,7 @@ export default function TokenUsageBar({
       {/* Breakdown legend */}
       {showBreakdown && breakdownPercentages && breakdown && (
         <div className="grid grid-cols-2 gap-2 text-xs">
-          {breakdown.system_context! > 0 && (
+          {(breakdown.system_context ?? 0) > 0 && (
             <div className="flex items-center gap-1.5">
               <div
                 className="w-2 h-2 rounded-full"
@@ -159,12 +159,12 @@ export default function TokenUsageBar({
               />
               <span className="text-gray-600">
                 System: <span className="font-medium text-gray-900">
-                  {breakdown.system_context.toLocaleString()}
+                  {(breakdown.system_context ?? 0).toLocaleString()}
                 </span>
               </span>
             </div>
           )}
-          {breakdown.kb_context! > 0 && (
+          {(breakdown.kb_context ?? 0) > 0 && (
             <div className="flex items-center gap-1.5">
               <div
                 className="w-2 h-2 rounded-full"
@@ -172,12 +172,12 @@ export default function TokenUsageBar({
               />
               <span className="text-gray-600">
                 KB: <span className="font-medium text-gray-900">
-                  {breakdown.kb_context.toLocaleString()}
+                  {(breakdown.kb_context ?? 0).toLocaleString()}
                 </span>
               </span>
             </div>
           )}
-          {breakdown.conversation_context! > 0 && (
+          {(breakdown.conversation_context ?? 0) > 0 && (
             <div className="flex items-center gap-1.5">
               <div
                 className="w-2 h-2 rounded-full"
@@ -185,12 +185,12 @@ export default function TokenUsageBar({
               />
               <span className="text-gray-600">
                 Conversation: <span className="font-medium text-gray-900">
-                  {breakdown.conversation_context.toLocaleString()}
+                  {(breakdown.conversation_context ?? 0).toLocaleString()}
                 </span>
               </span>
             </div>
           )}
-          {breakdown.user_context! > 0 && (
+          {(breakdown.user_context ?? 0) > 0 && (
             <div className="flex items-center gap-1.5">
               <div
                 className="w-2 h-2 rounded-full"
@@ -198,7 +198,7 @@ export default function TokenUsageBar({
               />
               <span className="text-gray-600">
                 User: <span className="font-medium text-gray-900">
-                  {breakdown.user_context.toLocaleString()}
+                  {(breakdown.user_context ?? 0).toLocaleString()}
                 </span>
               </span>
             </div>
