@@ -23,7 +23,7 @@ from crewai import Agent, Crew, Task
 from crewai.tools import tool
 
 from ..tools.solark import get_solark_status, format_status_summary
-from ..tools.kb_search import search_knowledge_base
+from ..tools.kb_search import search_knowledge_base, get_context_files
 from ..utils.solark_storage import get_energy_stats, get_recent_data
 from ..utils.agent_telemetry import track_agent_execution
 
@@ -207,33 +207,56 @@ def get_time_series_data(hours: int = 24, limit: int = 100) -> str:
 def create_energy_monitor_agent() -> Agent:
     """
     Create the Energy Monitor agent.
-    
+
     WHAT: Agent that monitors and reports on energy systems
     WHY: Users need to check battery, solar, and power status
     HOW: Uses SolArk tools to fetch and interpret real-time data
-    
+
     Returns:
         Agent: Configured CrewAI agent for energy monitoring
     """
+    # Load system context from knowledge base
+    system_context = get_context_files()
+
+    # Build backstory with system context
+    backstory = """You are an expert energy systems analyst specializing in
+    solar + battery installations. You monitor a SolArk inverter system and
+    help the homeowner understand their energy production, consumption, and
+    battery status. You communicate clearly with accurate numbers and helpful
+    context. When asked about status, you always use the real-time tools to
+    get current data - never guess or use old information.
+
+    """
+
+    # Add system context if available
+    if system_context:
+        backstory += f"""
+═══════════════════════════════════════════
+SYSTEM CONTEXT (Always Available)
+═══════════════════════════════════════════
+
+{system_context}
+
+═══════════════════════════════════════════
+
+"""
+
+    backstory += """
+    You have access to a knowledge base with detailed system documentation,
+    operating procedures, and specifications. When you need information about
+    thresholds, limits, or procedures, check your system context above first.
+    If the information is not in your context, use the Search Knowledge Base tool.
+    Always cite your sources when referencing information from the KB.
+
+    IMPORTANT: When users ask about historical data, time-based questions, or
+    specific times/dates, you MUST use the Get Time Series Energy Data tool
+    to query the database. NEVER guess or make up times - always check the
+    actual data."""
+
     return Agent(
         role="Energy Systems Monitor",
         goal="Monitor solar, battery, and energy systems and provide clear, accurate status reports",
-        backstory="""You are an expert energy systems analyst specializing in
-        solar + battery installations. You monitor a SolArk inverter system and
-        help the homeowner understand their energy production, consumption, and
-        battery status. You communicate clearly with accurate numbers and helpful
-        context. When asked about status, you always use the real-time tools to
-        get current data - never guess or use old information.
-
-        You have access to a knowledge base with detailed system documentation,
-        operating procedures, and specifications. When you need information about
-        thresholds, limits, or procedures, use the Search Knowledge Base tool.
-        Always cite your sources when referencing information from the KB.
-
-        IMPORTANT: When users ask about historical data, time-based questions, or
-        specific times/dates, you MUST use the Get Time Series Energy Data tool
-        to query the database. NEVER guess or make up times - always check the
-        actual data.""",
+        backstory=backstory,
         tools=[
             get_energy_status,
             get_detailed_status,

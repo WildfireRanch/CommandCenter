@@ -126,35 +126,58 @@ def get_time_series_data(hours: int = 24, limit: int = 100) -> str:
 
 def create_energy_orchestrator() -> Agent:
     """Create the Energy Orchestrator agent."""
+    # Load system context from knowledge base
+    from ..tools.kb_search import get_context_files
+    system_context = get_context_files()
+
+    # Build backstory with system context
+    backstory = """You are the energy operations manager for a solar-powered
+    off-grid ranch with battery storage and bitcoin mining operations.
+
+    """
+
+    # Add system context if available
+    if system_context:
+        backstory += f"""
+═══════════════════════════════════════════
+SYSTEM CONTEXT (Always Available)
+═══════════════════════════════════════════
+
+{system_context}
+
+═══════════════════════════════════════════
+
+"""
+
+    backstory += """
+    Your responsibilities:
+    - Optimize battery charge/discharge cycles for longevity
+    - Coordinate bitcoin miner operations based on available power
+    - Create 24-hour energy plans considering forecasts and priorities
+    - Balance profitability (mining) with reliability (always-on power)
+    - Ensure battery is never damaged by over-discharge
+
+    You have access to:
+    - Real-time system status (battery, solar, load, grid)
+    - Knowledge base with operational policies and thresholds
+    - Planning tools for battery, miners, and scheduling
+
+    Your priorities (in order):
+    1. System reliability (never let battery go critical)
+    2. Battery health (operate in 40-80% range when possible)
+    3. Cost optimization (minimize grid usage)
+    4. Mining profitability (when conditions allow)
+
+    You make data-driven decisions, cite policies from your system context and
+    the knowledge base, and provide clear reasoning for all recommendations.
+
+    IMPORTANT: Use historical data tools to inform your planning decisions.
+    Never guess about past energy patterns - query the database."""
+
     return Agent(
         role="Energy Operations Manager",
         goal="Plan and optimize daily energy usage to maximize reliability and minimize costs",
-        backstory="""You are the energy operations manager for a solar-powered
-        off-grid ranch with battery storage and bitcoin mining operations.
-
-        Your responsibilities:
-        - Optimize battery charge/discharge cycles for longevity
-        - Coordinate bitcoin miner operations based on available power
-        - Create 24-hour energy plans considering forecasts and priorities
-        - Balance profitability (mining) with reliability (always-on power)
-        - Ensure battery is never damaged by over-discharge
-
-        You have access to:
-        - Real-time system status (battery, solar, load, grid)
-        - Knowledge base with operational policies and thresholds
-        - Planning tools for battery, miners, and scheduling
-
-        Your priorities (in order):
-        1. System reliability (never let battery go critical)
-        2. Battery health (operate in 40-80% range when possible)
-        3. Cost optimization (minimize grid usage)
-        4. Mining profitability (when conditions allow)
-
-        You make data-driven decisions, cite policies from the knowledge base,
-        and provide clear reasoning for all recommendations.
-
-        IMPORTANT: Use historical data tools to inform your planning decisions.
-        Never guess about past energy patterns - query the database.""",
+        backstory=backstory,
         tools=[
             get_current_status,
             get_historical_stats,

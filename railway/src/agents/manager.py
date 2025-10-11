@@ -26,13 +26,13 @@ from ..utils.agent_telemetry import track_agent_execution
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# Routing Tools
+# Routing Tools - Return routing decisions (not full execution)
 # ─────────────────────────────────────────────────────────────────────────────
 
 @tool("Route to Solar Controller")
 def route_to_solar_controller(query: str) -> str:
     """
-    Route to Solar Controller agent for real-time status and monitoring queries.
+    Indicate that this query should be routed to the Solar Controller agent.
 
     Use this tool when the user asks about:
     - Current battery level, SOC, or charge status
@@ -41,47 +41,34 @@ def route_to_solar_controller(query: str) -> str:
     - Grid usage (importing/exporting right now)
     - Real-time system status
     - "What is happening now" type questions
+    - Historical energy data or trends
 
     Examples:
     - "What's my battery level?"
     - "How much solar am I producing?"
     - "What's my current power usage?"
     - "Am I using grid power right now?"
+    - "Show me yesterday's solar production"
 
     Args:
-        query (str): The user's question about current/real-time status. Must be a simple string.
+        query (str): The user's question about current/real-time status.
 
     Returns:
-        str: JSON response from Solar Controller agent with current data
+        str: Routing decision in JSON format
     """
     import json
-    try:
-        # Ensure query is a string (handle cases where LLM passes dict)
-        if isinstance(query, dict):
-            query = query.get('query') or query.get('description') or str(query)
-        query = str(query)
-
-        crew = create_energy_crew(query)
-        result = crew.kickoff()
-
-        # Return structured response with metadata
-        return json.dumps({
-            "response": str(result),
-            "agent_used": "Solar Controller",
-            "agent_role": "Energy Systems Monitor"
-        })
-    except Exception as e:
-        return json.dumps({
-            "response": f"Error routing to Solar Controller: {str(e)}",
-            "agent_used": "Solar Controller",
-            "error": True
-        })
+    return json.dumps({
+        "action": "route",
+        "agent": "Solar Controller",
+        "agent_role": "Energy Systems Monitor",
+        "query": str(query)
+    })
 
 
 @tool("Route to Energy Orchestrator")
 def route_to_energy_orchestrator(query: str) -> str:
     """
-    Route to Energy Orchestrator for planning and optimization queries.
+    Indicate that this query should be routed to the Energy Orchestrator agent.
 
     Use when query is about:
     - "Should we" questions (run miners, charge battery, etc.)
@@ -100,33 +87,18 @@ def route_to_energy_orchestrator(query: str) -> str:
     - "What's the battery optimization recommendation?"
 
     Args:
-        query (str): Planning/optimization question. Must be a simple string.
+        query (str): Planning/optimization question.
 
     Returns:
-        str: JSON response from Energy Orchestrator agent
+        str: Routing decision in JSON format
     """
     import json
-    try:
-        # Ensure query is a string (handle cases where LLM passes dict)
-        if isinstance(query, dict):
-            query = query.get('query') or query.get('description') or str(query)
-        query = str(query)
-
-        crew = create_orchestrator_crew(query)
-        result = crew.kickoff()
-
-        # Return structured response with metadata
-        return json.dumps({
-            "response": str(result),
-            "agent_used": "Energy Orchestrator",
-            "agent_role": "Energy Operations Manager"
-        })
-    except Exception as e:
-        return json.dumps({
-            "response": f"Error routing to Energy Orchestrator: {str(e)}",
-            "agent_used": "Energy Orchestrator",
-            "error": True
-        })
+    return json.dumps({
+        "action": "route",
+        "agent": "Energy Orchestrator",
+        "agent_role": "Energy Operations Manager",
+        "query": str(query)
+    })
 
 
 @tool("Search Knowledge Base")

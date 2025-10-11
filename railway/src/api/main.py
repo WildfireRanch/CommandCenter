@@ -886,48 +886,74 @@ def create_app() -> FastAPI:
                 agent_used = "Knowledge Base"
                 agent_role = "Documentation Search"
             else:
-                # Create manager crew to route query intelligently
-                crew = create_manager_crew(request.message, context)
+                # Create manager crew to get routing decision
+                manager_crew = create_manager_crew(request.message, context)
 
-                # Run the crew (executes agent and task)
-                result = crew.kickoff()
-                result_str = str(result)
-                agent_used = "Manager"  # Will be updated by JSON parsing below
+                # Run manager to get routing decision
+                manager_result = manager_crew.kickoff()
+                manager_result_str = str(manager_result)
 
-            # Calculate duration
-            duration_ms = int((time.time() - start_time) * 1000)
-
-            # Try to parse result as JSON (from routing tools)
-            # Skip if we already set agent_used via KB fast path
-            if 'agent_used' not in locals():
-                agent_used = "Manager"  # Default
-            try:
+                # Try to parse routing decision
                 import json
                 import re
 
-                # Try direct JSON parse first
+                routing_decision = None
                 try:
-                    result_data = json.loads(result_str)
-                except json.JSONDecodeError:
-                    # Try to extract JSON from markdown code blocks or text
-                    json_match = re.search(r'```(?:json)?\s*(\{.*?\})\s*```', result_str, re.DOTALL)
-                    if json_match:
-                        result_data = json.loads(json_match.group(1))
-                    else:
-                        # Try to find any JSON object in the string
-                        json_match = re.search(r'(\{[^{}]*"agent_used"[^{}]*\})', result_str, re.DOTALL)
+                    # Try direct JSON parse first
+                    try:
+                        routing_decision = json.loads(manager_result_str)
+                    except json.JSONDecodeError:
+                        # Try to extract JSON from markdown code blocks or text
+                        json_match = re.search(r'```(?:json)?\s*(\{.*?\})\s*```', manager_result_str, re.DOTALL)
                         if json_match:
-                            result_data = json.loads(json_match.group(1))
+                            routing_decision = json.loads(json_match.group(1))
                         else:
-                            result_data = None
+                            # Try to find any JSON object in the string
+                            json_match = re.search(r'(\{.*?"action".*?\})', manager_result_str, re.DOTALL)
+                            if json_match:
+                                routing_decision = json.loads(json_match.group(1))
+                except Exception as e:
+                    logger.warning(f"Could not parse routing decision: {e}")
 
-                if result_data and "agent_used" in result_data:
-                    agent_used = result_data["agent_used"]
-                    agent_role = result_data.get("agent_role", agent_role)
-                    result_str = result_data["response"]
-            except Exception as e:
-                logger.warning(f"Could not parse agent routing JSON: {e}")
-                pass  # Not JSON, use result as-is
+                # Check if this is a routing decision
+                if routing_decision and routing_decision.get("action") == "route":
+                    target_agent = routing_decision.get("agent")
+                    logger.info(f"Manager routing to: {target_agent}")
+
+                    # Route to appropriate specialist WITH context
+                    if target_agent == "Solar Controller":
+                        from ..agents.solar_controller import create_energy_crew
+                        specialist_crew = create_energy_crew(
+                            query=request.message,
+                            conversation_context=context
+                        )
+                        result = specialist_crew.kickoff()
+                        result_str = str(result)
+                        agent_used = "Solar Controller"
+                        agent_role = "Energy Systems Monitor"
+
+                    elif target_agent == "Energy Orchestrator":
+                        from ..agents.energy_orchestrator import create_orchestrator_crew
+                        specialist_crew = create_orchestrator_crew(
+                            query=request.message,
+                            context=context
+                        )
+                        result = specialist_crew.kickoff()
+                        result_str = str(result)
+                        agent_used = "Energy Orchestrator"
+                        agent_role = "Energy Operations Manager"
+
+                    else:
+                        # Unknown agent, return manager's response
+                        result_str = manager_result_str
+                        agent_used = "Manager"
+                else:
+                    # Manager handled directly (greetings, etc.)
+                    result_str = manager_result_str
+                    agent_used = "Manager"
+
+            # Calculate duration
+            duration_ms = int((time.time() - start_time) * 1000)
 
             # Store assistant response
             add_message(
