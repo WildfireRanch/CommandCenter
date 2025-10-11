@@ -1,29 +1,61 @@
 # 📚 CommandCenter Documentation Index
 
-**Last Updated**: Post-Session 021 (October 2025)
-**Status**: ✅ **OPERATIONAL** - All critical bugs fixed, system 100% functional
-**Version**: V1.5 Complete - Multi-agent system fully operational
+**Last Updated**: December 10, 2025 (V1.5.0 Release)
+**Status**: ✅ **PRODUCTION** - V1.5 deployed and operational
+**Version**: V1.5.0 - Multi-agent system with KB fast-path
+
+## ⭐ **START HERE**
+
+### 👉 **[V1.5_MASTER_REFERENCE.md](V1.5_MASTER_REFERENCE.md)** - **PRIMARY REFERENCE**
+Complete current system state (no history):
+- Quick facts (URLs, services, versions)
+- Architecture diagram
+- All deployed services
+- API endpoints
+- Database schema
+- Environment variables
+- Active agents and roles
+- Known limitations
+- Quick troubleshooting
+
+### 🤖 **[CLAUDE_NAVIGATION_GUIDE.md](CLAUDE_NAVIGATION_GUIDE.md)** - **AI ASSISTANT GUIDE**
+Guide for Claude Code and AI assistants to navigate docs efficiently:
+- Navigation rules by question type
+- Prompt templates for humans
+- Efficient navigation patterns
+- What to read (and what NOT to read)
+- Example workflows
+
+### 📋 **[ARCHIVE_SUMMARY.md](ARCHIVE_SUMMARY.md)** - What was archived and why
 
 ## 🎉 **LATEST UPDATES**
 
-### 🟢 SYSTEM NOW OPERATIONAL
-1. **[sessions/SESSION_021_SUMMARY.md](sessions/SESSION_021_SUMMARY.md)** ✅ **Session 021 - All bugs fixed!**
-2. **[sessions/SESSION_021_DEBUG_PROMPT.md](sessions/SESSION_021_DEBUG_PROMPT.md)** 📋 Bug report that was addressed
-3. **[sessions/SESSION_020_PROMPT.md](sessions/SESSION_020_PROMPT.md)** - Session 020 (Energy Orchestrator built)
+### 🟢 V1.5.0 RELEASED (December 10, 2025)
+1. **[V1.5_MASTER_REFERENCE.md](V1.5_MASTER_REFERENCE.md)** 🆕 **Current system reference**
+2. **[05-architecture.md](05-architecture.md)** ✅ **Updated V1.5 architecture**
+3. **[sessions/SESSION_021_SUMMARY.md](sessions/SESSION_021_SUMMARY.md)** ✅ Bug fixes complete
 
 ## 🚀 Quick Start Guides
 
 ### For New Users
-1. **[README.md](../README.md)** - Project overview and current status
-2. **[sessions/SESSION_021_SUMMARY.md](sessions/SESSION_021_SUMMARY.md)** ⭐ **Latest session - system now operational**
-3. **[CODEBASE_AUDIT_OCT2025.md](CODEBASE_AUDIT_OCT2025.md)** - Complete system inventory
-4. **[08-Remaining_v1-5.md](08-Remaining_%20v1-5.md)** - V1.5 execution plan (COMPLETED!)
+1. **[V1.5_MASTER_REFERENCE.md](V1.5_MASTER_REFERENCE.md)** ⭐ **START HERE - Current system state**
+2. **[README.md](../README.md)** - Project overview
+3. **[status/CODEBASE_AUDIT_OCT2025.md](status/CODEBASE_AUDIT_OCT2025.md)** - Complete system inventory
+4. **[05-architecture.md](05-architecture.md)** - Detailed architecture with history
 
 ### For Developers
-1. **[CommandCenter Code Style Guide.md](CommandCenter%20Code%20Style%20Guide.md)** - Coding standards
+1. **[reference/CommandCenter Code Style Guide.md](reference/CommandCenter%20Code%20Style%20Guide.md)** - Coding standards
 2. **[ORCHESTRATION_LAYER_DESIGN.md](ORCHESTRATION_LAYER_DESIGN.md)** 🆕 **Manager agent architecture**
 3. **[05-architecture.md](05-architecture.md)** - System architecture overview
 4. **[06-knowledge-base-design.md](06-knowledge-base-design.md)** - KB system design
+
+### Guides & Testing
+1. **[guides/](guides/)** 📖 **Step-by-step guides**
+   - [AUTHENTICATION_GUIDE.md](guides/AUTHENTICATION_GUIDE.md) - OAuth setup
+   - [KB_USER_TESTING_GUIDE.md](guides/KB_USER_TESTING_GUIDE.md) - KB testing
+2. **[reference/](reference/)** 📚 **Reference material**
+   - [Code Style Guide](reference/CommandCenter%20Code%20Style%20Guide.md)
+   - [Progress tracking](reference/progress.md)
 
 ## 📋 Session History
 
@@ -38,32 +70,25 @@
 - **[sessions/SESSION_010_FINAL_SUMMARY.md](sessions/SESSION_010_FINAL_SUMMARY.md)** - Frontend pages complete
 - **[sessions/SESSION_009_SUMMARY.md](sessions/SESSION_009_SUMMARY.md)** - MCP Server implementation
 
-### Earlier Sessions
-- **[sessions/Session_008_Agent_Memory_and_Energy_Tracking.md](sessions/Session_008_Agent_Memory_and_Energy_Tracking.md)** - Agent memory + energy data
-- **[sessions/Session_007_Database_Schema_Initialized.md](sessions/Session_007_Database_Schema_Initialized.md)** - Database schema setup
-- **[sessions/Session_006_Database_Victory.md](sessions/Session_006_Database_Victory.md)** - Database connection success
-- **[sessions/Session_005_SolArk_and_DB.md](sessions/Session_005_SolArk_and_DB.md)** - SolArk integration
-- **[sessions/Session_004_First_CrewAI_Agent.md](sessions/Session_004_First_CrewAI_Agent.md)** - First agent created
-- **[sessions/Session_003_Railway_Deployed.md](sessions/Session_003_Railway_Deployed.md)** - Railway deployment
-- **[sessions/Session_002_Foundation_Built.md](sessions/Session_002_Foundation_Built.md)** - Project foundation
-- **[sessions/session-001-setup-and-audit.md](sessions/session-001-setup-and-audit.md)** - Initial setup and audit
+### Historical Documentation
+- **[archive/README.md](archive/README.md)** 📦 **Archive guide**
+- **[archive/v1-planning/](archive/v1-planning/)** - Planning docs (00-04)
+- **[archive/early-sessions/](archive/early-sessions/)** - Sessions 001-011 (foundation work)
+- **[archive/session-planning/](archive/session-planning/)** - Session prompts & testing guides
+- **[archive/frontend-analysis/](archive/frontend-analysis/)** - Old frontend analysis
 
 ## 🎨 Frontend Documentation
 
 ### Next.js Frontend (Vercel)
 - **[FRONTEND_COMPLETE.md](../FRONTEND_COMPLETE.md)** - Frontend completion status
 - **[VERCEL_FIXED.md](../VERCEL_FIXED.md)** - Vercel deployment fix
-- **[VERCEL_DEPLOYMENT.md](VERCEL_DEPLOYMENT.md)** - Full deployment guide
+- **[deployment/VERCEL_DEPLOYMENT.md](deployment/VERCEL_DEPLOYMENT.md)** - Full deployment guide
 - **[vercel/README.md](../vercel/README.md)** - Frontend documentation
-
-### Frontend Analysis
-- **[frontend-analysis/FRONTEND_AUDIT.md](frontend-analysis/FRONTEND_AUDIT.md)** - Old frontend analysis
-- **[frontend-analysis/COMPONENT_INVENTORY.md](frontend-analysis/COMPONENT_INVENTORY.md)** - Component breakdown
 
 ## 📊 Dashboard Documentation
 
 ### Streamlit Operations Dashboard
-- **[DASHBOARD_COMPLETE.md](DASHBOARD_COMPLETE.md)** - Ops dashboard completion guide
+- **[status/DASHBOARD_COMPLETE.md](status/DASHBOARD_COMPLETE.md)** - Ops dashboard completion guide
 - **[dashboards/README.md](../dashboards/README.md)** - Dashboard documentation
 
 ### ~~CrewAI Studio~~ (Removed in Session 019)
@@ -72,20 +97,26 @@
 
 ## 🏗️ Architecture & Planning
 
-### Current V1.5 Development
-- **[CODEBASE_AUDIT_OCT2025.md](CODEBASE_AUDIT_OCT2025.md)** 🆕 **Complete system audit (80% done!)**
-- **[ORCHESTRATION_LAYER_DESIGN.md](ORCHESTRATION_LAYER_DESIGN.md)** 🆕 **Manager agent design**
-- **[08-Remaining_v1-5.md](08-Remaining_%20v1-5.md)** - V1.5 execution plan (updated)
-- **[05-architecture.md](05-architecture.md)** - System architecture
+### Current V1.5 Architecture
+- **[05-architecture.md](05-architecture.md)** - Complete V1.5 architecture
+- **[ORCHESTRATION_LAYER_DESIGN.md](ORCHESTRATION_LAYER_DESIGN.md)** - Manager agent design
 - **[06-knowledge-base-design.md](06-knowledge-base-design.md)** - KB system design
 - **[07-knowledge-base-sync.md](07-knowledge-base-sync.md)** - KB sync implementation
+- **[08-Remaining_v1-5.md](08-Remaining_%20v1-5.md)** - V1.5 completion checklist
 
-### Historical Context
-- **[00-project-summary.md](00-project-summary.md)** - Project summary
-- **[01-discovery-phase.md](01-discovery-phase.md)** - Discovery phase
-- **[02-old-stack-audit.md](02-old-stack-audit.md)** - Old Relay stack audit
-- **[04-port-plan.md](04-port-plan.md)** - Migration plan
-- **[03-requirements.md](03-requirements.md)** - Requirements
+### Status & Audits
+- **[status/](status/)** 📊 **Status reports and completion docs**
+  - [V1.5_COMPLETION_STATUS.md](status/V1.5_COMPLETION_STATUS.md) - Achievement summary
+  - [SYSTEM_STATUS_CRITICAL.md](status/SYSTEM_STATUS_CRITICAL.md) - Post-021 status
+  - [CODEBASE_AUDIT_OCT2025.md](status/CODEBASE_AUDIT_OCT2025.md) - System audit
+  - [DASHBOARD_COMPLETE.md](status/DASHBOARD_COMPLETE.md) - Dashboard completion
+
+### Deployment
+- **[deployment/](deployment/)** 🚀 **Deployment guides and fixes**
+  - [RAILWAY_DEPLOYMENT_OPTIMIZATION.md](deployment/RAILWAY_DEPLOYMENT_OPTIMIZATION.md)
+  - [RAILWAY_DATABASE_FIX.md](deployment/RAILWAY_DATABASE_FIX.md)
+  - [VERCEL_DEPLOYMENT.md](deployment/VERCEL_DEPLOYMENT.md)
+  - [RATE_LIMIT_HANDLING.md](deployment/RATE_LIMIT_HANDLING.md)
 
 ## 🔧 Technical Guides
 

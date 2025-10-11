@@ -1,22 +1,23 @@
-# Phase 1.4: CommandCenter Architecture Design
+# CommandCenter V1.5 Architecture
 
-**Date:** October 3, 2025  
-**Project:** CommandCenter V1  
-**Phase:** Discovery - Architecture Design  
-**Previous Phases:** Audit ✅ | Requirements ✅ | Port Plan ✅
+**Date:** December 10, 2025 (Updated from October 3, 2025)
+**Project:** CommandCenter V1.5
+**Status:** Production
+**Previous Phases:** Audit ✅ | Requirements ✅ | Port Plan ✅ | V1.0 ✅ | V1.5 ✅
 
 ---
 
 ## Executive Summary
 
-CommandCenter V1 is a **CrewAI-based energy orchestration system** deployed across Vercel (frontend/MCP) and Railway (backend/agents). The architecture prioritizes:
+CommandCenter V1.5 is a **CrewAI-based energy orchestration system** deployed on Railway (backend/agents/dashboards) with intelligent multi-agent routing. The architecture prioritizes:
 
-1. **Reliability** - Replace fragile custom orchestration with proven CrewAI frameworkgit 
-2. **Maintainability** - Clear separation of concerns, understandable by solo developer
-3. **Extensibility** - Foundation supports V2 features without major refactor
-4. **Safety** - Multiple layers of validation before hardware commands execute
+1. **Reliability** - Replace fragile custom orchestration with proven CrewAI framework
+2. **Performance** - KB fast-path for sub-second documentation queries
+3. **Maintainability** - Clear separation of concerns, understandable by solo developer
+4. **Extensibility** - Foundation supports V2 features without major refactor
+5. **Safety** - Multiple layers of validation before hardware commands execute
 
-**Core Innovation:** MCP server exposes CrewAI agents as tools to AI clients (Claude, Cursor, etc.) while maintaining full conversational context and safety guardrails.
+**Core Innovation:** Manager agent routes queries to specialized agents (Solar Controller, Energy Orchestrator) with KB fast-path bypass for documentation queries, achieving 50x performance improvement over nested agent calls.
 
 ---
 
@@ -24,180 +25,175 @@ CommandCenter V1 is a **CrewAI-based energy orchestration system** deployed acro
 
 ```
 ┌─────────────────────────────────────────────────────────┐
-│                   AI Clients                             │
-│          (Claude, Cursor, Custom Apps)                   │
+│                   User Interface                         │
+│          Streamlit Dashboards (5 pages)                  │
+│  - Home (Quick Overview)                                 │
+│  - System Health (API/DB status)                         │
+│  - Energy Monitor (Real-time metrics)                    │
+│  - Agent Chat (Conversational interface)                 │
+│  - Logs Viewer (Conversation history)                    │
 └────────────────────┬────────────────────────────────────┘
-                     │ MCP Protocol (SSE/HTTP)
+                     │ HTTPS API Calls
 ┌────────────────────▼────────────────────────────────────┐
-│              Vercel (MCP Server)                         │
+│           Railway (FastAPI + CrewAI Backend)             │
 │  ┌──────────────────────────────────────────────────┐   │
-│  │  Next.js App Router (App Directory)              │   │
-│  │  - /api/mcp/route.ts (MCP Handler)               │   │
-│  │  - Streamable HTTP transport                     │   │
-│  │  - Tool exposure to AI clients                   │   │
-│  └──────────────────┬───────────────────────────────┘   │
-└─────────────────────┼───────────────────────────────────┘
-                      │ HTTPS API Calls
-┌─────────────────────▼───────────────────────────────────┐
-│           Railway (CrewAI Backend)                       │
-│  ┌──────────────────────────────────────────────────┐   │
-│  │  FastAPI Application                             │   │
-│  │  - /api/crew/execute (Run crew with task)        │   │
-│  │  - /api/tools/* (Individual tool endpoints)      │   │
-│  │  - /api/status (System status)                   │   │
+│  │  FastAPI Application (src/api/main.py)           │   │
+│  │  - POST /ask (Agent chat endpoint)               │   │
+│  │  - GET /conversations (History)                  │   │
+│  │  - GET /energy/latest (Real-time data)           │   │
+│  │  - GET /energy/stats (24h statistics)            │   │
+│  │  - GET /health (System status)                   │   │
 │  └──────────────────┬───────────────────────────────┘   │
 │                     │                                    │
 │  ┌──────────────────▼───────────────────────────────┐   │
-│  │  CommandCenter Crew (Main)                       │   │
-│  │  ┌────────────────────────────────────────────┐  │   │
-│  │  │  1. Conversation Agent                     │  │   │
-│  │  │     - Parse user intent                    │  │   │
-│  │  │     - Ask clarifying questions             │  │   │
-│  │  │     - Confirm destructive actions          │  │   │
-│  │  └────────────────┬───────────────────────────┘  │   │
-│  │                   │ delegates to                  │   │
-│  │  ┌────────────────▼───────────────────────────┐  │   │
-│  │  │  2. Energy Orchestrator Agent              │  │   │
-│  │  │     - Analyze system state                 │  │   │
-│  │  │     - Make optimization decisions          │  │   │
-│  │  │     - Explain reasoning                    │  │   │
-│  │  └────────────────┬───────────────────────────┘  │   │
-│  │                   │ uses                          │   │
-│  │  ┌────────────────▼───────────────────────────┐  │   │
-│  │  │  3. Hardware Control Agent                 │  │   │
-│  │  │     - Execute tool calls with validation   │  │   │
-│  │  │     - Apply safety guardrails              │  │   │
-│  │  │     - Log all actions                      │  │   │
-│  │  └────────────────┬───────────────────────────┘  │   │
-│  └───────────────────┼──────────────────────────────┘   │
-│                      │ calls                            │
-│  ┌───────────────────▼──────────────────────────────┐   │
-│  │  CrewAI Tools Layer                              │   │
-│  │  - solark_tool (SolArk inverter control)         │   │
-│  │  - shelly_tool (Relay/switch control)            │   │
-│  │  - miner_tool (Bitcoin miner management)         │   │
-│  │  - victron_tool (Victron system queries)         │   │
-│  │  - nodered_tool (Flow triggers)                  │   │
-│  │  - database_tool (PostgreSQL queries)            │   │
+│  │  KB FAST-PATH (Keyword Detection)                │   │
+│  │  - Bypasses Manager agent for docs queries       │   │
+│  │  - 50x faster (400ms vs 20s+)                    │   │
+│  │  - Keywords: specs, threshold, policy, how-to    │   │
 │  └──────────────────┬───────────────────────────────┘   │
+│                     │                                    │
+│                     ├───→ Direct KB Search (if keyword match)
+│                     │                                    │
+│                     └───→ Manager Crew (all other queries)
+│                                                          │
+│  ┌──────────────────────────────────────────────────┐   │
+│  │  Manager Agent (Query Router)                    │   │
+│  │  - Analyzes query intent                         │   │
+│  │  - Routes to appropriate specialist              │   │
+│  │  - Returns tool output verbatim                  │   │
+│  │  Tools:                                          │   │
+│  │    • route_to_solar_controller()                 │   │
+│  │    • route_to_energy_orchestrator()              │   │
+│  │    • search_kb_directly()                        │   │
+│  └──────────────────┬───────────────────────────────┘   │
+│                     │                                    │
+│         ┌───────────┼───────────┐                        │
+│         │           │           │                        │
+│  ┌──────▼─────┐ ┌──▼──────┐ ┌──▼─────────────────┐      │
+│  │  Solar     │ │ Energy  │ │  Knowledge Base    │      │
+│  │  Controller│ │ Orch.   │ │  Search            │      │
+│  │  Agent     │ │ Agent   │ │  (Direct/Routed)   │      │
+│  │            │ │         │ │                    │      │
+│  │ Real-time  │ │Planning │ │ Semantic search    │      │
+│  │ monitoring │ │& optim. │ │ pgvector + OpenAI  │      │
+│  └────────────┘ └─────────┘ └────────────────────┘      │
+│         │           │                  │                 │
+│  ┌──────▼───────────▼──────────────────▼──────────────┐  │
+│  │  CrewAI Tools Layer                               │  │
+│  │  - get_latest_energy (SolArk API)                 │  │
+│  │  - get_energy_stats (Database queries)            │  │
+│  │  - search_knowledge_base (KB retrieval)           │  │
+│  └──────────────────┬────────────────────────────────┘  │
 └─────────────────────┼───────────────────────────────────┘
                       │
          ┌────────────┴────────────┐
          │                         │
 ┌────────▼────────┐    ┌───────────▼──────────┐
-│  PostgreSQL     │    │  Hardware/Services   │
+│  PostgreSQL     │    │  External Services   │
 │  - Telemetry    │    │  - SolArk inverter   │
-│  - Action log   │    │  - Shelly devices    │
-│  - KB index     │    │  - Bitcoin miners    │
-│  - Preferences  │    │  - Victron Cerbo GX  │
-└─────────────────┘    │  - Node-RED          │
-                       └──────────────────────┘
-
-┌────────────────────────────────────────────────┐
-│  Supporting Services (Railway)                 │
-│  - Knowledge Base (Google Docs sync)           │
-│  - Memory System (Session + Action logging)    │
-│  - Scheduler (Cron jobs)                       │
-└────────────────────────────────────────────────┘
+│  - Conversations│    │    (192.168.1.23)    │
+│  - KB documents │    │  - OpenAI API        │
+│  - KB chunks    │    │    (embeddings)      │
+│  - Action log   │    │                      │
+└─────────────────┘    └──────────────────────┘
 ```
 
 ---
 
 ## Component Deep Dive
 
-### 1. Vercel Layer (MCP Server)
+### 1. Frontend Layer (Streamlit Dashboards)
 
-**Purpose:** Expose CrewAI capabilities via MCP protocol to AI clients
+**Purpose:** User interface for monitoring and agent interaction
 
 **Technology Stack:**
-- Next.js 14+ (App Router)
-- Vercel MCP Handler (`@vercel/mcp-handler`)
-- Vercel AI SDK
-- Fluid Compute enabled
+- Streamlit (Python web framework)
+- Railway deployment (same host as backend)
+- Custom CSS for unified design
 
 **File Structure:**
 ```
-vercel/
-├── app/
-│   ├── api/
-│   │   └── mcp/
-│   │       └── route.ts          # MCP endpoint
-│   ├── layout.tsx                # Root layout
-│   └── page.tsx                  # Landing page (optional)
-├── lib/
-│   ├── mcp/
-│   │   ├── tools.ts              # Tool definitions for MCP
-│   │   └── client.ts             # Railway API client
-│   └── config.ts                 # Configuration
-├── public/                       # Static assets
-├── package.json
-├── tsconfig.json
-└── vercel.json                   # Deployment config
+dashboards/
+├── Home.py                          # Main landing page
+├── pages/
+│   ├── 1_🏥_System_Health.py        # API/DB monitoring
+│   ├── 2_⚡_Energy_Monitor.py       # Real-time energy data
+│   ├── 3_🤖_Agent_Chat.py           # Conversational interface
+│   └── 4_📊_Logs_Viewer.py          # Conversation history
+├── components/
+│   └── api_client.py                # Railway API client
+└── assets/
+    └── WildfireMang.png             # Branding
 ```
 
-**MCP Tools Exposed:**
-```typescript
-// lib/mcp/tools.ts
-export const mcpTools = [
-  {
-    name: "execute_energy_task",
-    description: "Execute an energy management task using the CommandCenter crew",
-    parameters: {
-      task: "string - Natural language description of task",
-      confirm_required: "boolean - Whether to require confirmation"
-    }
-  },
-  {
-    name: "query_system_status",
-    description: "Get current status of energy systems",
-    parameters: {}
-  },
-  {
-    name: "review_action_history",
-    description: "Review recent actions taken by the system",
-    parameters: {
-      hours: "number - How many hours of history to retrieve"
-    }
-  }
-]
-```
+**Key Features:**
 
-**Key Routes:**
-- `GET /api/mcp` - MCP endpoint (SSE for streaming)
-- `POST /api/mcp` - Execute MCP tool calls
-- `GET /api/health` - Health check
+1. **Home Page** ([Home.py](dashboards/Home.py))
+   - Quick overview metrics (SOC, Solar, Load, Grid Export)
+   - Navigation shortcuts
+   - Real-time data from `/energy/latest` endpoint
 
-**Environment Variables (Vercel):**
-```env
-RAILWAY_API_URL=https://commandcenter-production.up.railway.app
-RAILWAY_API_KEY=<secret>
-OPENAI_API_KEY=<secret>
+2. **System Health** ([1_🏥_System_Health.py](dashboards/pages/1_🏥_System_Health.py))
+   - API health check
+   - Database connectivity
+   - Service status
+
+3. **Energy Monitor** ([2_⚡_Energy_Monitor.py](dashboards/pages/2_⚡_Energy_Monitor.py))
+   - 5 real-time metrics: SOC, Solar, Load, Battery Power, Grid Export
+   - 24-hour statistics
+   - Auto-refresh capability
+
+4. **Agent Chat** ([3_🤖_Agent_Chat.py](dashboards/pages/3_🤖_Agent_Chat.py))
+   - Conversational interface to CrewAI agents
+   - Session management
+   - Displays agent_used and agent_role metadata
+
+5. **Logs Viewer** ([4_📊_Logs_Viewer.py](dashboards/pages/4_📊_Logs_Viewer.py))
+   - Recent conversation history
+   - Individual conversation details
+   - Message inspector
+
+**API Client:**
+```python
+# components/api_client.py
+class RailwayAPIClient:
+    def __init__(self):
+        self.base_url = os.getenv("RAILWAY_API_URL", "https://api.wildfireranch.us")
+        self.api_key = os.getenv("API_KEY", "")
+
+    def ask_agent(self, message: str, session_id: Optional[str] = None) -> Dict[str, Any]:
+        """Send message to agent"""
+
+    def get_latest_energy(self) -> Dict[str, Any]:
+        """Get latest energy snapshot"""
+
+    def get_energy_stats(self, hours: int = 24) -> Dict[str, Any]:
+        """Get energy statistics"""
 ```
 
 **Deployment:**
 ```bash
-# From commandcenter/vercel/
-vercel deploy --prod
+# From dashboards/
+streamlit run Home.py --server.port 8501
 ```
 
-**Why Vercel for MCP:**
-- ✅ Global edge network (low latency)
-- ✅ Serverless functions (auto-scaling)
-- ✅ Fluid Compute (90% cost savings)
-- ✅ Built-in SSL/HTTPS
-- ✅ Zero-config deployment
+**Environment Variables:**
+```env
+RAILWAY_API_URL=https://api.wildfireranch.us
+API_KEY=<secret>
+```
 
 ---
 
 ### 2. Railway Layer (CrewAI Backend)
 
-**Purpose:** Run CrewAI agents, tools, and supporting services
+**Purpose:** Run CrewAI agents, tools, API server, and dashboards
 
 **Technology Stack:**
 - Python 3.10+
 - CrewAI framework
 - FastAPI (API server)
-- PostgreSQL (data persistence)
+- PostgreSQL with pgvector (data + embeddings)
 - Uvicorn (ASGI server)
 
 **File Structure:**
@@ -205,941 +201,757 @@ vercel deploy --prod
 railway/
 ├── src/
 │   ├── agents/
-│   │   ├── __init__.py
-│   │   ├── conversation.py       # Conversation Agent
-│   │   ├── orchestrator.py       # Energy Orchestrator
-│   │   └── hardware.py           # Hardware Control Agent
-│   ├── crews/
-│   │   ├── __init__.py
-│   │   └── main_crew.py          # CommandCenter main crew
+│   │   ├── manager.py               # Manager/Router agent
+│   │   ├── solar_controller.py      # Real-time monitoring agent
+│   │   ├── energy_orchestrator.py   # Planning/optimization agent
+│   │   └── __init__.py
 │   ├── tools/
-│   │   ├── __init__.py
-│   │   ├── solark.py             # SolArk tool
-│   │   ├── shelly.py             # Shelly tool
-│   │   ├── miners.py             # Miner tool
-│   │   ├── victron.py            # Victron tool
-│   │   ├── nodered.py            # Node-RED tool
-│   │   └── database.py           # Database tool
-│   ├── integrations/
-│   │   ├── __init__.py
-│   │   ├── google_docs.py        # Google Docs sync
-│   │   └── google_auth.py        # OAuth
+│   │   ├── kb_search.py             # Knowledge Base search tool
+│   │   ├── energy_monitor.py        # Energy data queries
+│   │   └── __init__.py
 │   ├── kb/
-│   │   ├── __init__.py
-│   │   ├── indexer.py            # Document indexing
-│   │   └── retriever.py          # Retrieval
-│   ├── memory/
-│   │   ├── __init__.py
-│   │   └── session.py            # Session memory
-│   ├── database/
-│   │   ├── __init__.py
-│   │   ├── schema.sql            # Database schema
-│   │   └── models.py             # SQLAlchemy models
+│   │   ├── sync.py                  # Google Drive sync + search logic
+│   │   ├── google_drive.py          # Google Drive API integration
+│   │   └── __init__.py
 │   ├── api/
-│   │   ├── __init__.py
-│   │   ├── main.py               # FastAPI app
-│   │   └── routes/
-│   │       ├── crew.py           # /api/crew/*
-│   │       ├── tools.py          # /api/tools/*
-│   │       └── status.py         # /api/status
+│   │   ├── main.py                  # FastAPI app (includes KB fast-path)
+│   │   └── __init__.py
+│   ├── utils/
+│   │   └── db.py                    # Database utilities
 │   └── config/
-│       ├── __init__.py
-│       └── settings.py           # Configuration
-├── tests/                        # Test suite
-├── alembic/                      # DB migrations
+│       └── settings.py              # Configuration
+├── tests/                           # Test suite
 ├── requirements.txt
 ├── Dockerfile
-├── railway.json                  # Railway config
 └── README.md
 ```
 
 **API Endpoints:**
 ```python
-# FastAPI routes
-POST   /api/crew/execute          # Execute crew with task
-GET    /api/crew/status/{task_id} # Get task status
-POST   /api/tools/solark          # Direct tool call
-POST   /api/tools/shelly          # Direct tool call
-POST   /api/tools/miners          # Direct tool call
-GET    /api/status                # System status
-GET    /api/status/hardware       # Hardware status
-GET    /api/history               # Action history
-POST   /api/kb/sync               # Trigger KB sync
-GET    /api/kb/search             # Search KB
+# Main endpoints (src/api/main.py)
+GET    /health                       # System health check
+POST   /ask                          # Agent chat (with KB fast-path)
+GET    /conversations                # Recent conversation list
+GET    /conversations/{session_id}   # Single conversation detail
+GET    /energy/latest                # Latest energy snapshot
+GET    /energy/stats?hours=24        # Energy statistics
+POST   /db/init-schema               # Initialize database schema
+```
+
+**KB Fast-Path Implementation:**
+```python
+# src/api/main.py - /ask endpoint
+@app.post("/ask")
+async def ask_agent(request: AskRequest):
+    # CRITICAL: KB Fast-Path to avoid Manager agent timeout
+    query_lower = request.message.lower()
+    kb_keywords = ['specification', 'specs', 'threshold', 'policy',
+                   'procedure', 'maintain', 'documentation', 'guide',
+                   'manual', 'instructions', 'how do i', 'how to']
+
+    is_kb_query = any(keyword in query_lower for keyword in kb_keywords)
+
+    if is_kb_query and len(request.message) > 10:
+        # Direct KB search - bypass Manager agent (400ms vs 20s+)
+        from ..tools.kb_search import search_knowledge_base
+        result_str = search_knowledge_base.func(request.message, limit=5)
+        agent_used = "Knowledge Base"
+        agent_role = "Documentation Search"
+    else:
+        # Manager crew routes to Solar Controller or Energy Orchestrator
+        crew = create_manager_crew(request.message, context)
+        result = crew.kickoff()
+        # Extract metadata from JSON response
+        agent_used, agent_role = parse_agent_metadata(result)
 ```
 
 **Environment Variables (Railway):**
 ```env
 DATABASE_URL=postgresql://...
 OPENAI_API_KEY=<secret>
-GOOGLE_DOCS_CREDENTIALS=<json>
-SOLARK_HOST=192.168.1.100
-VICTRON_VRM_TOKEN=<secret>
-REDIS_URL=redis://...
+SOLARK_API_URL=http://192.168.1.23
+GOOGLE_SERVICE_ACCOUNT_JSON=<secret>  # Service account credentials for Google Drive
+KB_FOLDER_ID=<google-drive-folder-id>  # Target folder for KB sync
 ```
 
-**Railway Services:**
-```yaml
-# railway.json
-{
-  "services": [
-    {
-      "name": "commandcenter-api",
-      "source": {
-        "repo": "wildfireranch/commandcenter",
-        "directory": "railway"
-      },
-      "build": {
-        "builder": "DOCKERFILE",
-        "dockerfilePath": "Dockerfile"
-      },
-      "deploy": {
-        "numReplicas": 1,
-        "restartPolicyType": "ON_FAILURE"
-      }
-    },
-    {
-      "name": "postgresql",
-      "source": {
-        "image": "postgres:15"
-      }
-    },
-    {
-      "name": "redis",
-      "source": {
-        "image": "redis:7"
-      }
-    }
-  ]
-}
-```
-
-**Why Railway for Backend:**
-- ✅ Pay-per-use (idle = cheap)
-- ✅ Built-in PostgreSQL/Redis
-- ✅ Vertical autoscaling
-- ✅ Simple deployment
+**Why Railway:**
+- ✅ Single deployment for backend + dashboards
+- ✅ Built-in PostgreSQL with pgvector support
+- ✅ Pay-per-use pricing
+- ✅ Simple deployment from GitHub
 - ✅ Good for long-running processes
 
 ---
 
-### 3. CrewAI Crew Structure
+### 3. Multi-Agent System Architecture
 
-**Main Crew: `CommandCenterCrew`**
-
-```python
-# src/crews/main_crew.py
-from crewai import Crew, Agent, Task
-from src.agents.conversation import conversation_agent
-from src.agents.orchestrator import energy_orchestrator
-from src.agents.hardware import hardware_control_agent
-
-class CommandCenterCrew:
-    def __init__(self):
-        self.crew = Crew(
-            agents=[
-                conversation_agent,
-                energy_orchestrator,
-                hardware_control_agent
-            ],
-            tasks=[],  # Tasks created dynamically
-            process="sequential",  # Tasks run in order
-            memory=True,  # Enable session memory
-            verbose=True
-        )
-    
-    def execute(self, user_task: str) -> dict:
-        """Execute a user task through the crew"""
-        
-        # Create task for conversation agent
-        main_task = Task(
-            description=f"User request: {user_task}",
-            agent=conversation_agent,
-            expected_output="Completed action with confirmation"
-        )
-        
-        # Execute crew
-        result = self.crew.kickoff(tasks=[main_task])
-        
-        return {
-            "success": True,
-            "result": result,
-            "actions_taken": self._extract_actions(result)
-        }
-```
-
-**Agent Hierarchy:**
+**V1.5 Agent Structure:**
 
 ```
-User Request
-    ↓
-Conversation Agent (Entry point)
-    │
-    ├─→ Clarify intent
-    ├─→ Validate input
-    └─→ Delegate to Orchestrator
-            ↓
-Energy Orchestrator (Decision maker)
-    │
-    ├─→ Query system state
-    ├─→ Analyze conditions
-    ├─→ Formulate plan
-    ├─→ Explain reasoning
-    └─→ Delegate to Hardware Control
-            ↓
-Hardware Control Agent (Executor)
-    │
-    ├─→ Validate action safety
-    ├─→ Check prerequisites
-    ├─→ Execute tool call
-    ├─→ Verify result
-    └─→ Log action
-            ↓
-        Result returned to user
+User Query → KB Fast-Path Check
+                │
+                ├─→ [Keyword Match] → Direct KB Search (400ms)
+                │
+                └─→ [No Match] → Manager Agent
+                                    │
+                                    ├─→ Real-time query → Solar Controller Agent (5-6s)
+                                    │
+                                    ├─→ Planning query → Energy Orchestrator Agent (13-15s)
+                                    │
+                                    └─→ Documentation → KB Search via routing tool (fallback)
 ```
+
+**Routing Decision Matrix:**
+
+| Query Type | Keywords | Route To | Response Time |
+|-----------|----------|----------|---------------|
+| Documentation | specs, threshold, policy, how-to | KB Fast-Path | 400ms |
+| Real-time status | battery, solar, current, now | Solar Controller | 5-6s |
+| Planning/optimization | should we, create plan, optimize | Energy Orchestrator | 13-15s |
+| Off-topic | hello, who am I | Manager (direct) | 2s |
 
 ---
 
 ### 4. Agent Definitions
 
-#### Agent 1: Conversation Agent
+#### Agent 1: Manager Agent (Query Router)
 
+**File:** [railway/src/agents/manager.py](railway/src/agents/manager.py)
+
+**Role:** "Query Router and Coordinator"
+
+**Purpose:** Analyze user query intent and route to appropriate specialist
+
+**Key Characteristics:**
+- **Delegation:** False (doesn't delegate, just routes)
+- **Max Iterations:** 3 (reduced from 10 to prevent over-thinking)
+- **Output:** Returns tool output VERBATIM (no reformatting)
+
+**Tools:**
+1. `route_to_solar_controller(query: str)` - For real-time status queries
+2. `route_to_energy_orchestrator(query: str)` - For planning/optimization
+3. `search_kb_directly(query: str)` - For documentation queries
+
+**Routing Logic:**
 ```python
-# src/agents/conversation.py
-from crewai import Agent
-from crewai_tools import tool
+# manager.py - Routing rules
+Real-time questions → route_to_solar_controller(query)
+Examples: battery level, solar production, current power, status
 
-conversation_agent = Agent(
-    role="User Interface Specialist",
-    goal="Understand user intent and facilitate natural conversation",
-    backstory="""You are a friendly and helpful interface between the user and 
-    the CommandCenter energy system. You excel at understanding natural language 
-    requests, asking clarifying questions when needed, and explaining complex 
-    technical operations in simple terms. Safety is your priority - you always 
-    confirm destructive actions before executing.""",
-    
-    verbose=True,
-    allow_delegation=True,  # Can delegate to other agents
-    
-    tools=[],  # No direct tools, delegates to orchestrator
-)
+Planning questions → route_to_energy_orchestrator(query)
+Examples: should we run miners, create plan, optimization
+
+Documentation questions → search_kb_directly(query)
+Examples: thresholds, specifications, policies, how-to guides
 ```
+
+**Critical Design Decision (Session 024):**
+- Manager agent MUST return tool output verbatim
+- No iteration loops on KB results (was causing 20s+ timeouts)
+- KB search returns simple text format (not JSON) to prevent re-parsing attempts
+- Reduced max_iter from 10 to 3 to force immediate tool usage
+
+---
+
+#### Agent 2: Solar Controller Agent (Real-Time Monitor)
+
+**File:** [railway/src/agents/solar_controller.py](railway/src/agents/solar_controller.py)
+
+**Role:** "Energy Systems Monitor and Status Reporter"
+
+**Purpose:** Answer real-time queries about current energy system state
 
 **Responsibilities:**
-- Parse user natural language input
-- Ask clarifying questions
-- Confirm destructive actions
-- Explain system responses in user-friendly language
-- Handle conversation context
-- Delegate to Energy Orchestrator
+- Current battery SOC/charge status
+- Solar production (right now)
+- House load/power consumption
+- Grid import/export status
+- System health checks
 
-**Example Interactions:**
-```
-User: "Turn off the miners"
-Conversation Agent: "I'll pause the Bitcoin miners. They're currently running. 
-                     This will take about 30 seconds. Shall I proceed?"
+**Tools:**
+- `get_latest_energy()` - Fetch current snapshot from SolArk API
+- `get_energy_stats(hours=24)` - Historical statistics from database
+- `search_knowledge_base()` - Context for explanations
 
-User: "yes"
-Conversation Agent: → delegates to Energy Orchestrator
-```
+**Example Queries:**
+- "What's my battery level?"
+- "How much solar am I producing?"
+- "Am I using grid power right now?"
+
+**Response Time:** ~5-6 seconds
 
 ---
 
-#### Agent 2: Energy Orchestrator
+#### Agent 3: Energy Orchestrator Agent (Planning & Optimization)
 
-```python
-# src/agents/orchestrator.py
-from crewai import Agent
-from src.tools.database import query_system_status
-from src.tools.victron import get_battery_soc
+**File:** [railway/src/agents/energy_orchestrator.py](railway/src/agents/energy_orchestrator.py)
 
-energy_orchestrator = Agent(
-    role="Energy System Optimization Specialist",
-    goal="Optimize off-grid energy usage to maximize battery health and minimize costs",
-    backstory="""You are an expert in off-grid energy systems with deep knowledge 
-    of battery management, solar production, and load balancing. You analyze system 
-    state (SOC, weather, time, loads) and make intelligent decisions about when to 
-    charge, discharge, run loads, and preserve battery capacity. You always explain 
-    your reasoning and defer to user preferences.""",
-    
-    verbose=True,
-    allow_delegation=True,  # Can delegate to Hardware Control
-    
-    tools=[
-        query_system_status,  # Get current state
-        get_battery_soc,      # Check battery level
-    ],
-)
-```
+**Role:** "Energy Operations Manager and Optimization Specialist"
+
+**Purpose:** Make planning and optimization decisions
 
 **Responsibilities:**
-- Analyze system state (SOC, grid, weather, time)
-- Make optimization decisions
-- Plan multi-step actions
-- Explain reasoning to user
-- Learn from user corrections
-- Delegate execution to Hardware Control Agent
+- "Should we" questions (run miners, charge battery, etc.)
+- Creating energy plans
+- Optimization recommendations
+- Battery management strategies
+- Forecasting and predictions
 
-**Example Decision Flow:**
-```python
-# Orchestrator internal reasoning
-1. Query current SOC → 45%
-2. Check time → 6pm (peak rates)
-3. Check miners → Running
-4. Check weather forecast → Clear tomorrow (good solar)
+**Tools:**
+- `get_latest_energy()` - Current state for decision-making
+- `get_energy_stats(hours=24)` - Historical patterns
+- `search_knowledge_base()` - Operating procedures and thresholds
 
-Decision: Pause miners to preserve battery
-Reasoning: "SOC is below 50% during peak hours, and tomorrow's 
-            forecast shows good solar. Pausing miners now preserves 
-            battery for evening loads and we can resume tomorrow 
-            when solar production is strong."
+**Example Queries:**
+- "Should we run the miners tonight?"
+- "Create an energy plan for today"
+- "When's the best time to charge the battery?"
 
-→ Delegates to Hardware Control: "pause_miners"
-```
+**Response Time:** ~13-15 seconds (includes analysis)
 
 ---
 
-#### Agent 3: Hardware Control Agent
-
-```python
-# src/agents/hardware.py
-from crewai import Agent
-from src.tools.solark import set_solark_mode
-from src.tools.shelly import control_shelly
-from src.tools.miners import control_miners
-from src.tools.victron import query_victron
-from src.tools.nodered import trigger_flow
-from src.tools.database import log_action
-
-hardware_control_agent = Agent(
-    role="Hardware Control & Safety Specialist",
-    goal="Execute hardware commands safely and reliably with comprehensive validation",
-    backstory="""You are a meticulous hardware control specialist responsible for 
-    the final execution of commands to physical systems. You validate every action 
-    before execution, maintain detailed logs, and have multiple safety mechanisms 
-    to prevent unintended consequences. You never skip validation steps.""",
-    
-    verbose=True,
-    allow_delegation=False,  # Final executor, doesn't delegate
-    
-    tools=[
-        set_solark_mode,
-        control_shelly,
-        control_miners,
-        query_victron,
-        trigger_flow,
-        log_action,
-    ],
-)
-```
-
-**Responsibilities:**
-- Execute tool calls to hardware
-- Validate action safety before execution
-- Apply safety guardrails (dry-run, confirmation)
-- Verify action completed successfully
-- Log all actions to database
-- Handle errors gracefully
-- Rollback failed actions when possible
-
-**Safety Checklist (executed for every action):**
-```python
-1. Validate prerequisites
-   - Is system in correct state?
-   - Are required services reachable?
-   
-2. Check safety limits
-   - Would this exceed safe SOC limits?
-   - Is this action allowed in current mode?
-   
-3. Dry-run (if available)
-   - Simulate action without executing
-   
-4. Execute action
-   - Send command to hardware
-   
-5. Verify result
-   - Check action completed as expected
-   
-6. Log action
-   - Record timestamp, agent, action, result, user
-   
-7. Handle errors
-   - Rollback if possible
-   - Alert user if failed
-```
-
----
-
-### 5. Tool Layer Architecture
-
-Each tool follows a standard pattern:
-
-```python
-# src/tools/template.py
-from crewai_tools import tool
-from typing import Literal
-import logging
-
-logger = logging.getLogger(__name__)
-
-@tool("Tool name that describes what it does")
-def tool_name(
-    param1: str,
-    param2: Literal["option1", "option2"] = "option1",
-    dry_run: bool = False,
-    confirm: bool = True
-) -> dict:
-    """
-    Detailed description of what this tool does.
-    
-    Args:
-        param1: Description of parameter
-        param2: Description with allowed values
-        dry_run: If True, simulate without executing
-        confirm: If True, requires user confirmation
-    
-    Returns:
-        dict: {
-            success: bool,
-            message: str,
-            data: dict,  # Tool-specific data
-            action_logged: bool
-        }
-    
-    Raises:
-        ValueError: If parameters invalid
-        ConnectionError: If service unreachable
-    """
-    
-    # 1. Validate inputs
-    if not param1:
-        raise ValueError("param1 is required")
-    
-    # 2. Dry-run mode
-    if dry_run:
-        logger.info(f"DRY RUN: Would execute {tool_name} with {param1}")
-        return {
-            "success": True,
-            "message": f"DRY RUN: Would {action_description}",
-            "data": {},
-            "action_logged": False
-        }
-    
-    # 3. Check prerequisites
-    if not _check_service_health():
-        raise ConnectionError("Service not reachable")
-    
-    # 4. Execute action
-    try:
-        result = _execute_actual_command(param1, param2)
-    except Exception as e:
-        logger.error(f"Failed to execute {tool_name}: {e}")
-        return {
-            "success": False,
-            "message": f"Error: {str(e)}",
-            "data": {},
-            "action_logged": True  # Log failures too
-        }
-    
-    # 5. Verify result
-    verified = _verify_action_completed(result)
-    
-    # 6. Log action
-    _log_to_database(
-        tool=tool_name,
-        params={"param1": param1, "param2": param2},
-        result=result,
-        success=verified
-    )
-    
-    # 7. Return structured result
-    return {
-        "success": verified,
-        "message": "Action completed successfully" if verified else "Action failed verification",
-        "data": result,
-        "action_logged": True
-    }
-```
-
-**Tool Categories:**
-
-1. **Hardware Control Tools**
-   - `solark.py` - SolArk inverter
-   - `shelly.py` - Relays/switches
-   - `miners.py` - Bitcoin miners
-
-2. **Data Query Tools**
-   - `victron.py` - Victron system status
-   - `database.py` - PostgreSQL queries
-
-3. **Integration Tools**
-   - `nodered.py` - Node-RED flows
-   - `kb_search.py` - Knowledge base
-
----
-
-### 6. Knowledge Base Architecture
+### 5. Knowledge Base Architecture
 
 **Components:**
 
 ```
 Knowledge Base System
-├── Google Docs Sync (Daily)
-│   ├── OAuth authentication
-│   ├── Folder traversal
-│   └── Document download
-├── Indexer
-│   ├── Parse documents
-│   ├── Chunk content (512 tokens)
-│   └── Generate embeddings (OpenAI)
-└── Retriever
-    ├── Semantic search
-    ├── Rank results
-    └── Return top 3-5 chunks
+├── Database Storage (PostgreSQL)
+│   ├── kb_documents (full documents)
+│   └── kb_chunks (512-token chunks with embeddings)
+├── Google Drive Sync Service (kb/sync.py + kb/google_drive.py)
+│   ├── Service account authentication
+│   ├── Recursive folder scanning
+│   ├── Document fetching (Google Docs, PDFs, Spreadsheets)
+│   ├── Content chunking (512 tokens)
+│   ├── Embedding generation (OpenAI text-embedding-3-small)
+│   └── Incremental sync (only changed docs)
+└── Search Service (tools/kb_search.py)
+    ├── Query embedding generation
+    ├── Cosine similarity search (pgvector)
+    └── Result formatting with citations
 ```
 
 **Database Schema:**
 
 ```sql
--- Knowledge base tables
+-- Full documents
 CREATE TABLE kb_documents (
     id SERIAL PRIMARY KEY,
-    google_doc_id VARCHAR(255) UNIQUE,
+    google_doc_id VARCHAR(255) UNIQUE,  -- Google Drive file ID
     title VARCHAR(500),
-    content TEXT,
-    category VARCHAR(100),  -- Hardware, Procedures, etc.
-    last_synced TIMESTAMP,
-    created_at TIMESTAMP DEFAULT NOW()
+    folder VARCHAR(500),                 -- Folder name
+    folder_path TEXT,                    -- Full path (e.g., "Root/Technical/SolArk")
+    mime_type VARCHAR(100),              -- application/vnd.google-apps.document, etc.
+    full_content TEXT,
+    token_count INTEGER,
+    is_context_file BOOLEAN DEFAULT FALSE,  -- Files in /CONTEXT/ folder
+    last_synced TIMESTAMP,               -- When last synced from Google Drive
+    created_at TIMESTAMP DEFAULT NOW(),
+    updated_at TIMESTAMP DEFAULT NOW()
 );
 
+-- Chunked content with embeddings
 CREATE TABLE kb_chunks (
     id SERIAL PRIMARY KEY,
     document_id INTEGER REFERENCES kb_documents(id),
     chunk_text TEXT,
-    chunk_index INTEGER,  -- Position in document
-    embedding VECTOR(1536),  -- OpenAI embedding
+    chunk_index INTEGER,
+    token_count INTEGER,
+    embedding VECTOR(1536),  -- OpenAI text-embedding-3-small
     created_at TIMESTAMP DEFAULT NOW()
 );
 
-CREATE INDEX idx_kb_chunks_embedding ON kb_chunks 
+-- Sync tracking
+CREATE TABLE kb_sync_log (
+    id SERIAL PRIMARY KEY,
+    sync_type VARCHAR(50),              -- "full" or "context-only"
+    started_at TIMESTAMP,
+    completed_at TIMESTAMP,
+    status VARCHAR(50),                 -- "running", "completed", "failed"
+    documents_processed INTEGER,
+    documents_updated INTEGER,
+    documents_failed INTEGER,
+    error_message TEXT,
+    triggered_by VARCHAR(100)           -- "manual", "scheduled", etc.
+);
+
+-- Vector similarity index
+CREATE INDEX kb_chunks_embedding_idx ON kb_chunks
 USING ivfflat (embedding vector_cosine_ops);
 ```
 
 **Sync Workflow:**
 
 ```python
-# Daily at midnight (Railway cron job)
-1. Authenticate with Google OAuth
-2. List all docs in "CommandCenter KB" folder
-3. For each doc:
-   - Check if modified since last sync
-   - If modified:
-     a. Download content
-     b. Parse and chunk (512 tokens)
-     c. Generate embeddings
-     d. Upsert to database
-4. Delete removed docs from DB
-5. Log sync results
+# Automated sync from Google Drive
+1. Authenticate with service account
+2. Recursively scan target folder (and subfolders)
+3. Filter to supported file types:
+   - Google Docs (application/vnd.google-apps.document)
+   - PDFs (application/pdf)
+   - Google Sheets (application/vnd.google-apps.spreadsheet)
+4. For each document:
+   a. Check if modified since last_synced (skip if unchanged)
+   b. Fetch content (format-specific extraction)
+   c. Chunk into 512-token segments
+   d. Generate embeddings via OpenAI
+   e. Upsert to kb_documents table
+   f. Delete old chunks, insert new chunks
+5. Cleanup: Remove documents deleted from Drive
+6. Log sync results to kb_sync_log
 ```
 
-**Retrieval Workflow:**
+**Search Workflow:**
 
 ```python
-# When agent needs context
-1. Agent calls kb_search(query="SolArk grid charge procedure")
-2. Generate query embedding
-3. Cosine similarity search in kb_chunks
+# When agent or fast-path needs KB context
+1. User query: "What is the minimum battery SOC threshold?"
+2. Generate query embedding via OpenAI
+3. Cosine similarity search in kb_chunks (using pgvector <=> operator)
 4. Return top 5 chunks with metadata:
-   - chunk_text
-   - document_title
-   - similarity_score
-5. Agent uses context to answer/act
+   - chunk_text (full content)
+   - source (document title)
+   - folder (folder name)
+   - similarity score (0.0-1.0)
+5. Format with citations
 ```
+
+**Fast-Path vs Routed Search:**
+
+| Aspect | Fast-Path | Routed (via Manager) |
+|--------|-----------|---------------------|
+| Trigger | Keyword match at API level | Manager agent decision |
+| Performance | 400ms | 5-6s (if used) |
+| Use Case | Common documentation queries | Complex queries needing context |
+| Implementation | Direct tool call | Manager → routing tool → KB search |
+
+**Why Fast-Path Was Critical (Session 024):**
+- CrewAI nesting overhead: Manager → routing tool → KB search tool → OpenAI
+- Original implementation: 20+ second timeouts
+- Fast-path solution: Keyword detection bypasses Manager entirely
+- Result: 50x performance improvement (20s → 400ms)
 
 ---
 
-### 7. Memory System Architecture
+### 6. Conversation & Memory System
 
-**Three-Tier Memory (CrewAI + Custom):**
+**Three-Tier Memory:**
 
 ```
 ┌─────────────────────────────────────┐
-│   Session Memory (CrewAI)           │
-│   - Current conversation only       │
-│   - Cleared after task complete     │
-│   - Used for: context, follow-ups   │
+│   Session Context (In-Memory)       │
+│   - Current conversation messages   │
+│   - Used for follow-up questions    │
+│   - Passed to Manager agent         │
 └─────────────────────────────────────┘
            ↓ persists to
 ┌─────────────────────────────────────┐
-│   Action History (PostgreSQL)       │
-│   - Permanent log of all actions    │
-│   - Queryable: "last 10 actions"    │
-│   - Used for: audit, debugging      │
+│   Conversations (PostgreSQL)        │
+│   - Permanent conversation history  │
+│   - Queryable via /conversations    │
+│   - Displayed in Logs Viewer        │
 └─────────────────────────────────────┘
-           ↓ informs
+           ↓ extracted for
 ┌─────────────────────────────────────┐
-│   Preferences (Key-Value)           │
-│   - User-corrected defaults         │
-│   - Example: min_soc_threshold=30   │
-│   - Used for: personalization       │
+│   Agent Metadata (Parsed)           │
+│   - agent_used (Solar/Orchestrator) │
+│   - agent_role (descriptive name)   │
+│   - Displayed in chat interface     │
 └─────────────────────────────────────┘
 ```
 
 **Database Schema:**
 
 ```sql
--- Session memory (temporary)
-CREATE TABLE agent_sessions (
+-- Conversation sessions
+CREATE TABLE conversations (
     id SERIAL PRIMARY KEY,
-    session_id VARCHAR(100) UNIQUE,
-    conversation_history JSONB,
-    context JSONB,
-    started_at TIMESTAMP DEFAULT NOW(),
-    ended_at TIMESTAMP
+    session_id VARCHAR(100) UNIQUE NOT NULL,
+    created_at TIMESTAMP DEFAULT NOW(),
+    updated_at TIMESTAMP DEFAULT NOW()
 );
 
--- Action history (permanent)
-CREATE TABLE action_log (
+-- Individual messages
+CREATE TABLE messages (
     id SERIAL PRIMARY KEY,
-    session_id VARCHAR(100),
-    agent VARCHAR(100),  -- Which agent
-    tool VARCHAR(100),   -- Which tool
-    action VARCHAR(200), -- What action
-    parameters JSONB,    -- Tool params
-    result JSONB,        -- Tool result
-    success BOOLEAN,
-    user_confirmed BOOLEAN,
+    conversation_id INTEGER REFERENCES conversations(id) ON DELETE CASCADE,
+    role VARCHAR(20) NOT NULL,  -- 'user' or 'assistant'
+    content TEXT NOT NULL,
+    agent_used VARCHAR(100),     -- Extracted from response
+    agent_role VARCHAR(200),     -- Extracted from response
     created_at TIMESTAMP DEFAULT NOW()
 );
 
--- Preferences (simple key-value)
-CREATE TABLE preferences (
-    key VARCHAR(100) PRIMARY KEY,
-    value JSONB,
-    description TEXT,
-    updated_at TIMESTAMP DEFAULT NOW()
-);
+-- Indexes for fast retrieval
+CREATE INDEX idx_conversations_session_id ON conversations(session_id);
+CREATE INDEX idx_messages_conversation_id ON messages(conversation_id);
+CREATE INDEX idx_messages_created_at ON messages(created_at DESC);
 ```
 
-**CrewAI Memory Configuration:**
+**Conversation Flow:**
 
 ```python
-# In crew definition
-crew = Crew(
-    agents=[...],
-    tasks=[...],
-    memory=True,  # Enable CrewAI memory
-    memory_config={
-        "provider": "mem0",  # Or custom
-        "config": {
-            "collection_name": "commandcenter_sessions",
-            "embedding_model": "text-embedding-3-small"
-        }
-    }
-)
+# User sends message via /ask endpoint
+1. Check if session_id exists or create new conversation
+2. Save user message to messages table
+3. Retrieve last 5 messages for context
+4. Pass context to Manager agent or KB fast-path
+5. Get response with agent metadata
+6. Parse JSON to extract agent_used and agent_role
+7. Save assistant response to messages table
+8. Return to user with metadata
+```
+
+**Metadata Extraction:**
+
+```python
+# Example agent response (Solar Controller/Energy Orchestrator)
+{
+  "response": "Your battery is at 67% SOC...",
+  "agent_used": "Solar Controller",
+  "agent_role": "Energy Systems Monitor"
+}
+
+# KB Fast-Path response (plain text)
+"Here's what I found:\n\n1. Minimum SOC: 30%...\n\n[Source: Knowledge Base Search]"
 ```
 
 ---
 
-### 8. Data Flow Diagrams
+### 7. Energy Data Flow
 
-#### Flow 1: User Command Execution
+**Data Sources:**
 
 ```
-User: "Pause the miners"
-    ↓
-MCP Server (Vercel)
-    ↓ HTTPS POST /api/crew/execute
-Railway FastAPI
-    ↓ Create Task
-Conversation Agent
-    ↓ Parse: "pause miners"
-    ↓ Validate: action is clear
-    ↓ Confirm: "Miners running, pause? (yes/no)"
-User: "yes"
-    ↓
-Conversation Agent → Energy Orchestrator
-    ↓ Check: SOC=45%, Time=6pm
-    ↓ Decide: "Safe to pause"
-    ↓ Explain: "Pausing to preserve battery"
-Energy Orchestrator → Hardware Control Agent
-    ↓ Validate: Prerequisites met
-    ↓ Execute: control_miners(action="pause")
-Hardware Control Agent → Miner Tool
-    ↓ SSH connection
-    ↓ Execute: systemctl stop miner
-    ↓ Verify: Process stopped
-    ↓ Log: Action to database
-Miner Tool → Hardware Control Agent
-    ↓ Result: {success: true}
-Hardware Control Agent → Energy Orchestrator
-    ↓ Result: "Miners paused successfully"
-Energy Orchestrator → Conversation Agent
-    ↓ Format: User-friendly message
-Conversation Agent → Railway API
-    ↓ Result: "Miners paused. SOC now at 45%."
-Railway API → MCP Server
-    ↓ Stream result
-MCP Server → User
-    ↓
-User sees: "Miners paused successfully. Battery at 45%."
+SolArk Inverter (192.168.1.23)
+    ↓ Polled every 30s
+Railway Backend (telemetry collector)
+    ↓ Inserts into PostgreSQL
+Telemetry Table
+    ↓ Queried by API
+Dashboard + Agents
 ```
+
+**Telemetry Schema:**
+
+```sql
+CREATE TABLE telemetry (
+    id SERIAL PRIMARY KEY,
+    timestamp TIMESTAMP DEFAULT NOW(),
+    soc FLOAT,              -- Battery state of charge (%)
+    batt_power FLOAT,       -- Battery power (W, +charging/-discharging)
+    pv_power FLOAT,         -- Solar production (W)
+    load_power FLOAT,       -- House load (W)
+    pv_to_grid FLOAT,       -- Grid export (W, V1.5 addition)
+    grid_to_load FLOAT,     -- Grid import (W)
+    created_at TIMESTAMP DEFAULT NOW()
+);
+
+CREATE INDEX idx_telemetry_timestamp ON telemetry(timestamp DESC);
+```
+
+**API Endpoints:**
+
+```python
+# Get latest snapshot (last 30s)
+GET /energy/latest
+Response: {
+  "status": "success",
+  "data": {
+    "timestamp": "2025-12-10T10:30:00Z",
+    "soc": 67.0,
+    "batt_power": 1200.0,
+    "pv_power": 3500.0,
+    "load_power": 2300.0,
+    "pv_to_grid": 450.0,    # V1.5 addition
+    "grid_to_load": 0.0
+  }
+}
+
+# Get statistics (avg, min, max over time period)
+GET /energy/stats?hours=24
+Response: {
+  "status": "success",
+  "data": {
+    "avg_soc": 65.2,
+    "min_soc": 42.0,
+    "max_soc": 89.0,
+    "total_pv_production": 45000.0,  # Wh
+    "total_grid_export": 12000.0     # Wh (V1.5 addition)
+  }
+}
+```
+
+**V1.5 Grid Export Enhancement:**
+- Added `pv_to_grid` field to telemetry schema
+- Displayed on Home page (4th metric)
+- Displayed on Energy Monitor (5th metric)
+- Shows real-time solar export to grid
 
 ---
 
-#### Flow 2: Autonomous Optimization
-
-```
-Railway Cron (every 15 minutes)
-    ↓ Trigger
-Energy Orchestrator
-    ↓ Query system state
-    ↓ SOC: 75%
-    ↓ Time: 3pm
-    ↓ Weather: Clear (good solar)
-    ↓ Miners: Paused
-    ↓
-    ↓ Analyze: "Excess solar available"
-    ↓ Decision: "Resume miners"
-    ↓ Formulate recommendation
-Energy Orchestrator → Conversation Agent
-    ↓ Message: "Recommendation ready"
-Conversation Agent → MCP Server (notification)
-    ↓ Push notification to user
-User (via Claude): "What's the recommendation?"
-    ↓
-MCP Server → Railway API → Conversation Agent
-    ↓ Retrieve stored recommendation
-Conversation Agent:
-    "Resume miners? SOC at 75% with 2 hours of 
-     good solar remaining. Excess capacity available."
-User: "yes"
-    ↓
-[Same execution flow as Flow 1]
-```
-
----
-
-#### Flow 3: Knowledge Base Query
-
-```
-User: "How do I manually switch SolArk to battery mode?"
-    ↓
-Conversation Agent
-    ↓ Recognize: Needs KB lookup
-    ↓ Search KB: "SolArk battery mode procedure"
-    ↓
-KB Retriever
-    ↓ Generate embedding
-    ↓ Cosine similarity search
-    ↓ Return top 3 chunks:
-       1. "SolArk Manual - Battery Mode Setup"
-       2. "Operating Modes Overview"
-       3. "Troubleshooting Battery Mode"
-    ↓
-Conversation Agent
-    ↓ Synthesize answer with citations
-    ↓ Response: "To switch to battery mode:
-       1. Press Settings button
-       2. Navigate to Operating Mode
-       3. Select 'Battery Priority'
-       (Source: SolArk Manual)"
-    ↓
-User receives answer with citation
-```
-
----
-
-### 9. Deployment Architecture
+### 8. Deployment Architecture
 
 **Production Environment:**
 
 ```
 ┌──────────────────────────────────────────────────┐
-│  Vercel (Global Edge)                            │
-│  - MCP Server: https://mcp.commandcenter.app     │
-│  - Region: Auto (edge locations)                 │
-│  - Scaling: Serverless (auto)                    │
-└──────────────────┬───────────────────────────────┘
-                   │ HTTPS
-┌──────────────────▼───────────────────────────────┐
-│  Railway (us-west1)                              │
+│  Railway (Single Service)                        │
 │  ┌────────────────────────────────────────────┐  │
-│  │  commandcenter-api                         │  │
-│  │  - FastAPI app                             │  │
+│  │  commandcenter-backend                     │  │
+│  │  - FastAPI app (port 8000)                 │  │
+│  │  - Streamlit dashboards (port 8501)        │  │
 │  │  - CrewAI agents                           │  │
-│  │  - Replicas: 1 (scale up if needed)       │  │
+│  │  - Telemetry collector                     │  │
 │  └────────────────────────────────────────────┘  │
 │  ┌────────────────────────────────────────────┐  │
 │  │  postgresql                                │  │
-│  │  - Version: 15                             │  │
-│  │  - Storage: 10GB (expandable)              │  │
-│  └────────────────────────────────────────────┘  │
-│  ┌────────────────────────────────────────────┐  │
-│  │  redis                                     │  │
-│  │  - Version: 7                              │  │
-│  │  - Used for: Caching, rate limiting       │  │
+│  │  - Version: 15 with pgvector + TimescaleDB│  │
+│  │  - Tables: 8 total                         │  │
+│  │    • agent.* (4): conversations, messages, │  │
+│  │      memory, logs                          │  │
+│  │    • solark.* (1): plant_flow              │  │
+│  │    • kb_* (3): documents, chunks, sync_log │  │
 │  └────────────────────────────────────────────┘  │
 └──────────────────┬───────────────────────────────┘
-                   │ Local network / Internet
+                   │ Local network
 ┌──────────────────▼───────────────────────────────┐
 │  Hardware (Local Network)                        │
-│  - SolArk: 192.168.1.100                         │
-│  - Shelly devices: 192.168.1.50-60               │
-│  - Miners: 192.168.1.70-72                       │
-│  - Victron: cloud.victronenergy.com              │
+│  - SolArk: 192.168.1.23                          │
 └──────────────────────────────────────────────────┘
 ```
 
-**Scaling Strategy:**
+**Public URLs:**
+- Backend API: `https://api.wildfireranch.us`
+- Streamlit Dashboard: `https://dashboard.wildfireranch.us`
 
-| Component | V1 (Solo) | V2 (Growth) | V3 (Scale) |
-|-----------|-----------|-------------|------------|
-| Vercel | Hobby ($0) | Pro ($20) | Enterprise |
-| Railway API | 1 replica | 2-3 replicas | 5+ replicas |
-| PostgreSQL | 10GB | 50GB | 200GB+ |
-| Requests/day | 100-500 | 1,000-5,000 | 10,000+ |
-| Cost/month | $15-30 | $50-100 | $200-500 |
+**Deployment Process:**
+```bash
+# From repository root
+git push origin main
+# Railway auto-deploys from main branch
+# Runs Dockerfile from railway/ directory
+```
+
+**Environment Variables:**
+```env
+DATABASE_URL=postgresql://...                    # Auto-provided by Railway
+OPENAI_API_KEY=<secret>                         # For embeddings
+SOLARK_API_URL=http://192.168.1.23             # Local network
+API_KEY=<secret>                                # Dashboard auth
+GOOGLE_SERVICE_ACCOUNT_JSON=<secret>            # Google Drive service account
+KB_FOLDER_ID=<google-drive-folder-id>          # Target folder for KB sync
+```
+
+---
+
+### 9. Performance Characteristics
+
+**V1.5 Performance Metrics (Session 024 Testing):**
+
+| Component | Response Time | Notes |
+|-----------|--------------|-------|
+| KB Fast-Path | 400ms | Direct search, bypasses Manager |
+| KB Routed | 5-6s | Via Manager agent (fallback) |
+| Solar Controller | 5-6s | Includes API call to SolArk |
+| Energy Orchestrator | 13-15s | Analysis + reasoning |
+| Energy API (/latest) | 50-100ms | Direct database query |
+| Dashboard Page Load | 1-2s | Includes API calls |
+
+**Optimization Decisions (Session 024):**
+
+1. **KB Fast-Path Architecture**
+   - Problem: KB queries via Manager timing out (20s+)
+   - Root Cause: CrewAI nesting overhead
+   - Solution: Keyword detection at API level
+   - Result: 50x improvement (20s → 400ms)
+   - Trade-off: Keyword matching less intelligent, but vastly faster
+
+2. **Manager Agent Tuning**
+   - Reduced max_iter from 10 to 3
+   - Set allow_delegation=False
+   - Required verbatim tool output (no reformatting)
+   - Result: Faster routing, no iteration loops
+
+3. **Frontend Compression**
+   - Reduced vertical padding by ~50%
+   - Maintained font sizes for readability
+   - Applied uniformly across all 5 pages
+   - Result: More content visible per screen
 
 ---
 
 ### 10. Security Architecture
 
-**Authentication Flow:**
-
-```
-User → Claude (with MCP)
-    ↓ MCP Protocol (includes user context)
-MCP Server (Vercel)
-    ↓ Verify: Allowed origin
-    ↓ Check: Rate limits
-    ↓ Add: Request signature
-Railway API
-    ↓ Verify: Signature valid
-    ↓ Check: User permissions (future)
-    ↓ Execute: Crew task
-```
+**Authentication:**
+- API key authentication for dashboard → backend
+- No public endpoints (behind Railway private network)
+- SolArk API on local network only
 
 **Secrets Management:**
-
-```
-Vercel Environment Variables:
-- RAILWAY_API_KEY (Railway API authentication)
-- OPENAI_API_KEY (For embeddings, if needed)
-
-Railway Environment Variables:
-- DATABASE_URL (Auto-provided by Railway)
-- REDIS_URL (Auto-provided by Railway)
-- OPENAI_API_KEY (For LLM calls)
-- GOOGLE_DOCS_CREDENTIALS (OAuth JSON)
-- SOLARK_USERNAME, SOLARK_PASSWORD
-- VICTRON_VRM_TOKEN
-- ALLOWED_IPS (Whitelist for hardware commands)
+```env
+# Railway environment variables
+DATABASE_URL=<auto-provided>
+OPENAI_API_KEY=<secret>
+API_KEY=<secret>
+SOLARK_API_URL=http://192.168.1.23
+GOOGLE_SERVICE_ACCOUNT_JSON=<secret>  # Google Drive API access
+KB_FOLDER_ID=<folder-id>              # Not secret, but configuration
 ```
 
 **Network Security:**
+- Backend API: HTTPS only
+- Database: Internal Railway network (not exposed)
+- SolArk: Local network (192.168.1.x)
+- OpenAI API: HTTPS, API key auth
+- Google Drive API: HTTPS, service account OAuth 2.0
 
-```
-Vercel → Railway: HTTPS only, API key required
-Railway → Database: Internal network (not exposed)
-Railway → Hardware: Local network (VPN or wireguard)
-Railway → External APIs: HTTPS, token-based auth
-```
-
-**Safety Mechanisms:**
-
-1. **Input Validation**
-   - All tool parameters validated
-   - Type checking with Pydantic
-   - Range/enum validation
-
-2. **Rate Limiting**
-   - Max 100 requests/hour per user (Redis)
-   - Tool-specific limits (e.g., max 10 hardware commands/minute)
-
-3. **Dry-Run Mode**
-   - Every destructive action supports dry-run
-   - User can test without executing
-
-4. **Confirmation Required**
-   - Destructive actions require explicit "yes"
-   - Confirmations logged
-
-5. **Action Logging**
-   - Every command logged (who, what, when, result)
-   - Audit trail for accountability
-
-6. **Rollback Capability**
-   - Some actions support rollback
-   - System remembers previous state
+**Input Validation:**
+- All API endpoints use Pydantic models
+- Session IDs validated before database queries
+- Error handling for malformed requests
 
 ---
 
-### 11. Monitoring & Observability
+### 11. Session 024 Architectural Decisions
 
-**Logging Strategy:**
+**Decision 1: KB Fast-Path Implementation**
 
+**Context:** KB queries timing out at 20+ seconds via Manager agent routing
+
+**Options Considered:**
+1. Fix Manager agent behavior (tune instructions)
+2. Optimize KB search tool performance
+3. Bypass Manager for documentation queries
+
+**Decision:** Implement KB fast-path at API level
+
+**Rationale:**
+- CrewAI nesting overhead unavoidable (Manager → routing tool → KB search tool)
+- Even perfect agent behavior still incurs 5-6s overhead
+- Documentation queries are frequent and latency-sensitive
+- Keyword matching accurate enough for common patterns
+
+**Implementation:**
 ```python
-# Application logs
-import logging
+# src/api/main.py
+kb_keywords = ['specification', 'specs', 'threshold', 'policy',
+               'procedure', 'maintain', 'documentation', 'guide',
+               'manual', 'instructions', 'how do i', 'how to']
 
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-    handlers=[
-        logging.FileHandler('commandcenter.log'),
-        logging.StreamHandler()  # Also to console
-    ]
-)
-
-# Log levels
-- ERROR: Action failures, exceptions
-- WARNING: Unusual states, degraded performance
-- INFO: Action completions, state changes
-- DEBUG: Detailed execution (dev only)
+if any(keyword in query_lower for keyword in kb_keywords):
+    # Bypass Manager, call KB search directly
+    result = search_knowledge_base.func(query, limit=5)
 ```
 
-**Metrics to Track:**
+**Results:**
+- KB queries: 400ms (was 20s+)
+- 50x performance improvement
+- User requirement: "key function, cannot be degraded" ✅
 
+---
+
+**Decision 2: Manager Agent Output Format**
+
+**Context:** Manager agent reformatting tool output, causing iteration loops
+
+**Problem:** KB search returns formatted text, Manager tried to parse as JSON and iterate
+
+**Solution:**
+1. KB search returns simple text (not JSON) to prevent parsing attempts
+2. Manager instructed to return tool output VERBATIM
+3. Reduced max_iter to 3 to force immediate completion
+
+**Implementation:**
 ```python
-# System metrics
-- API response time (p50, p95, p99)
-- Crew execution time
-- Tool success rate
-- Database query time
+# tools/kb_search.py - Changed from JSON to text
+return f"{kb_result}\n\n[Source: Knowledge Base Search]"
 
-# Business metrics
-- Actions per day
-- Most-used tools
-- User confirmations (yes/no ratio)
-- Autonomous vs manual actions
-
-# Hardware metrics
-- Average SOC
-- Grid on/off time
-- Miner uptime
-- Command success rate
+# agents/manager.py - Verbatim output instruction
+"""CRITICAL: Return tool output VERBATIM. Do not reformat, summarize,
+or add commentary. Your output = Tool output (no changes)."""
 ```
 
-**Alerting:**
+**Results:**
+- Manager no longer iterates on results
+- Clean agent metadata extraction
+- Consistent response format
 
+---
+
+**Decision 3: Grid Export Display**
+
+**Context:** User requested "watts export not showing"
+
+**Implementation:**
+1. Added `pv_to_grid` extraction from SolArk API
+2. Created 4th metric on Home page
+3. Created 5th metric on Energy Monitor page
+4. Used same data extraction pattern as other metrics
+
+**Results:**
+- Grid export visible on Home and Energy Monitor
+- Consistent metric display format
+- Real-time updates
+
+---
+
+**Decision 4: Compressed Vertical Spacing**
+
+**Context:** User requested "compress the size of the boxes and spacing...vertically"
+
+**Requirements:**
+- Keep font sizes (readability)
+- Reduce vertical padding/margins
+- Apply uniformly across all pages
+
+**Implementation:**
+```css
+/* Applied to all 5 dashboard pages */
+.block-container {
+    padding-top: 2rem !important;      /* was 3rem */
+    padding-bottom: 1rem !important;   /* was 2rem */
+}
+
+[data-testid="stMetric"] {
+    padding: 0.75rem !important;       /* was 1.5rem */
+}
 ```
-Critical Alerts (immediate):
-- Hardware command failed 3x in a row
-- Database unreachable
-- SOC below 10% (emergency)
 
-Warning Alerts (within 1 hour):
-- API latency > 5 seconds
-- Tool success rate < 90%
-- KB sync failed
+**Results:**
+- ~50% reduction in vertical spacing
+- Font sizes unchanged
+- Uniform appearance across dashboard
 
-Info Alerts (daily summary):
-- Action count
-- Average SOC
-- Cost summary
-```
+---
+
+## V1.5 Changes Summary
+
+**New Features:**
+1. ✅ Grid export display on Home and Energy Monitor
+2. ✅ KB fast-path for sub-second documentation queries
+3. ✅ Compressed vertical spacing across all dashboard pages
+4. ✅ Agent metadata extraction (agent_used, agent_role)
+5. ✅ Improved conversation history display
+
+**Performance Improvements:**
+1. ✅ KB search: 20s → 400ms (50x faster)
+2. ✅ Manager agent routing optimized (max_iter: 10 → 3)
+3. ✅ Dashboard page load improved
+
+**Architecture Changes:**
+1. ✅ KB fast-path bypass at API level
+2. ✅ Manager agent output format standardized
+3. ✅ Telemetry schema extended (pv_to_grid field)
+4. ✅ Unified CSS across all dashboard pages
+
+**Bug Fixes:**
+1. ✅ KB timeout issue resolved
+2. ✅ Manager agent iteration loops fixed
+3. ✅ Grid export data extraction corrected
+4. ✅ Inconsistent vertical spacing resolved
 
 ---
 
@@ -1147,211 +959,57 @@ Info Alerts (daily summary):
 
 | Component | Technology | Why Chosen |
 |-----------|-----------|------------|
-| Framework | CrewAI | MIT license, easy multi-agent, 100k+ community |
-| MCP Server | Vercel + Next.js | Global edge, serverless, Fluid Compute |
-| Backend | Railway | Pay-per-use, simple, fast cold starts |
-| API Server | FastAPI | Fast, async, OpenAPI docs |
-| Database | PostgreSQL | Proven, supports vectors (pgvector) |
-| Cache | Redis | Fast, built into Railway |
-| Embeddings | OpenAI | Best quality, reasonable cost |
-| Deployment | Git push | Zero-config, automatic |
+| Framework | CrewAI | MIT license, easy multi-agent, active community |
+| Frontend | Streamlit | Fast prototyping, Python-native, built-in components |
+| Backend | FastAPI | Fast, async, automatic OpenAPI docs |
+| Deployment | Railway | Single service for backend+dashboards, built-in PostgreSQL |
+| Database | PostgreSQL 15 + pgvector | Proven, supports vector embeddings |
+| Embeddings | OpenAI text-embedding-3-small | Best quality, reasonable cost |
+| Agent Routing | Manager pattern | Clear separation, specialized agents |
+| KB Performance | Fast-path bypass | Pragmatic solution for latency requirement |
 
 ---
 
-## Development Workflow
-
-**Local Development:**
-
-```bash
-# Terminal 1: Railway backend
-cd commandcenter/railway
-python -m venv venv
-source venv/bin/activate
-pip install -r requirements.txt
-uvicorn src.api.main:app --reload
-
-# Terminal 2: Vercel frontend
-cd commandcenter/vercel
-npm install
-npm run dev
-
-# Terminal 3: PostgreSQL (local)
-docker run -p 5432:5432 -e POSTGRES_PASSWORD=dev postgres:15
-```
-
-**Testing Workflow:**
-
-```bash
-# Unit tests (tools)
-pytest tests/tools/
-
-# Integration tests (crews)
-pytest tests/integration/
-
-# End-to-end tests (API)
-pytest tests/e2e/
-```
-
-**Deployment Workflow:**
-
-```bash
-# Railway (backend)
-git push origin main
-# Auto-deploys to Railway
-
-# Vercel (MCP server)
-cd vercel/
-vercel deploy --prod
-```
-
----
-
-## Migration from Relay
-
-**Phase 1: Parallel Run (Week 1)**
-- CommandCenter built alongside Relay
-- No production traffic yet
-- Test in isolation
-
-**Phase 2: Shadow Mode (Week 2)**
-- CommandCenter receives same inputs as Relay
-- Compare outputs
-- No actions executed yet (dry-run only)
-
-**Phase 3: Soft Launch (Week 3)**
-- CommandCenter handles read-only queries
-- Relay still handles hardware commands
-- Validate accuracy
-
-**Phase 4: Full Cutover (Week 4)**
-- CommandCenter handles all traffic
-- Relay kept as backup (paused)
-- Monitor for 1 week
-
-**Phase 5: Decommission Relay (Week 5+)**
-- Archive Relay codebase
-- Preserve data
-- Full CommandCenter ownership
-
----
-
-## Success Metrics
+## Success Metrics (V1.5)
 
 **Technical Metrics:**
-- [ ] API response time < 2 seconds (p95)
-- [ ] Tool success rate > 99%
-- [ ] Crew execution time < 30 seconds
-- [ ] Zero critical bugs after 2 weeks
-- [ ] 99%+ uptime
+- ✅ KB response time < 500ms (achieved 400ms)
+- ✅ Solar Controller response < 10s (achieved 5-6s)
+- ✅ Energy Orchestrator response < 20s (achieved 13-15s)
+- ✅ Dashboard page load < 3s (achieved 1-2s)
+- ✅ Zero critical bugs after production deployment
 
 **User Experience Metrics:**
-- [ ] User rarely needs to rephrase
-- [ ] Recommendations accepted > 80% of time
-- [ ] Zero unexpected hardware state changes
-- [ ] User can explain how system works
-- [ ] User confident to add new features
+- ✅ Grid export visible on dashboard
+- ✅ Compressed layout shows more data per screen
+- ✅ Agent metadata displayed in chat
+- ✅ Conversation history accessible
+- ✅ KB queries respond instantly
 
 **Business Metrics:**
-- [ ] Monthly cost < $100
-- [ ] Energy savings measurable
-- [ ] Battery health improved
-- [ ] System pays for itself
+- ✅ Production ready (deployed v1.5.0)
+- ✅ No performance degradation
+- ✅ Documentation complete
+- ✅ All blocking issues resolved
 
 ---
 
-## Risk Mitigation
+## Next Steps (V2.0 and Beyond)
 
-**Risk:** Hardware commands fail  
-**Mitigation:** Dry-run mode, retry logic, rollback capability
+**Potential Enhancements:**
+1. Hardware control agents (miners, battery management)
+2. Autonomous optimization scheduler
+3. Weather forecast integration
+4. Historical analytics dashboard
+5. Mobile-responsive design
+6. Multi-user authentication
 
-**Risk:** Database corruption  
-**Mitigation:** Daily backups, Railway snapshots, schema migrations
-
-**Risk:** API latency too high  
-**Mitigation:** Caching (Redis), async processing, Fluid Compute
-
-**Risk:** Cost overruns  
-**Mitigation:** Budget alerts, usage monitoring, Railway pay-per-use
-
-**Risk:** Security breach  
-**Mitigation:** API keys, rate limiting, input validation, audit logs
-
----
-
-## Next Steps
-
-**Phase 2: Planning (2-3 days)**
-1. Create detailed implementation checklist
-2. Set up Railway project
-3. Set up Vercel project
-4. Initialize GitHub repo structure
-5. Configure CI/CD
-
-**Phase 3: Build (2-3 weeks)**
-1. **Week 1:** Port tools, set up database
-2. **Week 2:** Build agents and crews
-3. **Week 3:** Integrate MCP, test end-to-end
-
-**Phase 4: Deploy (3-5 days)**
-1. Deploy to Railway staging
-2. Deploy to Vercel staging
-3. Test in staging
-4. Deploy to production
-5. Monitor
-
-**Phase 5: Optimize (Ongoing)**
-1. Performance tuning
-2. Cost optimization
-3. Feature additions from V2 backlog
+**Architecture Considerations:**
+- Manager agent pattern scales to additional specialists
+- KB fast-path pattern can extend to other query types
+- Database schema supports additional telemetry fields
+- Streamlit dashboard can add pages without refactor
 
 ---
 
-## Appendix: Configuration Files
-
-### `railway.json`
-```json
-{
-  "$schema": "https://railway.app/railway.schema.json",
-  "build": {
-    "builder": "DOCKERFILE",
-    "dockerfilePath": "Dockerfile"
-  },
-  "deploy": {
-    "numReplicas": 1,
-    "restartPolicyType": "ON_FAILURE",
-    "restartPolicyMaxRetries": 10
-  }
-}
-```
-
-### `vercel.json`
-```json
-{
-  "buildCommand": "npm run build",
-  "devCommand": "npm run dev",
-  "installCommand": "npm install",
-  "framework": "nextjs",
-  "regions": ["iad1"]
-}
-```
-
-### `Dockerfile` (Railway)
-```dockerfile
-FROM python:3.10-slim
-
-WORKDIR /app
-
-# Install dependencies
-COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
-
-# Copy application
-COPY . .
-
-# Run FastAPI with uvicorn
-CMD ["uvicorn", "src.api.main:app", "--host", "0.0.0.0", "--port", "8000"]
-```
-
----
-
-**Architecture Design Complete. Ready for Phase 2: Planning & Implementation.**
+**Architecture Documentation Updated for V1.5.0 - December 10, 2025**

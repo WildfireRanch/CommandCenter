@@ -113,7 +113,7 @@ if latest and "error" not in latest:
     # Extract data from API response
     data = latest.get("data", {})
 
-    col1, col2, col3, col4, col5 = st.columns(5)
+    col1, col2, col3, col4 = st.columns(4)
 
     with col1:
         soc = data.get("soc", 0)
@@ -149,14 +149,6 @@ if latest and "error" not in latest:
             delta=direction
         )
 
-    with col5:
-        grid_export = data.get("pv_to_grid", 0)
-        st.metric(
-            "⚡ Grid Export",
-            f"{grid_export:,.0f}W",
-            delta="Exporting" if grid_export > 0 else "None"
-        )
-
     # Detailed info
     with st.expander("📋 Detailed Information"):
         col1, col2 = st.columns(2)
@@ -169,9 +161,9 @@ if latest and "error" not in latest:
             st.text(f"Battery to Load: {data.get('bat_to_load', 0):,.0f}W")
 
         with col2:
-            st.markdown("**Grid & System**")
-            st.text(f"Grid Power: {data.get('grid_power', 0):,.0f}W")
-            st.text(f"Grid to Load: {data.get('grid_to_load', 0):,.0f}W")
+            st.markdown("**Generator & System**")
+            st.text(f"Generator Power: {data.get('grid_power', 0):,.0f}W")
+            st.text(f"Generator to Load: {data.get('grid_to_load', 0):,.0f}W")
             st.text(f"Timestamp: {data.get('created_at', 'N/A')}")
 
 else:
@@ -220,6 +212,24 @@ if not df.empty:
 
     # Power Flow Chart
     st.markdown("#### ⚡ Power Flow")
+
+    # Add current metrics for Grid Export and Generator Power
+    col1, col2 = st.columns(2)
+    with col1:
+        grid_export = data.get("pv_to_grid", 0)
+        st.metric(
+            "⚡ Grid Export",
+            f"{grid_export:,.0f}W",
+            delta="Exporting" if grid_export > 0 else "None"
+        )
+    with col2:
+        gen_power = data.get("grid_power", 0)
+        st.metric(
+            "🔌 Generator Power",
+            f"{gen_power:,.0f}W",
+            delta="Active" if gen_power > 0 else "Idle"
+        )
+
     fig_power = go.Figure()
 
     fig_power.add_trace(go.Scatter(
