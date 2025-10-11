@@ -42,6 +42,11 @@ def route_to_solar_controller(query: str) -> str:
     - Real-time system status
     - "What is happening now" type questions
     - Historical energy data or trends
+    - System configuration questions (inverter model, battery specs, hardware details)
+    - Questions about THIS SPECIFIC SYSTEM's characteristics
+
+    The Solar Controller has embedded knowledge about the system configuration
+    and can answer questions like "what inverter do you have" without searching.
 
     Examples:
     - "What's my battery level?"
@@ -49,9 +54,12 @@ def route_to_solar_controller(query: str) -> str:
     - "What's my current power usage?"
     - "Am I using grid power right now?"
     - "Show me yesterday's solar production"
+    - "What inverter model do you have?"
+    - "What are your battery specs?"
+    - "Tell me about your hardware"
 
     Args:
-        query (str): The user's question about current/real-time status.
+        query (str): The user's question about current/real-time status or system config.
 
     Returns:
         str: Routing decision in JSON format
@@ -104,21 +112,31 @@ def route_to_energy_orchestrator(query: str) -> str:
 @tool("Search Knowledge Base")
 def search_kb_directly(query: str) -> str:
     """
-    Search the knowledge base for documentation, procedures, and specifications.
+    Search the knowledge base for GENERAL documentation and procedures.
+
+    IMPORTANT: Use this ONLY for general/reference documentation questions.
+    For questions about THIS SPECIFIC SYSTEM's configuration, route to Solar Controller instead.
 
     Use this tool when the user asks:
-    - "How to" questions (procedures, instructions)
-    - "What is" questions (definitions, specifications)
-    - Questions about policies, thresholds, or limits
-    - Questions about maintenance or troubleshooting
-    - Questions about system specifications
-    - Historical information or documentation
+    - General "how to" procedures (not specific to this system)
+    - Technical documentation or reference material
+    - Product manuals or guides
+    - WHEN Solar Controller says "I need to check the documentation"
 
-    Examples:
-    - "What is the minimum battery SOC threshold?"
-    - "How do I maintain the solar panels?"
-    - "What are the battery specifications?"
-    - "What's the policy for running miners?"
+    DO NOT use this for:
+    - Questions about this system's hardware (inverter model, battery specs)
+    - Questions about current status (battery level, solar production)
+    - Questions about system-specific thresholds or policies
+
+    Examples of CORRECT usage:
+    - "How do LiFePO4 batteries work in general?"
+    - "What are best practices for solar panel maintenance?"
+    - "Show me the full Victron manual"
+
+    Examples of INCORRECT usage (route to Solar Controller instead):
+    - "What inverter do you have?" → Solar Controller knows this
+    - "What's your minimum SOC threshold?" → Solar Controller knows this
+    - "What are your battery specs?" → Solar Controller knows this
 
     Args:
         query (str): The documentation or information question. Must be a simple string.
@@ -172,20 +190,22 @@ def create_manager_agent() -> Agent:
         or explain the tool's response. Just return it exactly as the tool gives it.
 
         Your tools:
-        1. route_to_solar_controller - For real-time status queries
+        1. route_to_solar_controller - For status queries AND system configuration questions
         2. route_to_energy_orchestrator - For planning/optimization queries
-        3. search_kb_directly - For documentation/specification queries
+        3. search_kb_directly - For GENERAL documentation (NOT system-specific questions)
 
         ROUTING RULES (call tool immediately):
 
-        Real-time questions → route_to_solar_controller(query)
-        Examples: battery level, solar production, current power, status
+        System questions → route_to_solar_controller(query)
+        Examples: battery level, solar production, inverter model, battery specs,
+                  system configuration, "what do you have", "tell me about your system"
 
         Planning questions → route_to_energy_orchestrator(query)
         Examples: should we run miners, create plan, optimization, decisions
 
-        Documentation questions → search_kb_directly(query)
-        Examples: thresholds, specifications, policies, how-to guides
+        General documentation → search_kb_directly(query)
+        Examples: "how do LiFePO4 batteries work", "show me the Victron manual"
+        NOTE: System-specific questions go to Solar Controller, not KB search!
 
         Off-topic/greetings → Respond briefly (only case where you don't use a tool)
         Examples: hello, who am I, unrelated topics
