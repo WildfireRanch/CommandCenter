@@ -16,7 +16,7 @@ Build extensive frontend dashboarding including agent health monitoring and conn
 
 ### 1. ✅ Complete Backend Telemetry System
 
-**Database Schema (003_agent_metrics.sql)**
+**Database Schema (002_agent_metrics.sql)**
 - ✅ Created `agent_metrics` schema with 4 tables + 2 views
 - ✅ `agent_health_checks` - Periodic health status tracking
 - ✅ `agent_events` - Complete audit log of agent activities
@@ -107,7 +107,7 @@ migration_files = [
 # AFTER (CORRECT):
 migration_files = [
     "001_knowledge_base.sql",
-    "003_agent_metrics.sql",  # ✅ NEW
+    "002_agent_metrics.sql",  # ✅ NEW
 ]
 ```
 
@@ -171,7 +171,7 @@ migration_files = [
 ### Backend (Railway) - 8 Files
 
 **Created:**
-1. `railway/src/database/migrations/003_agent_metrics.sql` (236 lines)
+1. `railway/src/database/migrations/002_agent_metrics.sql` (236 lines)
 2. `railway/src/utils/agent_telemetry.py` (326 lines)
 3. `railway/src/services/agent_health.py` (150 lines)
 
@@ -404,5 +404,5 @@ def create_crew(query: str) -> Crew:
 **Session Complete**
 **Ready for Deployment:** YES ✅
 **Breaking Changes:** NONE
-**Migration Required:** YES (003_agent_metrics.sql)
+**Migration Required:** YES (002_agent_metrics.sql)
 **Documentation Status:** COMPLETE

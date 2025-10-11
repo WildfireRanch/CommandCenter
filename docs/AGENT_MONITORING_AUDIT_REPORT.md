@@ -26,7 +26,7 @@ migration_files = [
 ```python
 migration_files = [
     "001_knowledge_base.sql",       # ✅ EXISTS
-    "003_agent_metrics.sql",        # ✅ EXISTS (NEW)
+    "002_agent_metrics.sql",        # ✅ EXISTS (NEW)
 ]
 ```
 
@@ -35,7 +35,7 @@ migration_files = [
 ---
 
 ### Issue #2: Migration Will Not Auto-Run
-**Problem:** New migration `003_agent_metrics.sql` NOT in `init_schema()` list
+**Problem:** New migration `002_agent_metrics.sql` NOT in `init_schema()` list
 **Impact:** Calling `/db/init-schema` will NOT create agent_metrics tables
 **Fix Required:** YES - Add to migration list
 
@@ -105,7 +105,7 @@ migration_files = [
 
 ### Backend Files
 
-#### ✅ `railway/src/database/migrations/003_agent_metrics.sql`
+#### ✅ `railway/src/database/migrations/002_agent_metrics.sql`
 **Status:** SAFE TO DEPLOY
 - Creates `agent_metrics` schema
 - 4 tables: health_checks, agent_events, tool_execution_log, performance_metrics
@@ -239,7 +239,7 @@ migration_files = [
 # NEW (CORRECT):
 migration_files = [
     "001_knowledge_base.sql",
-    "003_agent_metrics.sql",
+    "002_agent_metrics.sql",
 ]
 ```
 
@@ -297,7 +297,7 @@ migration_files = [
 
 The code is **well-structured and safe**, but needs **one critical fix** before deployment:
 
-**The migration list in `db.py` must be updated** to include `003_agent_metrics.sql` and remove the non-existent `001_agent_memory_schema.sql`.
+**The migration list in `db.py` must be updated** to include `002_agent_metrics.sql` and remove the non-existent `001_agent_memory_schema.sql`.
 
 Without this fix, the new tables won't be created when calling `/db/init-schema`, and you'll need to run the migration manually.
 

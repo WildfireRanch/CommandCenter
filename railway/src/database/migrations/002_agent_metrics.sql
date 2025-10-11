@@ -1,5 +1,5 @@
 -- ═══════════════════════════════════════════════════════════════════════════
--- MIGRATION: 003_agent_metrics.sql
+-- MIGRATION: 002_agent_metrics.sql
 -- PURPOSE: Add agent health monitoring, telemetry, and activity tracking
 -- CREATED: 2025-10-11
 -- ═══════════════════════════════════════════════════════════════════════════

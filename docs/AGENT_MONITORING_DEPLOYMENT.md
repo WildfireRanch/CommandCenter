@@ -29,7 +29,7 @@ Comprehensive agent health monitoring, performance tracking, and real-time activ
 ### ✅ Files Created/Modified
 
 **Backend (Railway):**
-- ✅ [railway/src/database/migrations/003_agent_metrics.sql](../railway/src/database/migrations/003_agent_metrics.sql) - NEW
+- ✅ [railway/src/database/migrations/002_agent_metrics.sql](../railway/src/database/migrations/002_agent_metrics.sql) - NEW
 - ✅ [railway/src/utils/agent_telemetry.py](../railway/src/utils/agent_telemetry.py) - NEW
 - ✅ [railway/src/services/agent_health.py](../railway/src/services/agent_health.py) - NEW
 - ✅ [railway/src/api/main.py](../railway/src/api/main.py) - MODIFIED (added 7 endpoints)
@@ -59,7 +59,7 @@ curl -X POST https://api.wildfireranch.us/db/init-schema \
 **Option B: Direct SQL in Railway Console**
 1. Go to Railway Dashboard → PostgreSQL
 2. Click "Query" tab
-3. Paste contents of `railway/src/database/migrations/003_agent_metrics.sql`
+3. Paste contents of `railway/src/database/migrations/002_agent_metrics.sql`
 4. Execute
 
 **Verify Migration Success:**

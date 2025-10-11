@@ -264,7 +264,8 @@ def init_schema():
     # List of migration files to run in order
     migration_files = [
         "001_knowledge_base.sql",
-        "003_agent_metrics.sql",
+        "002_agent_metrics.sql",
+        "003_victron_schema.sql",  # V1.6: Victron Cerbo battery monitoring
     ]
 
     # Fallback if migrations directory doesn't exist
