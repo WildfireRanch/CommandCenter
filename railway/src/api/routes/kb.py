@@ -421,3 +421,60 @@ async def get_kb_stats():
             status_code=500,
             detail=f"Failed to get stats: {str(e)}"
         )
+
+
+@router.get("/context-test")
+async def test_context_loading():
+    """
+    DIAGNOSTIC ENDPOINT: Test get_context_files() function directly.
+
+    This endpoint tests whether context files can be loaded from the database
+    and returned in the format that agents expect.
+
+    Returns:
+        Dict with:
+            - success: Boolean indicating if context loading worked
+            - context_length: Total characters in compiled context
+            - file_count: Number of context files found
+            - context_preview: First 500 chars of context (for verification)
+            - error: Error message if loading failed
+    """
+    try:
+        from ...tools.kb_search import get_context_files
+
+        logger.info("=== /kb/context-test endpoint called ===")
+
+        # Call the function that agents use
+        context = get_context_files()
+
+        logger.info(f"Context loaded: {len(context)} characters")
+
+        if not context:
+            return {
+                "success": False,
+                "context_length": 0,
+                "file_count": 0,
+                "context_preview": "",
+                "error": "get_context_files() returned empty string"
+            }
+
+        # Extract file count from context (count ### headers)
+        file_count = context.count("###")
+
+        return {
+            "success": True,
+            "context_length": len(context),
+            "file_count": file_count,
+            "context_preview": context[:500] + "..." if len(context) > 500 else context,
+            "error": None
+        }
+
+    except Exception as e:
+        logger.exception(f"Context test failed: {e}")
+        return {
+            "success": False,
+            "context_length": 0,
+            "file_count": 0,
+            "context_preview": "",
+            "error": str(e)
+        }
