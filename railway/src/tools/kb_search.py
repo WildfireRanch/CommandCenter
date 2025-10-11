@@ -129,10 +129,16 @@ def get_context_files() -> str:
 
         [Full document content here...]
     """
+    import logging
+    logger = logging.getLogger(__name__)
+
     try:
+        logger.info("=== get_context_files() START ===")
         from ..utils.db import get_connection, query_all
+        logger.info("Imports successful, attempting database connection...")
 
         with get_connection() as conn:
+            logger.info("Database connection established, querying for context files...")
             context_docs = query_all(
                 conn,
                 """
@@ -143,8 +149,10 @@ def get_context_files() -> str:
                 """,
                 as_dict=True
             )
+            logger.info(f"Query complete: Found {len(context_docs) if context_docs else 0} context files")
 
         if not context_docs:
+            logger.warning("⚠️  No context files returned from query!")
             return ""
 
         # Format as markdown sections
@@ -152,13 +160,21 @@ def get_context_files() -> str:
         context += "The following information is critical system knowledge:\n\n"
 
         for doc in context_docs:
+            doc_title = doc.get('title', 'Untitled')
+            content_length = len(doc.get('full_content', ''))
+            logger.info(f"Processing context file: {doc_title} ({content_length} chars)")
+
             context += f"### {doc['title']}\n\n"
             context += f"{doc['full_content']}\n\n"
             context += "---\n\n"
 
+        total_length = len(context)
+        logger.info(f"✅ Context compiled successfully: {total_length} total characters")
+        logger.info("=== get_context_files() END ===")
         return context
 
     except Exception as e:
+        logger.error(f"❌ ERROR in get_context_files(): {e}", exc_info=True)
         print(f"⚠️  Warning: Could not load context files: {e}")
         return ""
 
