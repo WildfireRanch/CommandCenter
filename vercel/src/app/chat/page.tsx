@@ -7,6 +7,8 @@ interface Message {
   role: 'user' | 'assistant'
   content: string
   timestamp: string
+  agent_role?: string  // Which agent handled this (Solar Controller, Research Agent, etc.)
+  duration_ms?: number // How long the agent took to respond
 }
 
 export default function ChatPage() {
@@ -52,17 +54,24 @@ export default function ChatPage() {
 
       if (res.ok) {
         const data = await res.json()
+        console.log('Agent response:', data) // Debug logging
         const assistantMessage: Message = {
           role: 'assistant',
           content: data.response || 'No response received',
-          timestamp: new Date().toISOString()
+          timestamp: new Date().toISOString(),
+          agent_role: data.agent_role || 'Unknown Agent',
+          duration_ms: data.duration_ms || 0
         }
         setMessages(prev => [...prev, assistantMessage])
       } else {
+        console.error('API error:', res.status, res.statusText)
+        const errorText = await res.text().catch(() => 'Unknown error')
+        console.error('Error details:', errorText)
         const errorMessage: Message = {
           role: 'assistant',
-          content: 'Sorry, I encountered an error. Please try again.',
-          timestamp: new Date().toISOString()
+          content: `Sorry, I encountered an error (${res.status}). Please try again.`,
+          timestamp: new Date().toISOString(),
+          agent_role: 'System'
         }
         setMessages(prev => [...prev, errorMessage])
       }
@@ -70,8 +79,9 @@ export default function ChatPage() {
       console.error('Chat error:', error)
       const errorMessage: Message = {
         role: 'assistant',
-        content: 'Connection error. Please check your network.',
-        timestamp: new Date().toISOString()
+        content: `Connection error: ${error instanceof Error ? error.message : 'Unknown error'}. Please check your network.`,
+        timestamp: new Date().toISOString(),
+        agent_role: 'System'
       }
       setMessages(prev => [...prev, errorMessage])
     } finally {
@@ -119,8 +129,10 @@ export default function ChatPage() {
       <div className="bg-white border-b border-gray-200 p-4">
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-2xl font-bold text-gray-900">Solar Controller Agent</h1>
-            <p className="text-sm text-gray-500 mt-1">Session: {sessionId.slice(0, 8)}...</p>
+            <h1 className="text-2xl font-bold text-gray-900">AI Energy Assistant</h1>
+            <p className="text-sm text-gray-500 mt-1">
+              Multi-Agent System • Session: {sessionId.slice(0, 8)}...
+            </p>
           </div>
           <div className="flex gap-2">
             <button
@@ -146,15 +158,19 @@ export default function ChatPage() {
       <div className="flex-1 overflow-y-auto p-6 space-y-4 bg-gray-50">
         {messages.length === 0 ? (
           <div className="bg-blue-50 border border-blue-200 rounded-lg p-6">
-            <h2 className="text-lg font-semibold text-blue-900 mb-3">Welcome! I'm your Solar Controller agent.</h2>
-            <p className="text-blue-800 mb-4">I can help you with:</p>
+            <h2 className="text-lg font-semibold text-blue-900 mb-3">Welcome! I'm your AI Energy Assistant.</h2>
+            <p className="text-blue-800 mb-4">I have access to multiple specialized agents:</p>
             <ul className="space-y-2 text-blue-700">
-              <li>🔋 Battery status and state of charge</li>
-              <li>☀️ Solar production monitoring</li>
-              <li>⚡ Power consumption analysis</li>
-              <li>💡 Energy optimization recommendations</li>
+              <li>🤖 <strong>Solar Controller</strong> - Battery status, solar production, real-time system data</li>
+              <li>🔬 <strong>Research Agent</strong> - Industry trends, technology comparisons, best practices</li>
+              <li>⚡ <strong>Energy Orchestrator</strong> - Planning, optimization strategies, multi-day forecasts</li>
+              <li>🎯 <strong>Manager</strong> - Routes your questions to the right specialist</li>
             </ul>
-            <p className="text-blue-800 mt-4 font-medium">Ask me anything about your solar energy system!</p>
+            <p className="text-blue-800 mt-4 font-medium">Ask me anything! I'll automatically route to the best agent for your question.</p>
+            <div className="mt-4 p-3 bg-white rounded border border-blue-300">
+              <p className="text-xs text-blue-600 font-medium mb-1">Try asking:</p>
+              <p className="text-xs text-blue-600">"What's my current battery level?" or "What are the latest trends in solar storage?"</p>
+            </div>
           </div>
         ) : (
           messages.map((msg, idx) => (
@@ -172,8 +188,15 @@ export default function ChatPage() {
                 <div className="flex items-start gap-3">
                   <div className="text-2xl">{msg.role === 'user' ? '🧑' : '🤖'}</div>
                   <div className="flex-1">
-                    <div className="text-sm font-medium mb-1">
-                      {msg.role === 'user' ? 'You' : 'Solar Controller'}
+                    <div className="flex items-center gap-2 mb-1">
+                      <div className="text-sm font-medium">
+                        {msg.role === 'user' ? 'You' : msg.agent_role || 'Agent'}
+                      </div>
+                      {msg.duration_ms && msg.duration_ms > 0 && (
+                        <div className="text-xs text-gray-400 bg-gray-100 px-2 py-0.5 rounded">
+                          {(msg.duration_ms / 1000).toFixed(1)}s
+                        </div>
+                      )}
                     </div>
                     <div className="text-sm whitespace-pre-wrap">{msg.content}</div>
                     <div className={`text-xs mt-2 ${msg.role === 'user' ? 'text-blue-100' : 'text-gray-400'}`}>
