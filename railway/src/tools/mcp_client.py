@@ -22,11 +22,42 @@
 import os
 import json
 import logging
+import time
 from typing import Optional, Dict, Any
 from crewai.tools import tool
 import httpx
 
 logger = logging.getLogger(__name__)
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Rate Limiting and Retry Configuration
+# ─────────────────────────────────────────────────────────────────────────────
+
+# Simple rate limiting state (in-memory)
+_last_request_time = 0
+_min_request_interval = 1.0  # Minimum seconds between requests
+
+
+def rate_limit_wait():
+    """
+    Simple rate limiting: wait if needed between requests.
+
+    WHAT: Prevents hitting Tavily API rate limits
+    WHY: Production stability and API quota management
+    HOW: Tracks last request time, sleeps if needed
+    """
+    global _last_request_time
+
+    current_time = time.time()
+    time_since_last = current_time - _last_request_time
+
+    if time_since_last < _min_request_interval:
+        sleep_time = _min_request_interval - time_since_last
+        logger.debug(f"Rate limiting: sleeping {sleep_time:.2f}s")
+        time.sleep(sleep_time)
+
+    _last_request_time = time.time()
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -63,53 +94,108 @@ def get_tavily_mcp_url() -> str:
     return f"{base_url}?tavilyApiKey={api_key}"
 
 
-async def call_tavily_mcp(tool_name: str, arguments: Dict[str, Any]) -> Dict[str, Any]:
+def call_tavily_api(tool_name: str, arguments: Dict[str, Any], max_retries: int = 3) -> Dict[str, Any]:
     """
-    Call a Tavily MCP tool via HTTP.
+    Call Tavily API directly via REST endpoint with retry logic.
+
+    NOTE: Using direct Tavily REST API instead of MCP for CrewAI compatibility.
+    CrewAI tools must be synchronous, and the Tavily API is simpler than MCP.
 
     Args:
-        tool_name: Name of the MCP tool (e.g., "tavily-search")
+        tool_name: Name of the tool ("search" or "extract")
         arguments: Tool arguments as dictionary
+        max_retries: Maximum number of retry attempts (default 3)
 
     Returns:
-        dict: Tool response
+        dict: API response
 
     Raises:
-        Exception: If API call fails
+        Exception: If API call fails after all retries
     """
-    url = get_tavily_mcp_url()
-
-    if not get_tavily_api_key():
+    api_key = get_tavily_api_key()
+    if not api_key:
         raise ValueError("TAVILY_API_KEY environment variable not set")
 
-    payload = {
-        "jsonrpc": "2.0",
-        "id": 1,
-        "method": "tools/call",
-        "params": {
-            "name": tool_name,
-            "arguments": arguments
-        }
+    # Tavily REST API endpoints
+    base_url = "https://api.tavily.com"
+
+    # Map tool names to endpoints
+    endpoint_map = {
+        "tavily-search": f"{base_url}/search",
+        "search": f"{base_url}/search",
+        "tavily-extract": f"{base_url}/extract",
+        "extract": f"{base_url}/extract"
     }
 
-    try:
-        async with httpx.AsyncClient(timeout=30.0) as client:
-            response = await client.post(url, json=payload)
-            response.raise_for_status()
-            result = response.json()
+    endpoint = endpoint_map.get(tool_name)
+    if not endpoint:
+        raise ValueError(f"Unknown Tavily tool: {tool_name}")
 
-            if "error" in result:
-                error_msg = result["error"].get("message", "Unknown error")
-                raise Exception(f"MCP error: {error_msg}")
+    # Add API key to arguments
+    payload = {**arguments, "api_key": api_key}
 
-            return result.get("result", {})
+    # Retry loop with exponential backoff
+    last_error = None
+    for attempt in range(max_retries):
+        try:
+            # Rate limiting
+            rate_limit_wait()
 
-    except httpx.TimeoutException:
-        raise Exception("Tavily MCP request timed out (30s)")
-    except httpx.HTTPError as e:
-        raise Exception(f"Tavily MCP HTTP error: {str(e)}")
-    except Exception as e:
-        raise Exception(f"Tavily MCP call failed: {str(e)}")
+            # Use synchronous httpx client for CrewAI compatibility
+            with httpx.Client(timeout=30.0) as client:
+                response = client.post(endpoint, json=payload)
+                response.raise_for_status()
+                result = response.json()
+
+                # Check for API errors
+                if "error" in result:
+                    error_msg = result.get("error", "Unknown error")
+                    raise Exception(f"Tavily API error: {error_msg}")
+
+                logger.info(f"Tavily API call successful on attempt {attempt + 1}")
+                return result
+
+        except httpx.TimeoutException as e:
+            last_error = f"Tavily API request timed out (30s)"
+            logger.warning(f"Attempt {attempt + 1}/{max_retries} failed: {last_error}")
+            if attempt < max_retries - 1:
+                time.sleep(2 ** attempt)  # Exponential backoff: 1s, 2s, 4s
+
+        except httpx.HTTPStatusError as e:
+            error_detail = ""
+            try:
+                error_json = e.response.json()
+                error_detail = error_json.get("error", error_json.get("message", ""))
+            except:
+                error_detail = e.response.text[:200]
+
+            last_error = f"Tavily API HTTP {e.response.status_code}: {error_detail}"
+
+            # Don't retry on client errors (400-499), except rate limits
+            if 400 <= e.response.status_code < 500 and e.response.status_code != 429:
+                logger.error(f"Client error, not retrying: {last_error}")
+                raise Exception(last_error)
+
+            logger.warning(f"Attempt {attempt + 1}/{max_retries} failed: {last_error}")
+            if attempt < max_retries - 1:
+                time.sleep(2 ** attempt)
+
+        except httpx.HTTPError as e:
+            last_error = f"Tavily API HTTP error: {str(e)}"
+            logger.warning(f"Attempt {attempt + 1}/{max_retries} failed: {last_error}")
+            if attempt < max_retries - 1:
+                time.sleep(2 ** attempt)
+
+        except Exception as e:
+            last_error = f"Tavily API call failed: {str(e)}"
+            logger.warning(f"Attempt {attempt + 1}/{max_retries} failed: {last_error}")
+            if attempt < max_retries - 1:
+                time.sleep(2 ** attempt)
+
+    # All retries exhausted
+    error_msg = f"Tavily API failed after {max_retries} attempts. Last error: {last_error}"
+    logger.error(error_msg)
+    raise Exception(error_msg)
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -123,7 +209,7 @@ def tavily_search(query: str, max_results: int = 5) -> str:
 
     WHAT: Performs web search with AI-powered result summarization
     WHY: Agents need access to current information not in local KB
-    HOW: Calls Tavily MCP server, returns formatted results with citations
+    HOW: Calls Tavily REST API, returns formatted results with citations
 
     Use this tool when you need:
     - Current industry trends and news
@@ -153,8 +239,6 @@ def tavily_search(query: str, max_results: int = 5) -> str:
            URL: https://example.com/renewable-trends
            Summary: Solar efficiency has improved by 15% over past 3 years...
     """
-    import asyncio
-
     # Validate inputs
     if not query or len(query.strip()) < 3:
         return "Error: Query must be at least 3 characters long."
@@ -164,15 +248,16 @@ def tavily_search(query: str, max_results: int = 5) -> str:
     try:
         logger.info(f"Tavily search: {query} (max_results={max_results})")
 
-        # Call Tavily MCP asynchronously
+        # Call Tavily API synchronously (CrewAI compatible)
         arguments = {
             "query": query,
             "max_results": max_results,
             "include_answer": True,
-            "include_raw_content": False
+            "include_raw_content": False,
+            "search_depth": "advanced"  # Get comprehensive results
         }
 
-        result = asyncio.run(call_tavily_mcp("tavily-search", arguments))
+        result = call_tavily_api("search", arguments)
 
         # Extract results
         results = result.get("results", [])
@@ -202,7 +287,9 @@ def tavily_search(query: str, max_results: int = 5) -> str:
             response += f"{i}. {title}\n"
             response += f"   URL: {url}\n"
             response += f"   Summary: {content}\n"
-            response += f"   Relevance: {score:.2f}\n\n"
+            if score:
+                response += f"   Relevance: {score:.2f}\n"
+            response += "\n"
 
         response += f"\nSearched {len(results)} sources from the web."
 
@@ -222,7 +309,7 @@ def tavily_extract(url: str) -> str:
 
     WHAT: Fetches and extracts structured content from a URL
     WHY: Agents need detailed information from specific sources
-    HOW: Calls Tavily MCP extract tool, returns formatted article content
+    HOW: Calls Tavily REST API extract endpoint, returns formatted content
 
     Use this tool when you need:
     - Full content from a specific article or documentation page
@@ -245,8 +332,6 @@ def tavily_extract(url: str) -> str:
 
         [Full article content here...]
     """
-    import asyncio
-
     # Validate input
     if not url or not url.startswith(("http://", "https://")):
         return "Error: Invalid URL. Must start with http:// or https://"
@@ -254,13 +339,19 @@ def tavily_extract(url: str) -> str:
     try:
         logger.info(f"Tavily extract: {url}")
 
-        # Call Tavily MCP asynchronously
-        arguments = {"url": url}
-        result = asyncio.run(call_tavily_mcp("tavily-extract", arguments))
+        # Call Tavily API synchronously (CrewAI compatible)
+        arguments = {"urls": [url]}  # Tavily extract API expects array
+        result = call_tavily_api("extract", arguments)
 
-        # Extract content
-        title = result.get("title", "Untitled")
-        content = result.get("content", "")
+        # Extract content (result is a list of extracted pages)
+        results = result.get("results", [])
+        if not results:
+            return f"No content could be extracted from: {url}"
+
+        # Get first result
+        page = results[0]
+        title = page.get("title", "Untitled")
+        content = page.get("raw_content", "") or page.get("content", "")
 
         if not content:
             return f"No content could be extracted from: {url}"
@@ -286,7 +377,7 @@ def tavily_extract(url: str) -> str:
 
 if __name__ == "__main__":
     """
-    Test the Tavily MCP tools from command line.
+    Test the Tavily API tools from command line.
 
     Usage:
         python -m src.tools.mcp_client
@@ -295,7 +386,7 @@ if __name__ == "__main__":
     """
     import sys
 
-    print("🌐 Testing Tavily MCP Tools...\n")
+    print("🌐 Testing Tavily API Tools...\n")
 
     # Check API key
     api_key = get_tavily_api_key()
@@ -304,7 +395,7 @@ if __name__ == "__main__":
         sys.exit(1)
 
     print(f"✅ API key found: {api_key[:10]}...")
-    print(f"📡 MCP URL: {get_tavily_mcp_url()}\n")
+    print(f"📡 API URL: https://api.tavily.com\n")
 
     # Test search
     test_query = "LiFePO4 battery technology 2025"
@@ -318,9 +409,11 @@ if __name__ == "__main__":
         print("\n✅ Search test complete!")
     except Exception as e:
         print(f"\n❌ Search test failed: {e}")
+        import traceback
+        traceback.print_exc()
         sys.exit(1)
 
     # Test extract (skip in basic test)
     print("\n💡 To test extract, run:")
-    print('   tavily_extract.func("https://example.com/article")')
+    print('   python -c "from src.tools.mcp_client import tavily_extract; print(tavily_extract.func(\\"https://example.com/article\\"))"')
     print("\n✅ All tests complete!")
