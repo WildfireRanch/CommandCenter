@@ -952,8 +952,8 @@ def create_app() -> FastAPI:
 
                     elif target_agent == "Research Agent":
                         from ..agents.research_agent import create_research_crew
-                        specialist_crew = create_research_crew()
-                        result = specialist_crew.kickoff(inputs={"query": request.message})
+                        specialist_crew = create_research_crew(query=request.message)
+                        result = specialist_crew.kickoff()
                         result_str = str(result)
                         agent_used = "Research Agent"
                         agent_role = "Energy Systems Research Consultant"

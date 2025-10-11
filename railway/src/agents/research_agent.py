@@ -173,10 +173,60 @@ def create_research_agent() -> Agent:
 
 
 # ─────────────────────────────────────────────────────────────────────────────
+# Task Templates
+# ─────────────────────────────────────────────────────────────────────────────
+
+def create_research_task(query: str, agent: Agent = None) -> Task:
+    """
+    Create a task for research queries.
+
+    Args:
+        query: User's research question
+        agent: Pre-created agent instance (optional, will create if not provided)
+
+    Returns:
+        Task: Configured task for the research agent
+    """
+    # Create agent if not provided
+    if agent is None:
+        agent = create_research_agent()
+
+    return Task(
+        description=f"""Answer this research question: {query}
+
+        Instructions:
+        1. Start with your SYSTEM CONTEXT (embedded above) for user-specific facts
+        2. Use KNOWLEDGE BASE (search_knowledge_base) for detailed procedures/manuals
+        3. Use WEB SEARCH (tavily_search) for:
+           - Current industry trends and news
+           - Technology comparisons and reviews
+           - Expert opinions and case studies
+           - Information not in system context or KB
+        4. ALWAYS cite your sources:
+           - System Context: "According to your system specifications..."
+           - Knowledge Base: "From the system documentation..."
+           - Web Search: "According to [Source Name] ([URL])..."
+        5. Combine multiple sources for comprehensive answers
+        6. Provide actionable recommendations specific to the user's system
+        7. Structure response: Direct answer → Evidence → Context → Recommendations
+
+        The user's question: {query}
+        """,
+        expected_output="""A comprehensive, well-researched answer with:
+        - Direct answer to the question
+        - Citations from multiple sources (system context, KB, and/or web search)
+        - Supporting evidence and context
+        - Specific recommendations or next steps
+        - All facts properly sourced (no hallucinations)""",
+        agent=agent,
+    )
+
+
+# ─────────────────────────────────────────────────────────────────────────────
 # Crew Factory
 # ─────────────────────────────────────────────────────────────────────────────
 
-def create_research_crew() -> Crew:
+def create_research_crew(query: str) -> Crew:
     """
     Create a crew with the Research Agent.
 
@@ -184,18 +234,17 @@ def create_research_crew() -> Crew:
     WHY: Standardized interface for executing research queries
     HOW: Creates agent + task + crew for query processing
 
+    Args:
+        query: User's research question
+
     Returns:
         Crew: Configured crew ready to process research queries
     """
     # Create the agent
     agent = create_research_agent()
 
-    # Create the task (will be parameterized via inputs)
-    task = Task(
-        description="{query}",
-        expected_output="A comprehensive, well-researched answer with citations from multiple sources (system context, knowledge base, and web search as appropriate). Include specific recommendations and next steps.",
-        agent=agent,
-    )
+    # Create the task with query
+    task = create_research_task(query, agent=agent)
 
     # Create and return the crew
     crew = Crew(
@@ -232,8 +281,8 @@ def execute_research_query(query: str) -> dict:
         }
     """
     try:
-        crew = create_research_crew()
-        result = crew.kickoff(inputs={"query": query})
+        crew = create_research_crew(query)
+        result = crew.kickoff()
 
         return {
             "success": True,
