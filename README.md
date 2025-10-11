@@ -4,22 +4,24 @@ AI-powered energy management system with CrewAI agents, MCP integration, and pro
 
 ## 🎯 Project Status
 
-**Current Phase:** ✅ **V1.6 COMPLETE & VALIDATED** 🎉
-**Status:** Production Stable - All Systems Operational
-**Last Updated:** 2025-10-11 (Session 028 - Context Management Complete!)
+**Current Phase:** ✅ **V1.7 PRODUCTION READY** 🎉
+**Status:** Production Stable - All Systems Operational + Web Search
+**Last Updated:** 2025-10-11 (Session 030 - V1.7 Research Agent Production!)
 
-### Quick Stats (V1.6)
+### Quick Stats (V1.7)
 - ✅ **Production Services:** API + Dashboard deployed on Railway
-- ✅ **Agents:** 3 operational with embedded system context (24KB)
-- ✅ **Intelligent Routing:** System questions → Solar Controller, Planning → Orchestrator
+- ✅ **Agents:** 4 operational (Solar Controller, Orchestrator, Manager, **Research Agent**)
+- ✅ **Web Search:** Tavily API integration for current industry information
+- ✅ **Intelligent Routing:** System questions → Solar Controller, Research → Research Agent
 - ✅ **Knowledge Base:** 4 context files + 10 searchable documents (147K tokens)
-- ✅ **Context Management:** Embedded in agent backstories (V1.6 innovation)
+- ✅ **Context Management:** All agents have embedded system context (24KB)
 - ✅ **KB Fast-Path:** 400ms documentation queries (refined for system-specific)
 - ✅ **Multi-Turn Context:** Conversation memory preserved across turns
 - ✅ **API Endpoints:** 18+ operational (including /kb/context-test diagnostic)
 - ✅ **Database:** PostgreSQL 15 + TimescaleDB + pgvector
-- ✅ **Validation:** All critical tests passing
-- 🎯 **Next:** Monitor V1.6 stability → V2.0 planning (hardware control)
+- ✅ **Production Features:** Rate limiting, retry logic, comprehensive error handling
+- ✅ **Validation:** All tests passing (100% success rate)
+- 🎯 **Next:** Monitor V1.7 stability → V1.8 caching & optimization
 
 ---
 
@@ -386,13 +388,22 @@ Private Project - WildfireRanch © 2025
 
 ## 🎉 Recent Updates
 
+**Session 030 (2025-10-11) - V1.7 Research Agent Production:**
+- ✅ **Research Agent:** New agent with Tavily web search integration
+- ✅ **Web Search Tools:** `tavily_search` and `tavily_extract` for current information
+- ✅ **Bug Fixes:** Async/sync compatibility, missing API key, error handling
+- ✅ **Production Features:** Rate limiting, retry logic, comprehensive logging
+- ✅ **Smart Routing:** Research queries → Research Agent, System → Solar Controller
+- ✅ **Complete Validation:** All 6 tests passing (100% success rate)
+- ✅ **Railway Deployment:** Live and operational
+- 📊 **Performance:** Research queries ~27s, system queries ~5s
+
 **Session 028 (2025-10-11) - V1.6 Context Management:**
 - ✅ **Embedded System Context:** 24KB context loaded in agent backstories
 - ✅ **Intelligent Routing Fix:** System questions now route to agents with context
 - ✅ **KB Fast-Path Refinement:** Excludes system-specific patterns
 - ✅ **Complete Validation:** All 4 critical tests passing
 - ✅ **Diagnostic Tools:** Added /kb/context-test endpoint + logging
-- ✅ **Documentation:** V1.6 validation results, update notes, project status
 - 📊 **Performance:** No degradation, improved accuracy for system questions
 
 **Session 027 (2025-10-10) - Agent Architecture Review:**
@@ -400,13 +411,7 @@ Private Project - WildfireRanch © 2025
 - ✅ Identified KB Fast-Path improvements needed
 - ✅ Created comprehensive system documentation
 
-**Session 018C (2025-10-08) - Knowledge Base Expansion:**
-- ✅ Google OAuth auto-redirect authentication
-- ✅ PDF and Google Sheets support
-- ✅ Smart sync with change detection
-- ✅ 15 documents syncing (141K tokens)
-
-See [Session Notes](docs/sessions/) and [PROJECT_STATUS.md](PROJECT_STATUS.md) for complete history.
+See [Session Notes](docs/sessions/), [V1.7_PRODUCTION_VALIDATION.md](V1.7_PRODUCTION_VALIDATION.md), and [PROJECT_STATUS.md](PROJECT_STATUS.md) for complete history.
 
 ---
 
