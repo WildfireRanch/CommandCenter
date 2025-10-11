@@ -23,9 +23,17 @@ interface SystemStats {
   }
 }
 
+interface AgentHealth {
+  agent_name: string
+  status: string
+  response_time_ms?: number
+  checked_at: string
+}
+
 export default function StatusPage() {
   const [health, setHealth] = useState<HealthStatus | null>(null)
   const [stats, setStats] = useState<SystemStats | null>(null)
+  const [agentsHealth, setAgentsHealth] = useState<AgentHealth[]>([])
   const [loading, setLoading] = useState(true)
   const [lastUpdate, setLastUpdate] = useState<Date>(new Date())
 
@@ -43,7 +51,15 @@ export default function StatusPage() {
         // Fetch system stats
         const statsRes = await fetch(`${API_URL}/system/stats`)
         if (statsRes.ok) {
-          setStats(await statsRes.json())
+          const statsData = await statsRes.json()
+          setStats(statsData.data)
+        }
+
+        // Fetch agent health
+        const agentsRes = await fetch(`${API_URL}/agents/health`)
+        if (agentsRes.ok) {
+          const agentsData = await agentsRes.json()
+          setAgentsHealth(agentsData.data?.agents || [])
         }
 
         setLastUpdate(new Date())
@@ -146,6 +162,47 @@ export default function StatusPage() {
           <p className="text-xs text-gray-500 mt-1">
             {stats?.latest_energy ? 'Real-time updates' : 'No recent data'}
           </p>
+        </div>
+      </div>
+
+      {/* Agent Services Status */}
+      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+        <h2 className="text-xl font-semibold mb-4">Agent Services</h2>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          {agentsHealth.length === 0 ? (
+            <div className="col-span-3 text-center py-6 text-gray-500">
+              {loading ? 'Loading agent status...' : 'No agent health data available'}
+            </div>
+          ) : (
+            agentsHealth.map((agent) => {
+              const isOnline = agent.status === 'online'
+              const isDegraded = agent.status === 'degraded'
+              const statusColor = isOnline ? 'text-green-600' : isDegraded ? 'text-yellow-600' : 'text-red-600'
+
+              return (
+                <div key={agent.agent_name} className="bg-gray-50 rounded-lg p-4">
+                  <div className="flex items-center justify-between mb-2">
+                    <p className="font-medium text-gray-900">{agent.agent_name}</p>
+                    {isOnline ? (
+                      <CheckCircle className="w-5 h-5 text-green-600" />
+                    ) : isDegraded ? (
+                      <AlertCircle className="w-5 h-5 text-yellow-600" />
+                    ) : (
+                      <XCircle className="w-5 h-5 text-red-600" />
+                    )}
+                  </div>
+                  <p className={`text-sm font-medium ${statusColor} capitalize`}>
+                    {agent.status}
+                  </p>
+                  {agent.response_time_ms !== undefined && (
+                    <p className="text-xs text-gray-500 mt-1">
+                      Response: {agent.response_time_ms}ms
+                    </p>
+                  )}
+                </div>
+              )
+            })
+          )}
         </div>
       </div>
 

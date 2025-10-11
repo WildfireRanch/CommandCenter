@@ -983,6 +983,253 @@ def create_app() -> FastAPI:
             )
     
     # ─────────────────────────────────────────────────────────────────────────
+    # Agent Monitoring Endpoints
+    # ─────────────────────────────────────────────────────────────────────────
+
+    @app.get("/agents/health")
+    async def get_agents_health():
+        """
+        Get health status of all agents.
+
+        Returns latest health check data for each agent.
+        """
+        try:
+            from ..services.agent_health import get_agent_status_summary
+
+            summary = get_agent_status_summary()
+
+            return {
+                "status": "success",
+                "data": summary,
+                "timestamp": time.time(),
+            }
+
+        except Exception as e:
+            logger.exception("get_agents_health_failed error=%s", e)
+            raise HTTPException(
+                status_code=500,
+                detail=f"Failed to get agent health: {str(e)}"
+            )
+
+    @app.get("/agents/{agent_name}/health")
+    async def get_agent_health(agent_name: str):
+        """
+        Get health status of a specific agent.
+
+        Args:
+            agent_name: Name of the agent (Manager, Solar Controller, Energy Orchestrator)
+        """
+        try:
+            from ..services.agent_health import check_agent_health
+
+            health = check_agent_health(agent_name)
+
+            return {
+                "status": "success",
+                "data": health,
+                "timestamp": time.time(),
+            }
+
+        except Exception as e:
+            logger.exception("get_agent_health_failed agent=%s error=%s", agent_name, e)
+            raise HTTPException(
+                status_code=500,
+                detail=f"Failed to get agent health: {str(e)}"
+            )
+
+    @app.get("/agents/activity")
+    async def get_agents_activity(limit: int = 100):
+        """
+        Get recent agent activity events.
+
+        Args:
+            limit: Maximum number of events to return (default: 100, max: 1000)
+        """
+        try:
+            from ..utils.agent_telemetry import get_recent_agent_activity
+
+            limit = min(limit, 1000)  # Cap at 1000
+            activity = get_recent_agent_activity(limit=limit)
+
+            return {
+                "status": "success",
+                "count": len(activity),
+                "data": activity,
+                "timestamp": time.time(),
+            }
+
+        except Exception as e:
+            logger.exception("get_agents_activity_failed error=%s", e)
+            raise HTTPException(
+                status_code=500,
+                detail=f"Failed to get agent activity: {str(e)}"
+            )
+
+    @app.get("/agents/{agent_name}/activity")
+    async def get_agent_activity(agent_name: str, limit: int = 100):
+        """
+        Get activity for a specific agent.
+
+        Args:
+            agent_name: Agent name to filter by
+            limit: Maximum number of events (default: 100, max: 1000)
+        """
+        try:
+            from ..utils.agent_telemetry import get_recent_agent_activity
+
+            limit = min(limit, 1000)
+            activity = get_recent_agent_activity(limit=limit, agent_name=agent_name)
+
+            return {
+                "status": "success",
+                "agent_name": agent_name,
+                "count": len(activity),
+                "data": activity,
+                "timestamp": time.time(),
+            }
+
+        except Exception as e:
+            logger.exception("get_agent_activity_failed agent=%s error=%s", agent_name, e)
+            raise HTTPException(
+                status_code=500,
+                detail=f"Failed to get agent activity: {str(e)}"
+            )
+
+    @app.get("/agents/metrics")
+    async def get_agents_metrics(hours: int = 24):
+        """
+        Get aggregated performance metrics for all agents.
+
+        Args:
+            hours: Hours to look back (default: 24)
+        """
+        try:
+            from ..utils.agent_telemetry import get_agent_metrics
+
+            metrics = get_agent_metrics(hours=hours)
+
+            return {
+                "status": "success",
+                "hours": hours,
+                "data": metrics,
+                "timestamp": time.time(),
+            }
+
+        except Exception as e:
+            logger.exception("get_agents_metrics_failed error=%s", e)
+            raise HTTPException(
+                status_code=500,
+                detail=f"Failed to get agent metrics: {str(e)}"
+            )
+
+    @app.get("/agents/{agent_name}/metrics")
+    async def get_agent_metrics_detail(agent_name: str, hours: int = 24):
+        """
+        Get metrics for a specific agent.
+
+        Args:
+            agent_name: Agent name to filter by
+            hours: Hours to look back (default: 24)
+        """
+        try:
+            from ..utils.agent_telemetry import get_agent_metrics
+
+            metrics = get_agent_metrics(agent_name=agent_name, hours=hours)
+
+            return {
+                "status": "success",
+                "agent_name": agent_name,
+                "hours": hours,
+                "data": metrics,
+                "timestamp": time.time(),
+            }
+
+        except Exception as e:
+            logger.exception("get_agent_metrics_failed agent=%s error=%s", agent_name, e)
+            raise HTTPException(
+                status_code=500,
+                detail=f"Failed to get agent metrics: {str(e)}"
+            )
+
+    @app.get("/system/stats")
+    async def get_system_stats():
+        """
+        Get comprehensive system statistics.
+
+        Returns counts and metrics across all system components.
+        """
+        try:
+            from ..utils.db import get_connection, query_one
+
+            stats = {}
+
+            with get_connection() as conn:
+                # Energy snapshots count
+                result = query_one(
+                    conn,
+                    "SELECT COUNT(*) as count FROM solark.telemetry"
+                )
+                stats['total_energy_snapshots'] = result['count'] if result else 0
+
+                # Conversations count
+                result = query_one(
+                    conn,
+                    "SELECT COUNT(*) as count FROM agent.conversations"
+                )
+                stats['total_conversations'] = result['count'] if result else 0
+
+                # Conversations today
+                result = query_one(
+                    conn,
+                    """
+                    SELECT COUNT(*) as count FROM agent.conversations
+                    WHERE created_at > CURRENT_DATE
+                    """
+                )
+                stats['conversations_today'] = result['count'] if result else 0
+
+                # Latest energy data
+                result = query_one(
+                    conn,
+                    """
+                    SELECT timestamp, soc as battery_soc, pv_power as solar_power
+                    FROM solark.telemetry
+                    ORDER BY timestamp DESC
+                    LIMIT 1
+                    """
+                )
+                if result:
+                    stats['latest_energy'] = dict(result)
+                else:
+                    stats['latest_energy'] = None
+
+                # Agent activity count (last 24h)
+                try:
+                    result = query_one(
+                        conn,
+                        """
+                        SELECT COUNT(*) as count FROM agent_metrics.agent_events
+                        WHERE created_at > NOW() - INTERVAL '24 hours'
+                        """
+                    )
+                    stats['agent_events_24h'] = result['count'] if result else 0
+                except:
+                    stats['agent_events_24h'] = 0  # Table may not exist yet
+
+            return {
+                "status": "success",
+                "data": stats,
+                "timestamp": time.time(),
+            }
+
+        except Exception as e:
+            logger.exception("get_system_stats_failed error=%s", e)
+            raise HTTPException(
+                status_code=500,
+                detail=f"Failed to get system stats: {str(e)}"
+            )
+
+    # ─────────────────────────────────────────────────────────────────────────
     # Include API Routes
     # ─────────────────────────────────────────────────────────────────────────
 

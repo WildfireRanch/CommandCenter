@@ -22,6 +22,7 @@ from crewai.tools import tool
 from .solar_controller import create_energy_crew
 from .energy_orchestrator import create_orchestrator_crew
 from ..tools.kb_search import search_knowledge_base
+from ..utils.agent_telemetry import track_agent_execution
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -319,6 +320,7 @@ Call the tool once, get the result, return it immediately as your final answer."
 # Crew Assembly
 # ─────────────────────────────────────────────────────────────────────────────
 
+@track_agent_execution("Manager")
 def create_manager_crew(query: str, context: str = "") -> Crew:
     """
     Create manager crew for intelligent query routing.

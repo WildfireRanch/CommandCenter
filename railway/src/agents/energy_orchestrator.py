@@ -12,6 +12,7 @@ from ..tools.energy_planner import create_energy_plan
 from ..tools.kb_search import search_knowledge_base
 from ..tools.solark import get_solark_status, format_status_summary
 from ..utils.solark_storage import get_energy_stats, get_recent_data
+from ..utils.agent_telemetry import track_agent_execution
 
 
 # Wrapper tool to get current status for planning
@@ -204,6 +205,7 @@ def create_orchestrator_task(query: str, context: str = "", agent: Agent = None)
     )
 
 
+@track_agent_execution("Energy Orchestrator")
 def create_orchestrator_crew(query: str, context: str = "") -> Crew:
     """Create crew for energy planning queries."""
     agent = create_energy_orchestrator()

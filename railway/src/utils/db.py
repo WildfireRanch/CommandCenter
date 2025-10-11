@@ -263,8 +263,8 @@ def init_schema():
 
     # List of migration files to run in order
     migration_files = [
-        "001_agent_memory_schema.sql",
         "001_knowledge_base.sql",
+        "003_agent_metrics.sql",
     ]
 
     # Fallback if migrations directory doesn't exist

@@ -25,6 +25,7 @@ from crewai.tools import tool
 from ..tools.solark import get_solark_status, format_status_summary
 from ..tools.kb_search import search_knowledge_base
 from ..utils.solark_storage import get_energy_stats, get_recent_data
+from ..utils.agent_telemetry import track_agent_execution
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -304,6 +305,7 @@ def create_status_task(query: str, conversation_context: str = "", agent: Agent 
 # Crew Assembly
 # ─────────────────────────────────────────────────────────────────────────────
 
+@track_agent_execution("Solar Controller")
 def create_energy_crew(query: str, conversation_context: str = "") -> Crew:
     """
     Create a crew to handle energy monitoring queries.
