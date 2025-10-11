@@ -21,6 +21,7 @@ from crewai.tools import tool
 
 from .solar_controller import create_energy_crew
 from .energy_orchestrator import create_orchestrator_crew
+from .research_agent import create_research_crew
 from ..tools.kb_search import search_knowledge_base
 from ..utils.agent_telemetry import track_agent_execution
 
@@ -109,6 +110,47 @@ def route_to_energy_orchestrator(query: str) -> str:
     })
 
 
+@tool("Route to Research Agent")
+def route_to_research_agent(query: str) -> str:
+    """
+    Route to Research Agent for abstract, research, or comparative queries.
+
+    Use when query involves:
+    - Industry best practices or trends ("What are best practices for...")
+    - Technology comparisons ("X vs Y", "Should I upgrade to...")
+    - System comparisons ("How does my system compare to...")
+    - Strategic planning ("What should I consider for...", "Is it worth...")
+    - Expert opinions ("What do experts say about...", "What's the latest on...")
+    - Future technology or market trends
+    - Abstract or conceptual questions
+    - Questions requiring current web information
+    - Research-backed recommendations
+
+    Examples:
+    - "What are the latest trends in solar storage?"
+    - "Should I upgrade to bifacial solar panels?"
+    - "How does my energy cost compare to grid-tied systems?"
+    - "What do experts say about LiFePO4 battery longevity?"
+    - "Compare SolArk vs Victron inverters"
+    - "What are best practices for off-grid battery sizing?"
+    - "Is it worth adding more solar panels given current technology?"
+    - "What's the latest research on solid-state batteries?"
+
+    Args:
+        query (str): Research, comparison, or strategic question.
+
+    Returns:
+        str: Routing decision in JSON format
+    """
+    import json
+    return json.dumps({
+        "action": "route",
+        "agent": "Research Agent",
+        "agent_role": "Energy Systems Research Consultant",
+        "query": str(query)
+    })
+
+
 @tool("Search Knowledge Base")
 def search_kb_directly(query: str) -> str:
     """
@@ -192,7 +234,8 @@ def create_manager_agent() -> Agent:
         Your tools:
         1. route_to_solar_controller - For status queries AND system configuration questions
         2. route_to_energy_orchestrator - For planning/optimization queries
-        3. search_kb_directly - For GENERAL documentation (NOT system-specific questions)
+        3. route_to_research_agent - For research, comparisons, and strategic questions
+        4. search_kb_directly - For GENERAL documentation (NOT system-specific questions)
 
         ROUTING RULES (call tool immediately):
 
@@ -202,6 +245,10 @@ def create_manager_agent() -> Agent:
 
         Planning questions → route_to_energy_orchestrator(query)
         Examples: should we run miners, create plan, optimization, decisions
+
+        Research/comparison questions → route_to_research_agent(query)
+        Examples: "what are best practices", "should I upgrade", "how does X compare to Y",
+                  "what's the latest on", "what do experts say", industry trends
 
         General documentation → search_kb_directly(query)
         Examples: "how do LiFePO4 batteries work", "show me the Victron manual"
@@ -219,7 +266,12 @@ def create_manager_agent() -> Agent:
 
         If the tool returns JSON, return that JSON. If it returns text, return that text.
         Your output = Tool output (no changes).""",
-        tools=[route_to_solar_controller, route_to_energy_orchestrator, search_kb_directly],
+        tools=[
+            route_to_solar_controller,
+            route_to_energy_orchestrator,
+            route_to_research_agent,
+            search_kb_directly
+        ],
         verbose=True,
         allow_delegation=False,  # Don't delegate - just route and return
         max_iter=3,  # Reduced: Call tool once, return result (was 10)
