@@ -473,10 +473,10 @@ class ContextManager:
             from ..kb.sync import search_kb
 
             # Search KB with limits
+            # Note: KB search uses default similarity threshold (0.3)
             result = search_kb(
                 query,
-                limit=max_docs,
-                min_similarity=self.config.KB_MIN_SIMILARITY
+                limit=max_docs
             )
 
             if not result.get("success"):

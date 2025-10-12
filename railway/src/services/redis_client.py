@@ -90,6 +90,7 @@ class RedisClient:
             ssl_enabled = self.url.startswith("rediss://") or self.ssl
 
             # Create connection pool
+            # Note: SSL is handled automatically by redis-py when URL starts with rediss://
             self._pool = ConnectionPool.from_url(
                 self.url,
                 max_connections=10,
@@ -97,8 +98,6 @@ class RedisClient:
                 socket_connect_timeout=self.timeout,
                 retry_on_timeout=True,
                 health_check_interval=30,
-                ssl=ssl_enabled,
-                ssl_cert_reqs=None if ssl_enabled else None,
             )
 
             # Create Redis client
