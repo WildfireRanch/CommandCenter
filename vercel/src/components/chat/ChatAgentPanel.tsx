@@ -2,7 +2,7 @@
 
 import { motion, AnimatePresence } from 'framer-motion'
 import { X, BarChart3, Users, Layers, Zap, TrendingDown, Clock, CheckCircle } from 'lucide-react'
-import { useState } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import type { SessionInsights, LiveMetrics } from '@/types/insights'
 import AgentBadge from './AgentBadge'
 import TokenUsageBar from './TokenUsageBar'
@@ -18,6 +18,8 @@ interface ChatAgentPanelProps {
 
 type TabType = 'overview' | 'agents' | 'context' | 'performance'
 
+const TAB_STORAGE_KEY = 'agent-panel-active-tab'
+
 export default function ChatAgentPanel({
   isOpen,
   onClose,
@@ -25,7 +27,26 @@ export default function ChatAgentPanel({
   insights,
   liveMetrics
 }: ChatAgentPanelProps) {
-  const [activeTab, setActiveTab] = useState<TabType>('overview')
+  // Load persisted tab from localStorage
+  const [activeTab, setActiveTab] = useState<TabType>(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem(TAB_STORAGE_KEY)
+      return (saved as TabType) || 'overview'
+    }
+    return 'overview'
+  })
+
+  // Persist tab selection to localStorage
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      localStorage.setItem(TAB_STORAGE_KEY, activeTab)
+    }
+  }, [activeTab])
+
+  // Check for reduced motion preference (accessibility)
+  const prefersReducedMotion = typeof window !== 'undefined'
+    ? window.matchMedia('(prefers-reduced-motion: reduce)').matches
+    : false
 
   return (
     <AnimatePresence>
@@ -36,16 +57,22 @@ export default function ChatAgentPanel({
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
+            transition={prefersReducedMotion ? { duration: 0 } : undefined}
             onClick={onClose}
             className="fixed inset-0 bg-black/20 backdrop-blur-sm z-40 lg:hidden"
           />
 
           {/* Panel */}
           <motion.aside
-            initial={{ x: '100%' }}
+            role="complementary"
+            aria-label="Session insights panel"
+            initial={{ x: prefersReducedMotion ? 0 : '100%' }}
             animate={{ x: 0 }}
-            exit={{ x: '100%' }}
-            transition={{ type: 'spring', damping: 30, stiffness: 300 }}
+            exit={{ x: prefersReducedMotion ? 0 : '100%' }}
+            transition={prefersReducedMotion
+              ? { duration: 0 }
+              : { type: 'spring', damping: 30, stiffness: 300 }
+            }
             className="fixed right-0 top-0 h-full w-full sm:w-96 lg:w-80 bg-white border-l border-gray-200 shadow-2xl z-50 flex flex-col"
           >
             {/* Header */}
@@ -79,7 +106,7 @@ export default function ChatAgentPanel({
             </div>
 
             {/* Tabs */}
-            <div className="border-b border-gray-200 bg-gray-50">
+            <div className="border-b border-gray-200 bg-gray-50" role="tablist" aria-label="Insights sections">
               <div className="flex">
                 {[
                   { id: 'overview', label: 'Overview', icon: BarChart3 },
@@ -89,6 +116,9 @@ export default function ChatAgentPanel({
                 ].map(tab => (
                   <button
                     key={tab.id}
+                    role="tab"
+                    aria-selected={activeTab === tab.id}
+                    aria-controls={`${tab.id}-panel`}
                     onClick={() => setActiveTab(tab.id as TabType)}
                     className={`flex-1 px-3 py-3 text-xs font-medium transition-all relative ${
                       activeTab === tab.id
@@ -117,16 +147,24 @@ export default function ChatAgentPanel({
               {!insights ? (
                 <div className="flex items-center justify-center h-full">
                   <div className="text-center">
-                    <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mb-3"></div>
+                    <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mb-3" aria-label="Loading"></div>
                     <p className="text-sm text-gray-500">Loading insights...</p>
                   </div>
                 </div>
               ) : (
                 <>
-                  {activeTab === 'overview' && <OverviewTab insights={insights} liveMetrics={liveMetrics} />}
-                  {activeTab === 'agents' && <AgentsTab insights={insights} />}
-                  {activeTab === 'context' && <ContextTab insights={insights} />}
-                  {activeTab === 'performance' && <PerformanceTab insights={insights} />}
+                  <div role="tabpanel" id="overview-panel" aria-labelledby="overview-tab" hidden={activeTab !== 'overview'}>
+                    {activeTab === 'overview' && <OverviewTab insights={insights} liveMetrics={liveMetrics} />}
+                  </div>
+                  <div role="tabpanel" id="agents-panel" aria-labelledby="agents-tab" hidden={activeTab !== 'agents'}>
+                    {activeTab === 'agents' && <AgentsTab insights={insights} />}
+                  </div>
+                  <div role="tabpanel" id="context-panel" aria-labelledby="context-tab" hidden={activeTab !== 'context'}>
+                    {activeTab === 'context' && <ContextTab insights={insights} />}
+                  </div>
+                  <div role="tabpanel" id="performance-panel" aria-labelledby="performance-tab" hidden={activeTab !== 'performance'}>
+                    {activeTab === 'performance' && <PerformanceTab insights={insights} />}
+                  </div>
                 </>
               )}
             </div>

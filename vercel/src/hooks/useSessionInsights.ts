@@ -195,7 +195,7 @@ export function useSessionInsights({
   /**
    * Fetch insights from API (when available)
    */
-  const fetchInsights = useCallback(async () => {
+  const fetchInsights = useCallback(async (signal?: AbortSignal) => {
     if (!enabled || !sessionId) return
 
     try {
@@ -204,7 +204,9 @@ export function useSessionInsights({
 
       // Try to fetch from API
       try {
-        const response = await fetch(`${API_URL}/chat/sessions/${sessionId}/insights`)
+        const response = await fetch(`${API_URL}/chat/sessions/${sessionId}/insights`, {
+          signal // Pass AbortSignal to fetch
+        })
 
         if (response.ok) {
           const data = await response.json()
@@ -212,7 +214,11 @@ export function useSessionInsights({
           setLastUpdated(new Date())
           return
         }
-      } catch (apiError) {
+      } catch (apiError: any) {
+        // If request was aborted, don't fallback or log
+        if (apiError.name === 'AbortError') {
+          return
+        }
         // API not available yet, fallback to client-side calculation
         console.log('API insights not available, calculating from messages')
       }
@@ -252,7 +258,12 @@ export function useSessionInsights({
    * Effect: Initial load and refresh on messages change
    */
   useEffect(() => {
-    fetchInsights()
+    const controller = new AbortController()
+    fetchInsights(controller.signal)
+
+    return () => {
+      controller.abort() // Cancel pending request on unmount
+    }
   }, [fetchInsights])
 
   /**
@@ -266,16 +277,23 @@ export function useSessionInsights({
    * Effect: Auto-refresh interval
    */
   useEffect(() => {
+    const controller = new AbortController()
+
     if (refreshInterval > 0) {
       intervalRef.current = setInterval(() => {
-        fetchInsights()
+        fetchInsights(controller.signal)
       }, refreshInterval)
 
       return () => {
         if (intervalRef.current) {
           clearInterval(intervalRef.current)
         }
+        controller.abort() // Cancel any pending requests
       }
+    }
+
+    return () => {
+      controller.abort()
     }
   }, [refreshInterval, fetchInsights])
 
