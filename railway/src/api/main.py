@@ -1027,25 +1027,31 @@ def create_app() -> FastAPI:
                     (start_time, end_time, limit)
                 )
 
-                # Query Victron data
-                victron_data = query_all(
-                    conn,
-                    """
-                    SELECT
-                        timestamp,
-                        soc as victron_soc,
-                        voltage,
-                        current,
-                        power as battery_power_victron,
-                        temperature,
-                        state
-                    FROM victron.battery_readings
-                    WHERE timestamp >= %s AND timestamp <= %s
-                    ORDER BY timestamp ASC
-                    LIMIT %s
-                    """,
-                    (start_time, end_time, limit)
-                )
+                # Query Victron data (if schema exists)
+                victron_data = []
+                try:
+                    victron_data = query_all(
+                        conn,
+                        """
+                        SELECT
+                            timestamp,
+                            soc as victron_soc,
+                            voltage,
+                            current,
+                            power as battery_power_victron,
+                            temperature,
+                            state
+                        FROM victron.battery_readings
+                        WHERE timestamp >= %s AND timestamp <= %s
+                        ORDER BY timestamp ASC
+                        LIMIT %s
+                        """,
+                        (start_time, end_time, limit)
+                    )
+                except Exception as victron_error:
+                    # Victron schema doesn't exist yet, skip it
+                    logger.warning(f"Victron data not available: {victron_error}")
+                    victron_data = []
 
             # Merge datasets by timestamp (simple approach: create lookup dict)
             victron_by_time = {}
@@ -1149,41 +1155,48 @@ def create_app() -> FastAPI:
             for day in daily_stats:
                 day['date'] = day['date'].isoformat()
 
+                # Convert Decimal to float for calculations
+                total_solar = float(day['total_solar_kwh'] or 0)
+                total_load = float(day['total_load_kwh'] or 0)
+                grid_import = float(day['grid_import_kwh'] or 0)
+                grid_export = float(day['grid_export_kwh'] or 0)
+                battery_charging = float(day['battery_charging_kwh'] or 0)
+
                 # Solar self-consumption percentage
                 day['solar_self_consumption_pct'] = round(
-                    (day['total_solar_kwh'] - day['grid_export_kwh']) / day['total_solar_kwh'] * 100, 1
-                ) if day['total_solar_kwh'] > 0 else 0
+                    (total_solar - grid_export) / total_solar * 100, 1
+                ) if total_solar > 0 else 0
 
                 # Grid independence percentage
                 day['grid_independence_pct'] = round(
-                    (day['total_load_kwh'] - day['grid_import_kwh']) / day['total_load_kwh'] * 100, 1
-                ) if day['total_load_kwh'] > 0 else 0
+                    (total_load - grid_import) / total_load * 100, 1
+                ) if total_load > 0 else 0
 
                 # ⚡ CRITICAL: Calculate EXCESS (WASTED) ENERGY
                 # Excess = Solar Production - (Load + Battery Charging)
-                solar_used = day['total_load_kwh'] + day['battery_charging_kwh']
-                day['excess_energy_kwh'] = round(max(0, day['total_solar_kwh'] - solar_used), 2)
+                solar_used = total_load + battery_charging
+                day['excess_energy_kwh'] = round(max(0, total_solar - solar_used), 2)
 
                 # Excess as percentage of total solar
                 day['excess_energy_pct'] = round(
-                    day['excess_energy_kwh'] / day['total_solar_kwh'] * 100, 1
-                ) if day['total_solar_kwh'] > 0 else 0
+                    day['excess_energy_kwh'] / total_solar * 100, 1
+                ) if total_solar > 0 else 0
 
                 # Potential value if excess was used (assuming $0.05/kWh value)
                 day['excess_value_usd'] = round(day['excess_energy_kwh'] * 0.05, 2)
 
                 # Round other values
-                day['total_solar_kwh'] = round(day['total_solar_kwh'], 2)
-                day['total_load_kwh'] = round(day['total_load_kwh'], 2)
-                day['battery_charging_kwh'] = round(day['battery_charging_kwh'], 2)
-                day['grid_import_kwh'] = round(day['grid_import_kwh'], 2)
-                day['grid_export_kwh'] = round(day['grid_export_kwh'], 2)
-                day['avg_solar'] = round(day['avg_solar'], 0)
-                day['peak_solar'] = round(day['peak_solar'], 0)
-                day['avg_soc'] = round(day['avg_soc'], 1)
-                day['min_soc'] = round(day['min_soc'], 1)
-                day['max_soc'] = round(day['max_soc'], 1)
-                day['avg_load'] = round(day['avg_load'], 0)
+                day['total_solar_kwh'] = round(total_solar, 2)
+                day['total_load_kwh'] = round(total_load, 2)
+                day['battery_charging_kwh'] = round(battery_charging, 2)
+                day['grid_import_kwh'] = round(grid_import, 2)
+                day['grid_export_kwh'] = round(grid_export, 2)
+                day['avg_solar'] = round(float(day['avg_solar'] or 0), 0)
+                day['peak_solar'] = round(float(day['peak_solar'] or 0), 0)
+                day['avg_soc'] = round(float(day['avg_soc'] or 0), 1)
+                day['min_soc'] = round(float(day['min_soc'] or 0), 1)
+                day['max_soc'] = round(float(day['max_soc'] or 0), 1)
+                day['avg_load'] = round(float(day['avg_load'] or 0), 0)
 
             return {
                 "status": "success",
