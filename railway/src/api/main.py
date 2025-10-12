@@ -974,6 +974,809 @@ def create_app() -> FastAPI:
             )
 
     # ─────────────────────────────────────────────────────────────────────────
+    # Energy Analytics Endpoints (V1.7)
+    # ─────────────────────────────────────────────────────────────────────────
+
+    @app.get("/energy/history")
+    async def get_energy_history(
+        hours: int = Query(default=24, ge=1, le=720),
+        limit: int = Query(default=1000, ge=1, le=5000)
+    ):
+        """
+        Get historical energy data combining SolArk and Victron sources.
+
+        Returns time-series data with:
+        - Solar production (SolArk)
+        - Battery SOC (Victron + SolArk)
+        - Load consumption (SolArk)
+        - Grid import/export (SolArk)
+        - Battery voltage, current, temperature (Victron)
+
+        Args:
+            hours: Number of hours to look back (default: 24, max: 720/30 days)
+            limit: Maximum number of records (default: 1000, max: 5000)
+
+        Returns:
+            dict: Time-series energy data with merged SolArk + Victron readings
+        """
+        try:
+            from datetime import datetime, timedelta
+            from ..utils.db import get_connection, query_all
+
+            # Calculate time range
+            end_time = datetime.utcnow()
+            start_time = end_time - timedelta(hours=hours)
+
+            with get_connection() as conn:
+                # Query SolArk data
+                solark_data = query_all(
+                    conn,
+                    """
+                    SELECT
+                        created_at as timestamp,
+                        pv_power,
+                        batt_power as battery_power,
+                        soc,
+                        load_power,
+                        grid_power
+                    FROM solark.plant_flow
+                    WHERE created_at >= %s AND created_at <= %s
+                    ORDER BY created_at ASC
+                    LIMIT %s
+                    """,
+                    (start_time, end_time, limit)
+                )
+
+                # Query Victron data
+                victron_data = query_all(
+                    conn,
+                    """
+                    SELECT
+                        timestamp,
+                        soc as victron_soc,
+                        voltage,
+                        current,
+                        power as battery_power_victron,
+                        temperature,
+                        state
+                    FROM victron.battery_readings
+                    WHERE timestamp >= %s AND timestamp <= %s
+                    ORDER BY timestamp ASC
+                    LIMIT %s
+                    """,
+                    (start_time, end_time, limit)
+                )
+
+            # Merge datasets by timestamp (simple approach: create lookup dict)
+            victron_by_time = {}
+            for v in victron_data:
+                # Round to nearest minute for matching
+                time_key = v['timestamp'].replace(second=0, microsecond=0)
+                victron_by_time[time_key] = v
+
+            # Merge SolArk data with Victron data
+            merged_data = []
+            for s in solark_data:
+                time_key = s['timestamp'].replace(second=0, microsecond=0)
+                victron = victron_by_time.get(time_key, {})
+
+                merged_data.append({
+                    'timestamp': s['timestamp'].isoformat(),
+                    'pv_power': s.get('pv_power', 0),
+                    'battery_power': s.get('battery_power', 0),
+                    'soc': s.get('soc', 0),
+                    'load_power': s.get('load_power', 0),
+                    'grid_power': s.get('grid_power', 0),
+                    'victron_soc': victron.get('victron_soc'),
+                    'voltage': victron.get('voltage'),
+                    'current': victron.get('current'),
+                    'temperature': victron.get('temperature'),
+                    'battery_state': victron.get('state'),
+                })
+
+            return {
+                "status": "success",
+                "hours": hours,
+                "count": len(merged_data),
+                "data": merged_data,
+                "timestamp": time.time()
+            }
+
+        except Exception as e:
+            logger.exception("get_energy_history_failed error=%s", e)
+            raise HTTPException(
+                status_code=500,
+                detail=f"Failed to fetch energy history: {str(e)}"
+            )
+
+    @app.get("/energy/analytics/daily")
+    async def get_daily_analytics(
+        days: int = Query(default=30, ge=1, le=365)
+    ):
+        """
+        Get daily aggregated energy statistics.
+
+        Returns:
+        - Total solar production per day
+        - Average battery SOC per day
+        - Total load consumption per day
+        - Grid import/export totals
+        - Efficiency metrics
+        - EXCESS ENERGY (wasted solar power)
+
+        Args:
+            days: Number of days to analyze (default: 30, max: 365)
+
+        Returns:
+            dict: Daily aggregated statistics with excess energy calculations
+        """
+        try:
+            from datetime import datetime, timedelta
+            from ..utils.db import get_connection, query_all
+
+            end_date = datetime.utcnow().date()
+            start_date = end_date - timedelta(days=days)
+
+            with get_connection() as conn:
+                # Query daily aggregates with excess energy calculation
+                daily_stats = query_all(
+                    conn,
+                    """
+                    SELECT
+                        DATE(created_at) as date,
+                        AVG(pv_power) as avg_solar,
+                        MAX(pv_power) as peak_solar,
+                        SUM(pv_power) / 60000.0 as total_solar_kwh,
+                        AVG(soc) as avg_soc,
+                        MIN(soc) as min_soc,
+                        MAX(soc) as max_soc,
+                        AVG(load_power) as avg_load,
+                        SUM(load_power) / 60000.0 as total_load_kwh,
+                        AVG(batt_power) as avg_battery_power,
+                        SUM(CASE WHEN batt_power > 0 THEN batt_power ELSE 0 END) / 60000.0 as battery_charging_kwh,
+                        SUM(CASE WHEN grid_power > 0 THEN grid_power ELSE 0 END) / 60000.0 as grid_import_kwh,
+                        SUM(CASE WHEN grid_power < 0 THEN ABS(grid_power) ELSE 0 END) / 60000.0 as grid_export_kwh,
+                        COUNT(*) as data_points
+                    FROM solark.plant_flow
+                    WHERE DATE(created_at) >= %s AND DATE(created_at) <= %s
+                    GROUP BY DATE(created_at)
+                    ORDER BY date DESC
+                    """,
+                    (start_date, end_date)
+                )
+
+            # Calculate additional metrics including EXCESS ENERGY
+            for day in daily_stats:
+                day['date'] = day['date'].isoformat()
+
+                # Solar self-consumption percentage
+                day['solar_self_consumption_pct'] = round(
+                    (day['total_solar_kwh'] - day['grid_export_kwh']) / day['total_solar_kwh'] * 100, 1
+                ) if day['total_solar_kwh'] > 0 else 0
+
+                # Grid independence percentage
+                day['grid_independence_pct'] = round(
+                    (day['total_load_kwh'] - day['grid_import_kwh']) / day['total_load_kwh'] * 100, 1
+                ) if day['total_load_kwh'] > 0 else 0
+
+                # ⚡ CRITICAL: Calculate EXCESS (WASTED) ENERGY
+                # Excess = Solar Production - (Load + Battery Charging)
+                solar_used = day['total_load_kwh'] + day['battery_charging_kwh']
+                day['excess_energy_kwh'] = round(max(0, day['total_solar_kwh'] - solar_used), 2)
+
+                # Excess as percentage of total solar
+                day['excess_energy_pct'] = round(
+                    day['excess_energy_kwh'] / day['total_solar_kwh'] * 100, 1
+                ) if day['total_solar_kwh'] > 0 else 0
+
+                # Potential value if excess was used (assuming $0.05/kWh value)
+                day['excess_value_usd'] = round(day['excess_energy_kwh'] * 0.05, 2)
+
+                # Round other values
+                day['total_solar_kwh'] = round(day['total_solar_kwh'], 2)
+                day['total_load_kwh'] = round(day['total_load_kwh'], 2)
+                day['battery_charging_kwh'] = round(day['battery_charging_kwh'], 2)
+                day['grid_import_kwh'] = round(day['grid_import_kwh'], 2)
+                day['grid_export_kwh'] = round(day['grid_export_kwh'], 2)
+                day['avg_solar'] = round(day['avg_solar'], 0)
+                day['peak_solar'] = round(day['peak_solar'], 0)
+                day['avg_soc'] = round(day['avg_soc'], 1)
+                day['min_soc'] = round(day['min_soc'], 1)
+                day['max_soc'] = round(day['max_soc'], 1)
+                day['avg_load'] = round(day['avg_load'], 0)
+
+            return {
+                "status": "success",
+                "days": days,
+                "count": len(daily_stats),
+                "data": daily_stats,
+                "timestamp": time.time()
+            }
+
+        except Exception as e:
+            logger.exception("get_daily_analytics_failed error=%s", e)
+            raise HTTPException(
+                status_code=500,
+                detail=f"Failed to fetch daily analytics: {str(e)}"
+            )
+
+    @app.get("/energy/analytics/cost")
+    async def get_cost_analytics(
+        start_date: str = Query(..., description="Start date (YYYY-MM-DD)"),
+        end_date: str = Query(..., description="End date (YYYY-MM-DD)"),
+        import_rate: float = Query(default=0.12, description="Grid import rate ($/kWh)"),
+        export_rate: float = Query(default=0.08, description="Grid export rate ($/kWh)")
+    ):
+        """
+        Calculate energy costs and savings.
+
+        Returns:
+        - Grid import costs
+        - Grid export revenue
+        - Solar savings (avoided grid purchases)
+        - Net savings
+        - ROI metrics
+
+        Args:
+            start_date: Start date in YYYY-MM-DD format
+            end_date: End date in YYYY-MM-DD format
+            import_rate: Grid import rate in $/kWh (default: 0.12)
+            export_rate: Grid export rate in $/kWh (default: 0.08)
+
+        Returns:
+            dict: Cost analysis and savings calculations
+        """
+        try:
+            from datetime import datetime
+            from ..utils.db import get_connection, query_one
+
+            start = datetime.strptime(start_date, "%Y-%m-%d")
+            end = datetime.strptime(end_date, "%Y-%m-%d")
+
+            with get_connection() as conn:
+                # Query energy totals
+                totals = query_one(
+                    conn,
+                    """
+                    SELECT
+                        SUM(CASE WHEN grid_power > 0 THEN grid_power ELSE 0 END) / 60000.0 as grid_import_kwh,
+                        SUM(CASE WHEN grid_power < 0 THEN ABS(grid_power) ELSE 0 END) / 60000.0 as grid_export_kwh,
+                        SUM(pv_power) / 60000.0 as total_solar_kwh,
+                        SUM(load_power) / 60000.0 as total_load_kwh
+                    FROM solark.plant_flow
+                    WHERE created_at >= %s AND created_at <= %s
+                    """,
+                    (start, end),
+                    as_dict=True
+                )
+
+            if not totals:
+                raise HTTPException(status_code=404, detail="No data available for the specified period")
+
+            # Calculate costs
+            grid_import_cost = totals['grid_import_kwh'] * import_rate
+            grid_export_revenue = totals['grid_export_kwh'] * export_rate
+
+            # Solar savings = solar used directly (not exported) * import rate
+            solar_self_consumed = totals['total_solar_kwh'] - totals['grid_export_kwh']
+            solar_savings = solar_self_consumed * import_rate
+
+            net_savings = solar_savings + grid_export_revenue - grid_import_cost
+
+            return {
+                "status": "success",
+                "period": {
+                    "start": start_date,
+                    "end": end_date,
+                    "days": (end - start).days + 1
+                },
+                "energy": {
+                    "solar_produced_kwh": round(totals['total_solar_kwh'], 2),
+                    "load_consumed_kwh": round(totals['total_load_kwh'], 2),
+                    "grid_import_kwh": round(totals['grid_import_kwh'], 2),
+                    "grid_export_kwh": round(totals['grid_export_kwh'], 2),
+                    "solar_self_consumed_kwh": round(solar_self_consumed, 2)
+                },
+                "costs": {
+                    "grid_import_cost": round(grid_import_cost, 2),
+                    "grid_export_revenue": round(grid_export_revenue, 2),
+                    "solar_savings": round(solar_savings, 2),
+                    "net_savings": round(net_savings, 2)
+                },
+                "rates": {
+                    "import_rate_per_kwh": import_rate,
+                    "export_rate_per_kwh": export_rate
+                },
+                "metrics": {
+                    "solar_self_consumption_pct": round(
+                        solar_self_consumed / totals['total_solar_kwh'] * 100, 1
+                    ) if totals['total_solar_kwh'] > 0 else 0,
+                    "grid_independence_pct": round(
+                        (totals['total_load_kwh'] - totals['grid_import_kwh']) / totals['total_load_kwh'] * 100, 1
+                    ) if totals['total_load_kwh'] > 0 else 0
+                },
+                "timestamp": time.time()
+            }
+
+        except ValueError as e:
+            raise HTTPException(status_code=400, detail=f"Invalid date format: {str(e)}")
+        except Exception as e:
+            logger.exception("get_cost_analytics_failed error=%s", e)
+            raise HTTPException(
+                status_code=500,
+                detail=f"Failed to calculate costs: {str(e)}"
+            )
+
+    @app.get("/energy/predictions/soc")
+    async def predict_battery_soc(
+        hours: int = Query(default=24, ge=1, le=72, description="Hours to predict")
+    ):
+        """
+        Predict future battery SOC based on historical patterns.
+
+        Uses 7-day historical averages by hour-of-day and day-of-week
+        to forecast battery state of charge.
+
+        Args:
+            hours: Number of hours to predict (default: 24, max: 72)
+
+        Returns:
+            dict: Predicted SOC values with confidence levels
+        """
+        try:
+            from datetime import datetime, timedelta
+            from ..utils.db import get_connection, query_all
+
+            current_time = datetime.utcnow()
+
+            # Get current SOC from Victron (most accurate)
+            with get_connection() as conn:
+                current_reading = query_one(
+                    conn,
+                    """
+                    SELECT soc, voltage, current, power
+                    FROM victron.battery_readings
+                    ORDER BY timestamp DESC
+                    LIMIT 1
+                    """,
+                    as_dict=True
+                )
+
+                if not current_reading:
+                    # Fall back to SolArk
+                    current_reading = query_one(
+                        conn,
+                        """
+                        SELECT soc, batt_power as power
+                        FROM solark.plant_flow
+                        ORDER BY created_at DESC
+                        LIMIT 1
+                        """,
+                        as_dict=True
+                    )
+
+                if not current_reading:
+                    raise HTTPException(status_code=404, detail="No current battery data available")
+
+                # Get historical patterns for each hour/day combination
+                historical_patterns = query_all(
+                    conn,
+                    """
+                    SELECT
+                        EXTRACT(HOUR FROM created_at) as hour,
+                        EXTRACT(DOW FROM created_at) as day_of_week,
+                        AVG(batt_power) as avg_battery_power,
+                        AVG(pv_power) as avg_solar_power
+                    FROM solark.plant_flow
+                    WHERE created_at >= NOW() - INTERVAL '7 days'
+                    GROUP BY EXTRACT(HOUR FROM created_at), EXTRACT(DOW FROM created_at)
+                    """,
+                    ()
+                )
+
+            # Simple prediction: current SOC + estimated charge/discharge
+            predictions = []
+            predicted_soc = current_reading['soc']
+
+            # Battery capacity assumption (adjust based on your system)
+            battery_capacity_wh = 10000  # 10kWh
+
+            for h in range(hours):
+                future_time = current_time + timedelta(hours=h)
+                hour = future_time.hour
+                dow = future_time.weekday()
+
+                # Find historical average for this hour/day
+                pattern = next(
+                    (p for p in historical_patterns if p['hour'] == hour and p['day_of_week'] == dow),
+                    None
+                )
+
+                if pattern and pattern['avg_battery_power']:
+                    # Estimate SOC change based on historical battery power
+                    avg_power = pattern['avg_battery_power']
+                    soc_change = (avg_power / battery_capacity_wh) * 100  # % change per hour
+                    predicted_soc = max(0, min(100, predicted_soc + soc_change))
+                    confidence = "medium"
+                else:
+                    # No historical data, assume no change
+                    confidence = "low"
+
+                predictions.append({
+                    "timestamp": future_time.isoformat(),
+                    "hour": hour,
+                    "predicted_soc": round(predicted_soc, 1),
+                    "confidence": confidence
+                })
+
+            return {
+                "status": "success",
+                "current_soc": round(current_reading['soc'], 1),
+                "prediction_hours": hours,
+                "predictions": predictions,
+                "model": "historical_average_7d",
+                "note": "Predictions based on 7-day historical patterns. Actual results may vary with weather and usage.",
+                "timestamp": time.time()
+            }
+
+        except Exception as e:
+            logger.exception("predict_battery_soc_failed error=%s", e)
+            raise HTTPException(
+                status_code=500,
+                detail=f"Failed to predict SOC: {str(e)}"
+            )
+
+    @app.get("/energy/analytics/excess")
+    async def get_excess_energy_analytics(
+        hours: int = Query(default=24, ge=1, le=168, description="Hours to analyze")
+    ):
+        """
+        ⚡ CRITICAL ENDPOINT: Track excess (wasted) solar energy.
+
+        Excess Energy = Solar Production - (Load Consumption + Battery Charging)
+
+        This represents lost opportunity to run additional loads like:
+        - Bitcoin miners during peak solar
+        - Irrigation pumps
+        - Water heaters or HVAC
+        - Other deferrable loads
+
+        Args:
+            hours: Number of hours to analyze (default: 24, max: 168/7 days)
+
+        Returns:
+            dict: Excess energy analysis with time-series data and recommendations
+        """
+        try:
+            from datetime import datetime, timedelta
+            from ..utils.db import get_connection, query_all
+
+            end_time = datetime.utcnow()
+            start_time = end_time - timedelta(hours=hours)
+
+            with get_connection() as conn:
+                # Query energy data with excess calculation
+                excess_data = query_all(
+                    conn,
+                    """
+                    SELECT
+                        created_at as timestamp,
+                        pv_power,
+                        load_power,
+                        batt_power as battery_power,
+                        soc,
+                        -- Calculate excess power in real-time
+                        CASE
+                            WHEN pv_power > (load_power + CASE WHEN batt_power > 0 THEN batt_power ELSE 0 END)
+                            THEN pv_power - (load_power + CASE WHEN batt_power > 0 THEN batt_power ELSE 0 END)
+                            ELSE 0
+                        END as excess_power
+                    FROM solark.plant_flow
+                    WHERE created_at >= %s AND created_at <= %s
+                    ORDER BY created_at ASC
+                    """,
+                    (start_time, end_time)
+                )
+
+            if not excess_data:
+                return {
+                    "status": "no_data",
+                    "message": f"No energy data available for the last {hours} hours",
+                    "timestamp": time.time()
+                }
+
+            # Calculate summary metrics
+            total_excess_kwh = sum(row['excess_power'] for row in excess_data) / 60000.0
+            avg_excess_power = sum(row['excess_power'] for row in excess_data) / len(excess_data)
+            peak_excess_power = max(row['excess_power'] for row in excess_data)
+
+            # Find peak excess times
+            peak_excess_times = sorted(excess_data, key=lambda x: x['excess_power'], reverse=True)[:10]
+
+            # Calculate hourly patterns
+            hourly_excess = {}
+            for row in excess_data:
+                hour = row['timestamp'].hour
+                if hour not in hourly_excess:
+                    hourly_excess[hour] = []
+                hourly_excess[hour].append(row['excess_power'])
+
+            hourly_avg = {
+                hour: sum(powers) / len(powers)
+                for hour, powers in hourly_excess.items()
+            }
+
+            # Find best hours to run heavy loads
+            best_load_hours = sorted(hourly_avg.items(), key=lambda x: x[1], reverse=True)[:5]
+
+            # Generate recommendations
+            potential_value = total_excess_kwh * 0.05  # $0.05/kWh value
+            recommendations = []
+
+            if total_excess_kwh > 5:
+                recommendations.append({
+                    "priority": "high",
+                    "action": "Deploy Bitcoin Miners",
+                    "details": f"You have {total_excess_kwh:.1f} kWh/day of excess energy. This could power ~{int(total_excess_kwh * 20)} TH/s of mining hashrate.",
+                    "potential_revenue": f"${potential_value:.2f}/day"
+                })
+
+            if peak_excess_power > 2000:
+                best_hours_str = ', '.join(f"{h:02d}:00" for h, _ in best_load_hours[:3])
+                recommendations.append({
+                    "priority": "medium",
+                    "action": "Schedule Irrigation",
+                    "details": f"Peak excess power is {peak_excess_power:.0f}W. Run irrigation pumps during hours: {best_hours_str}",
+                    "potential_savings": "Avoid grid import costs"
+                })
+
+            if total_excess_kwh > 10:
+                best_hours_str = ', '.join(f"{h:02d}:00" for h, _ in best_load_hours[:2])
+                recommendations.append({
+                    "priority": "medium",
+                    "action": "Pre-heat Water",
+                    "details": f"Excess energy could heat water during {best_hours_str}, reducing evening grid usage",
+                    "potential_savings": "~$30/month on water heating"
+                })
+
+            if best_load_hours and best_load_hours[0][1] > 1000:
+                recommendations.append({
+                    "priority": "low",
+                    "action": "EV Charging Optimization",
+                    "details": f"Best charging window: {best_load_hours[0][0]:02d}:00-{(best_load_hours[0][0]+2)%24:02d}:00 when excess averages {best_load_hours[0][1]:.0f}W",
+                    "potential_savings": "100% solar charging"
+                })
+
+            # Downsample time-series data for performance (every 5th point)
+            time_series = [
+                {
+                    "timestamp": row['timestamp'].isoformat(),
+                    "excess_power": round(row['excess_power'], 0),
+                    "soc": round(row['soc'], 1)
+                }
+                for i, row in enumerate(excess_data) if i % 5 == 0
+            ]
+
+            return {
+                "status": "success",
+                "period": {
+                    "hours": hours,
+                    "start": start_time.isoformat(),
+                    "end": end_time.isoformat()
+                },
+                "summary": {
+                    "total_excess_kwh": round(total_excess_kwh, 2),
+                    "avg_excess_power_w": round(avg_excess_power, 0),
+                    "peak_excess_power_w": round(peak_excess_power, 0),
+                    "potential_value_usd": round(potential_value, 2),
+                    "data_points": len(excess_data)
+                },
+                "time_series": time_series,
+                "peak_excess_times": [
+                    {
+                        "timestamp": row['timestamp'].isoformat(),
+                        "excess_power": round(row['excess_power'], 0),
+                        "soc": round(row['soc'], 1)
+                    }
+                    for row in peak_excess_times
+                ],
+                "hourly_patterns": {
+                    f"{hour:02d}:00": round(avg, 0)
+                    for hour, avg in sorted(hourly_avg.items())
+                },
+                "recommendations": {
+                    "best_load_hours": [
+                        {
+                            "hour": f"{hour:02d}:00",
+                            "avg_excess_w": round(avg, 0),
+                            "potential_kwh_daily": round(avg / 1000, 2)
+                        }
+                        for hour, avg in best_load_hours
+                    ],
+                    "suggested_actions": recommendations
+                },
+                "timestamp": time.time()
+            }
+
+        except Exception as e:
+            logger.exception("get_excess_energy_analytics_failed error=%s", e)
+            raise HTTPException(
+                status_code=500,
+                detail=f"Failed to analyze excess energy: {str(e)}"
+            )
+
+    @app.get("/energy/analytics/load-opportunities")
+    async def get_load_opportunities():
+        """
+        ⚡ CRITICAL: Identify optimal times to run discretionary loads.
+
+        Analyzes:
+        - Battery SOC levels
+        - Solar production forecasts (based on historical patterns)
+        - Current excess energy
+        - Grid import/export status
+
+        Returns real-time recommendations for:
+        - Bitcoin miner operations
+        - Irrigation pump scheduling
+        - Water heater activation
+        - HVAC preconditioning
+        - Other deferrable loads
+
+        Note: This provides recommendations only. A future agent will
+        poll this endpoint to automate load control.
+
+        Returns:
+            dict: Real-time load scheduling opportunities
+        """
+        try:
+            from datetime import datetime, timedelta
+            from ..utils.db import get_connection, query_one, query_all
+
+            current_time = datetime.utcnow()
+
+            with get_connection() as conn:
+                # Get current system status
+                current_data = query_one(
+                    conn,
+                    """
+                    SELECT
+                        pv_power,
+                        load_power,
+                        batt_power as battery_power,
+                        soc,
+                        grid_power,
+                        created_at
+                    FROM solark.plant_flow
+                    ORDER BY created_at DESC
+                    LIMIT 1
+                    """,
+                    as_dict=True
+                )
+
+                if not current_data:
+                    raise HTTPException(status_code=404, detail="No current energy data available")
+
+                # Calculate current excess
+                battery_charging = max(0, current_data['battery_power'])
+                current_excess = max(0, current_data['pv_power'] - (current_data['load_power'] + battery_charging))
+
+                # Get historical solar production for next few hours (7-day avg)
+                hour_now = current_time.hour
+                forecast = []
+
+                for h in range(6):  # Next 6 hours
+                    future_hour = (hour_now + h) % 24
+                    avg_solar = query_one(
+                        conn,
+                        """
+                        SELECT AVG(pv_power) as avg_power
+                        FROM solark.plant_flow
+                        WHERE EXTRACT(HOUR FROM created_at) = %s
+                          AND created_at >= NOW() - INTERVAL '7 days'
+                        """,
+                        (future_hour,),
+                        as_dict=True
+                    )
+
+                    forecast.append({
+                        "hour": future_hour,
+                        "predicted_solar_w": round(avg_solar['avg_power'] if avg_solar and avg_solar['avg_power'] else 0, 0)
+                    })
+
+            # Determine load opportunities
+            opportunities = []
+
+            # Opportunity 1: Run miners NOW if excess > 1000W
+            if current_excess > 1000:
+                opportunities.append({
+                    "type": "immediate",
+                    "load": "Bitcoin Miners",
+                    "action": "START",
+                    "power_available": round(current_excess, 0),
+                    "reason": f"Current excess: {current_excess:.0f}W available for immediate use",
+                    "priority": "high",
+                    "duration_estimate": "Until solar production drops or battery needs charging"
+                })
+
+            # Opportunity 2: Run irrigation if SOC > 80% and solar > 3kW
+            if current_data['soc'] > 80 and current_data['pv_power'] > 3000:
+                opportunities.append({
+                    "type": "immediate",
+                    "load": "Irrigation Pumps",
+                    "action": "START",
+                    "power_available": round(current_data['pv_power'] - current_data['load_power'], 0),
+                    "reason": f"Battery well charged ({current_data['soc']:.1f}%), high solar production",
+                    "priority": "medium",
+                    "duration_estimate": "2-3 hours while sun is high"
+                })
+
+            # Opportunity 3: Pre-heat water if excess and SOC > 70%
+            if current_excess > 500 and current_data['soc'] > 70:
+                opportunities.append({
+                    "type": "immediate",
+                    "load": "Water Heater",
+                    "action": "START",
+                    "power_available": round(min(current_excess, 1500), 0),
+                    "reason": "Excess solar available, store energy as hot water",
+                    "priority": "low",
+                    "duration_estimate": "30-60 minutes"
+                })
+
+            # Opportunity 4: Schedule loads for upcoming peak hours
+            peak_solar_hour = max(forecast, key=lambda x: x['predicted_solar_w'])
+            if peak_solar_hour['predicted_solar_w'] > 4000:
+                opportunities.append({
+                    "type": "scheduled",
+                    "load": "Heavy Loads (Miners, Pumps, etc.)",
+                    "action": "SCHEDULE",
+                    "scheduled_time": f"{peak_solar_hour['hour']:02d}:00",
+                    "power_available": round(peak_solar_hour['predicted_solar_w'] * 0.7, 0),
+                    "reason": f"Peak solar production expected at {peak_solar_hour['hour']:02d}:00",
+                    "priority": "medium",
+                    "duration_estimate": "1-2 hours during peak production"
+                })
+
+            # Opportunity 5: Avoid loads if battery low and no solar
+            if current_data['soc'] < 30 and current_data['pv_power'] < 500:
+                opportunities.append({
+                    "type": "warning",
+                    "load": "All Discretionary Loads",
+                    "action": "STOP",
+                    "power_available": 0,
+                    "reason": f"Low battery ({current_data['soc']:.1f}%), minimal solar production",
+                    "priority": "high",
+                    "duration_estimate": "Until battery recharged or solar production increases"
+                })
+
+            return {
+                "status": "success",
+                "timestamp": current_time.isoformat(),
+                "current_status": {
+                    "solar_power_w": round(current_data['pv_power'], 0),
+                    "load_power_w": round(current_data['load_power'], 0),
+                    "battery_soc_pct": round(current_data['soc'], 1),
+                    "excess_power_w": round(current_excess, 0),
+                    "grid_power_w": round(current_data['grid_power'], 0)
+                },
+                "solar_forecast_6h": forecast,
+                "opportunities": opportunities,
+                "summary": {
+                    "total_opportunities": len(opportunities),
+                    "immediate_actions": len([o for o in opportunities if o['type'] == 'immediate']),
+                    "scheduled_actions": len([o for o in opportunities if o['type'] == 'scheduled']),
+                    "warnings": len([o for o in opportunities if o['type'] == 'warning'])
+                }
+            }
+
+        except Exception as e:
+            logger.exception("get_load_opportunities_failed error=%s", e)
+            raise HTTPException(
+                status_code=500,
+                detail=f"Failed to detect load opportunities: {str(e)}"
+            )
+
+    # ─────────────────────────────────────────────────────────────────────────
     # Agent Endpoints
     # ─────────────────────────────────────────────────────────────────────────
 
