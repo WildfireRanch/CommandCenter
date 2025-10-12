@@ -108,32 +108,36 @@ def search_knowledge_base(query: str, limit: int = 5) -> str:
         return f"Error searching knowledge base: {str(e)}"
 
 
-def get_context_files() -> str:
+def get_context_files(essential_only: bool = False, max_chars: int = None) -> str:
     """
-    Retrieve all context files that should be loaded into agent system prompts.
+    Retrieve context files that should be loaded into agent system prompts.
 
-    WHAT: Fetches documents marked as is_context_file=TRUE
+    WHAT: Fetches documents marked as is_context_file=TRUE with optional filtering
     WHY: Critical information that agents should always have available
-    HOW: Queries kb_documents table, returns formatted content
+    HOW: Queries kb_documents table with selective loading, returns formatted content
+
+    Args:
+        essential_only: If True, only load essential context (excludes large/optional files)
+        max_chars: Optional maximum character limit (truncates if exceeded)
 
     Returns:
         str: Formatted context file content, or empty string if none found
 
     Example:
+        >>> # Load all context files
         >>> context = get_context_files()
-        >>> print(context)
 
-        ## KNOWLEDGE BASE CONTEXT
+        >>> # Load only essential context (for SYSTEM queries)
+        >>> context = get_context_files(essential_only=True)
 
-        ### solar-shack-context.docx
-
-        [Full document content here...]
+        >>> # Load with character limit
+        >>> context = get_context_files(max_chars=5000)
     """
     import logging
     logger = logging.getLogger(__name__)
 
     try:
-        logger.info("=== get_context_files() START ===")
+        logger.info(f"=== get_context_files(essential_only={essential_only}, max_chars={max_chars}) START ===")
         from ..utils.db import get_connection, query_all
         logger.info("Imports successful, attempting database connection...")
 
@@ -142,7 +146,7 @@ def get_context_files() -> str:
             context_docs = query_all(
                 conn,
                 """
-                SELECT title, full_content
+                SELECT title, full_content, LENGTH(full_content) as content_length
                 FROM kb_documents
                 WHERE is_context_file = TRUE
                 ORDER BY title
@@ -155,18 +159,52 @@ def get_context_files() -> str:
             logger.warning("⚠️  No context files returned from query!")
             return ""
 
+        # Filter out large non-essential files if essential_only=True
+        # Files larger than 5000 chars are considered non-essential for SYSTEM queries
+        if essential_only:
+            essential_docs = []
+            for doc in context_docs:
+                content_len = doc.get('content_length', 0)
+                # Keep files smaller than 5000 chars (essential info)
+                if content_len < 5000:
+                    essential_docs.append(doc)
+                    logger.info(f"Including essential file: {doc.get('title')} ({content_len} chars)")
+                else:
+                    logger.info(f"Skipping non-essential file: {doc.get('title')} ({content_len} chars) - too large")
+            context_docs = essential_docs
+
         # Format as markdown sections
         context = "\n\n## KNOWLEDGE BASE CONTEXT\n\n"
         context += "The following information is critical system knowledge:\n\n"
 
+        total_chars = 0
         for doc in context_docs:
             doc_title = doc.get('title', 'Untitled')
-            content_length = len(doc.get('full_content', ''))
+            doc_content = doc.get('full_content', '')
+            content_length = len(doc_content)
+
+            # Check if adding this doc would exceed max_chars limit
+            if max_chars and (total_chars + content_length > max_chars):
+                remaining = max_chars - total_chars
+                if remaining > 500:  # Only include if we can fit at least 500 chars
+                    doc_content = doc_content[:remaining] + "\n[...truncated for token budget...]"
+                    content_length = len(doc_content)
+                    logger.info(f"Truncating {doc_title} to fit within {max_chars} char budget")
+                else:
+                    logger.info(f"Skipping {doc_title} - would exceed char budget")
+                    break
+
             logger.info(f"Processing context file: {doc_title} ({content_length} chars)")
 
-            context += f"### {doc['title']}\n\n"
-            context += f"{doc['full_content']}\n\n"
+            context += f"### {doc_title}\n\n"
+            context += f"{doc_content}\n\n"
             context += "---\n\n"
+
+            total_chars += content_length
+
+            if max_chars and total_chars >= max_chars:
+                logger.info(f"Reached character budget limit ({max_chars}), stopping")
+                break
 
         total_length = len(context)
         logger.info(f"✅ Context compiled successfully: {total_length} total characters")

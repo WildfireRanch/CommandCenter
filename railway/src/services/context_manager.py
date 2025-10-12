@@ -335,9 +335,9 @@ class ContextManager:
         # Reserve tokens for system context (always included)
         tokens_remaining = max_tokens - self.config.SYSTEM_CONTEXT_RESERVED_TOKENS
 
-        # 1. Load system context (always included)
+        # 1. Load system context (always included) with selective loading
         if self.config.ALWAYS_INCLUDE_SYSTEM_CONTEXT:
-            system_context = self._get_system_context()
+            system_context = self._get_system_context(query_type)
             tokens_used += estimate_tokens(system_context)
             logger.debug(f"System context: {estimate_tokens(system_context)} tokens")
 
@@ -397,11 +397,38 @@ class ContextManager:
 
         return bundle
 
-    def _get_system_context(self) -> str:
-        """Load system context (hardware specs, capabilities)."""
+    def _get_system_context(self, query_type: QueryType) -> str:
+        """
+        Load system context (hardware specs, capabilities) with selective loading.
+
+        Args:
+            query_type: Type of query to optimize context loading
+
+        Returns:
+            Formatted system context string
+        """
         try:
-            # Load context files marked as is_context_file=TRUE
-            context = get_context_files()
+            # Load context files with selective filtering based on query type
+            # SYSTEM and GENERAL queries: Load only essential files (small, critical info)
+            # RESEARCH and PLANNING queries: Load all context files
+            essential_only = query_type in [QueryType.SYSTEM, QueryType.GENERAL]
+
+            # Set max character limit based on query type
+            # SYSTEM/GENERAL: 8000 chars (~2000 tokens target)
+            # PLANNING: 14000 chars (~3500 tokens target)
+            # RESEARCH: No limit (load everything)
+            max_chars = None
+            if query_type == QueryType.SYSTEM:
+                max_chars = 8000  # ~2000 tokens
+            elif query_type == QueryType.GENERAL:
+                max_chars = 4000  # ~1000 tokens
+            elif query_type == QueryType.PLANNING:
+                max_chars = 14000  # ~3500 tokens
+            # RESEARCH: No limit
+
+            logger.info(f"Loading system context for {query_type.value} query (essential_only={essential_only}, max_chars={max_chars})")
+
+            context = get_context_files(essential_only=essential_only, max_chars=max_chars)
             return context if context else ""
         except Exception as e:
             logger.error(f"Failed to load system context: {e}")
