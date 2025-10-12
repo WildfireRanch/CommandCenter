@@ -145,11 +145,23 @@ export default function ChatAgentPanel({
             {/* Content */}
             <div className="flex-1 overflow-y-auto p-4">
               {!insights ? (
-                <div className="flex items-center justify-center h-full">
-                  <div className="text-center">
-                    <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mb-3" aria-label="Loading"></div>
-                    <p className="text-sm text-gray-500">Loading insights...</p>
+                <div className="space-y-4 animate-pulse" role="status" aria-label="Loading insights">
+                  {/* Skeleton: Quick Stats */}
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="bg-gray-200 rounded-lg h-20"></div>
+                    <div className="bg-gray-200 rounded-lg h-20"></div>
+                    <div className="bg-gray-200 rounded-lg h-20"></div>
+                    <div className="bg-gray-200 rounded-lg h-20"></div>
                   </div>
+                  {/* Skeleton: Chart */}
+                  <div className="bg-gray-200 rounded-lg h-32"></div>
+                  {/* Skeleton: List */}
+                  <div className="space-y-2">
+                    <div className="bg-gray-200 rounded h-12"></div>
+                    <div className="bg-gray-200 rounded h-12"></div>
+                    <div className="bg-gray-200 rounded h-12"></div>
+                  </div>
+                  <span className="sr-only">Loading insights...</span>
                 </div>
               ) : (
                 <>

@@ -44,6 +44,8 @@ export default function MemoryMonitor() {
       if (intervalRef.current) {
         clearInterval(intervalRef.current)
       }
+      // Clear memory data to prevent chart memory leaks
+      setMemory([])
     }
   }, [isRunning, startTime])
 

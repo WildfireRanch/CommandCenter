@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from 'react'
 import { Send, Trash2, Download, BarChart3 } from 'lucide-react'
 import ChatAgentPanel from '@/components/chat/ChatAgentPanel'
 import { useSessionInsights } from '@/hooks/useSessionInsights'
+import ErrorBoundary from '@/components/ErrorBoundary'
 
 interface Message {
   role: 'user' | 'assistant'
@@ -301,13 +302,15 @@ export default function ChatPage() {
       </div>
 
       {/* Agent Insights Panel */}
-      <ChatAgentPanel
-        isOpen={panelOpen}
-        onClose={() => setPanelOpen(false)}
-        sessionId={sessionId}
-        insights={insights}
-        liveMetrics={liveMetrics}
-      />
+      <ErrorBoundary>
+        <ChatAgentPanel
+          isOpen={panelOpen}
+          onClose={() => setPanelOpen(false)}
+          sessionId={sessionId}
+          insights={insights}
+          liveMetrics={liveMetrics}
+        />
+      </ErrorBoundary>
     </div>
   )
 }

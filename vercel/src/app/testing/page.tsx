@@ -317,7 +317,7 @@ export default function TestingPage() {
               Additional stress tests available:
             </p>
             <a
-              href="/scripts/test-panel-stress.html"
+              href="/test-panel-stress.html"
               target="_blank"
               className="text-sm text-purple-600 hover:text-purple-700 underline"
             >
