@@ -186,8 +186,14 @@ export default function ChatPage() {
         </div>
       </div>
 
-      {/* Messages Area */}
-      <div className="flex-1 overflow-y-auto p-6 space-y-4 bg-gray-50">
+      {/* Main Content Area: Chat + Panel Split */}
+      <div className="flex flex-1 overflow-hidden">
+        {/* Chat Section: Full width on mobile, 2/3 on desktop when panel open */}
+        <div className={`flex flex-col transition-all duration-300 ${
+          panelOpen ? 'w-full lg:w-2/3' : 'w-full'
+        }`}>
+          {/* Messages Area */}
+          <div className="flex-1 overflow-y-auto p-6 space-y-4 bg-gray-50">
         {messages.length === 0 ? (
           <div className="bg-blue-50 border border-blue-200 rounded-lg p-6">
             <h2 className="text-lg font-semibold text-blue-900 mb-3">Welcome! I'm your AI Energy Assistant.</h2>
@@ -275,42 +281,54 @@ export default function ChatPage() {
           </div>
         )}
         <div ref={messagesEndRef} />
-      </div>
+          </div>
 
-      {/* Input Area */}
-      <div className="bg-white border-t border-gray-200 p-4">
-        <div className="flex gap-3">
-          <input
-            type="text"
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            onKeyDown={handleKeyPress}
-            placeholder="Ask about your solar system..."
-            disabled={loading}
-            className="flex-1 px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-gray-100 disabled:cursor-not-allowed"
-          />
-          <button
-            onClick={handleSend}
-            disabled={!input.trim() || loading}
-            className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 font-medium"
-          >
-            <Send className="w-4 h-4" />
-            Send
-          </button>
+          {/* Input Area */}
+          <div className="bg-white border-t border-gray-200 p-4">
+            <div className="flex gap-3">
+              <input
+                type="text"
+                value={input}
+                onChange={(e) => setInput(e.target.value)}
+                onKeyDown={handleKeyPress}
+                placeholder="Ask about your solar system..."
+                disabled={loading}
+                className="flex-1 px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-gray-100 disabled:cursor-not-allowed"
+              />
+              <button
+                onClick={handleSend}
+                disabled={!input.trim() || loading}
+                className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 font-medium"
+              >
+                <Send className="w-4 h-4" />
+                Send
+              </button>
+            </div>
+            <p className="text-xs text-gray-500 mt-2">Press Enter to send, Shift+Enter for new line</p>
+          </div>
         </div>
-        <p className="text-xs text-gray-500 mt-2">Press Enter to send, Shift+Enter for new line</p>
-      </div>
 
-      {/* Agent Insights Panel */}
-      <ErrorBoundary>
-        <ChatAgentPanel
-          isOpen={panelOpen}
-          onClose={() => setPanelOpen(false)}
-          sessionId={sessionId}
-          insights={insights}
-          liveMetrics={liveMetrics}
-        />
-      </ErrorBoundary>
+        {/* Agent Insights Panel: 1/3 width on desktop when open */}
+        {panelOpen && (
+          <div className={`
+            fixed lg:relative
+            inset-0 lg:inset-auto
+            w-full lg:w-1/3
+            z-50 lg:z-auto
+            transition-all duration-300
+          `}>
+            <ErrorBoundary>
+              <ChatAgentPanel
+                isOpen={panelOpen}
+                onClose={() => setPanelOpen(false)}
+                sessionId={sessionId}
+                insights={insights}
+                liveMetrics={liveMetrics}
+              />
+            </ErrorBoundary>
+          </div>
+        )}
+      </div>
     </div>
   )
 }

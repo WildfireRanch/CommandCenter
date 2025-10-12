@@ -52,7 +52,7 @@ export default function ChatAgentPanel({
     <AnimatePresence>
       {isOpen && (
         <>
-          {/* Backdrop */}
+          {/* Backdrop (mobile only) */}
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
@@ -73,7 +73,10 @@ export default function ChatAgentPanel({
               ? { duration: 0 }
               : { type: 'spring', damping: 30, stiffness: 300 }
             }
-            className="fixed right-0 top-0 h-full w-full sm:w-96 lg:w-80 bg-white border-l border-gray-200 shadow-2xl z-50 flex flex-col"
+            className="
+              h-full w-full bg-white border-l border-gray-200 flex flex-col
+              lg:shadow-none shadow-2xl
+            "
           >
             {/* Header */}
             <div className="p-4 border-b border-gray-200 bg-gradient-to-r from-blue-50 to-purple-50">
