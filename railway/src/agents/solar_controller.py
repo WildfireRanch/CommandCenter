@@ -24,6 +24,7 @@ from crewai.tools import tool
 
 from ..tools.solark import get_solark_status, format_status_summary
 from ..tools.kb_search import search_knowledge_base
+from ..tools.victron_tools import get_victron_battery_status, get_victron_battery_history
 from ..utils.solark_storage import get_energy_stats, get_recent_data
 from ..utils.agent_telemetry import track_agent_execution
 from ..services.context_manager import ContextManager
@@ -221,11 +222,17 @@ def create_energy_monitor_agent(context_bundle=None) -> Agent:
     """
     # Build backstory with system context
     backstory = """You are an expert energy systems analyst specializing in
-    solar + battery installations. You monitor a SolArk inverter system and
-    help the homeowner understand their energy production, consumption, and
-    battery status. You communicate clearly with accurate numbers and helpful
-    context. When asked about status, you always use the real-time tools to
-    get current data - never guess or use old information.
+    solar + battery installations. You monitor a SolArk inverter system with
+    Victron Cerbo GX battery monitoring and help the homeowner understand their
+    energy production, consumption, and battery status. You communicate clearly
+    with accurate numbers and helpful context. When asked about status, you
+    always use the real-time tools to get current data - never guess or use
+    old information.
+
+    BATTERY DATA PRIORITY: For battery information (SOC, voltage, current,
+    temperature), ALWAYS prefer Victron Cerbo data (Get Victron Battery Status)
+    over SolArk data. The Victron Cerbo is connected directly to the battery
+    shunt and provides more accurate readings than the inverter.
 
     """
 
@@ -268,7 +275,9 @@ SYSTEM CONTEXT (Always Available)
         goal="Monitor solar, battery, and energy systems and provide clear, accurate status reports",
         backstory=backstory,
         tools=[
-            get_energy_status,
+            get_victron_battery_status,      # V1.6: Primary battery data source
+            get_victron_battery_history,     # V1.6: Battery trends over time
+            get_energy_status,               # SolArk for solar/load/grid
             get_detailed_status,
             get_historical_stats,
             get_time_series_data,
@@ -308,18 +317,23 @@ def create_status_task(query: str, conversation_context: str = "", agent: Agent 
         description=f"""Answer this question about the energy system: {query}
         {context_section}
         Instructions:
-        1. For CURRENT status questions: Use 'Get SolArk Status' tool
-        2. For HISTORICAL questions (yesterday, last hour, average, peak, "hour-by-hour", trends, etc.):
+        1. For BATTERY questions (SOC, voltage, current, temperature):
+           - ALWAYS use 'Get Victron Battery Status' FIRST (most accurate)
+           - Use 'Get Victron Battery History' for battery trends over time
+           - Victron data is more accurate than SolArk for battery metrics
+        2. For SOLAR/LOAD/GRID questions: Use 'Get SolArk Status' tool
+        3. For HISTORICAL questions (yesterday, last hour, average, peak, "hour-by-hour", trends, etc.):
+           - Use 'Get Victron Battery History' for battery trends
            - Use 'Get Historical Energy Statistics' for averages/peaks/summary stats
            - Use 'Get Time Series Energy Data' for detailed breakdowns, specific times, or hourly data
-        3. For questions asking for "breakdowns", "hourly data", "over time", or "what time did X happen?":
+        4. For questions asking for "breakdowns", "hourly data", "over time", or "what time did X happen?":
            YOU MUST use 'Get Time Series Energy Data' tool - this data EXISTS in the database
-        4. Answer the specific question asked with REAL DATA from tools
-        5. Provide helpful context if relevant
-        6. Use clear language and accurate numbers
-        7. NEVER say "data is not available" without trying the historical tools first
-        8. NEVER guess times, dates, or values - always query the database
-        9. If the data shows something noteworthy (like low battery), mention it
+        5. Answer the specific question asked with REAL DATA from tools
+        6. Provide helpful context if relevant
+        7. Use clear language and accurate numbers
+        8. NEVER say "data is not available" without trying the historical tools first
+        9. NEVER guess times, dates, or values - always query the database
+        10. If the data shows something noteworthy (like low battery), mention it
 
         The user's question: {query}
         """,

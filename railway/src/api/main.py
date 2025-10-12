@@ -218,30 +218,61 @@ def create_app() -> FastAPI:
         # STARTUP
         # ─────────────────────────────────────────────────────────────────
         print("🚀 CommandCenter API starting...")
-        
+
         # Create required directories
         data_dir = Path(os.getenv("INDEX_ROOT", "./data/index"))
         data_dir.mkdir(parents=True, exist_ok=True)
-        
+
         # Log configuration
         print(f"📋 Environment: {os.getenv('ENV', 'development')}")
         print(f"🔑 OpenAI API key: {'✅' if os.getenv('OPENAI_API_KEY') else '❌'}")
         print(f"☀️ SolArk credentials: {'✅' if os.getenv('SOLARK_EMAIL') else '❌'}")
         print(f"🗄️ Database configured: {'✅' if os.getenv('DATABASE_URL') else '❌'}")
-        
+        print(f"🔋 Victron credentials: {'✅' if os.getenv('VICTRON_VRM_USERNAME') else '❌'}")
+
         # Test database connection
         if os.getenv("DATABASE_URL"):
             if check_db_connection():
                 print("🗄️ Database connected: ✅")
             else:
                 print("🗄️ Database connected: ❌ (WARNING: Database unreachable)")
-        
+
+        # Start Victron poller (V1.6) if credentials configured
+        victron_task = None
+        if os.getenv("VICTRON_VRM_USERNAME") and os.getenv("VICTRON_VRM_PASSWORD"):
+            try:
+                import asyncio
+                from ..services.victron_poller import start_poller
+
+                print("🔋 Starting Victron VRM poller...")
+                victron_task = asyncio.create_task(start_poller())
+                print("🔋 Victron VRM poller: ✅")
+            except Exception as e:
+                print(f"🔋 Victron VRM poller: ❌ (WARNING: {e})")
+        else:
+            print("🔋 Victron VRM poller: ⏭️  (skipped - credentials not configured)")
+
         yield
-        
+
         # ─────────────────────────────────────────────────────────────────
         # SHUTDOWN
         # ─────────────────────────────────────────────────────────────────
         print("👋 CommandCenter API shutting down...")
+
+        # Stop Victron poller
+        if victron_task:
+            try:
+                from ..services.victron_poller import stop_poller
+                print("🔋 Stopping Victron poller...")
+                await stop_poller()
+                victron_task.cancel()
+                try:
+                    await victron_task
+                except asyncio.CancelledError:
+                    pass
+                print("🔋 Victron poller stopped: ✅")
+            except Exception as e:
+                print(f"🔋 Victron poller stop error: {e}")
     
     # Create FastAPI app
     app = FastAPI(
@@ -709,6 +740,237 @@ def create_app() -> FastAPI:
             raise HTTPException(
                 status_code=500,
                 detail=f"Failed to get energy statistics: {str(e)}"
+            )
+
+    # ─────────────────────────────────────────────────────────────────────────
+    # Victron Endpoints (V1.6)
+    # ─────────────────────────────────────────────────────────────────────────
+
+    @app.get("/victron/battery/current")
+    async def get_victron_battery_current():
+        """
+        Get latest Victron battery reading.
+
+        Returns the most recent battery data from Victron Cerbo GX including
+        state of charge, voltage, current, power, temperature, and state.
+
+        Returns:
+            dict: Latest battery reading with all metrics
+        """
+        try:
+            from ..utils.db import get_connection, query_one
+
+            with get_connection() as conn:
+                reading = query_one(
+                    conn,
+                    """
+                    SELECT
+                        timestamp,
+                        installation_id,
+                        soc,
+                        voltage,
+                        current,
+                        power,
+                        state,
+                        temperature,
+                        created_at
+                    FROM victron.battery_readings
+                    ORDER BY timestamp DESC
+                    LIMIT 1
+                    """,
+                    as_dict=True
+                )
+
+            if not reading:
+                return {
+                    "status": "no_data",
+                    "message": "No Victron battery data available yet",
+                    "timestamp": time.time(),
+                }
+
+            return {
+                "status": "success",
+                "data": {
+                    "timestamp": reading["timestamp"].isoformat() if reading.get("timestamp") else None,
+                    "installation_id": reading.get("installation_id"),
+                    "soc": reading.get("soc"),
+                    "voltage": reading.get("voltage"),
+                    "current": reading.get("current"),
+                    "power": reading.get("power"),
+                    "state": reading.get("state"),
+                    "temperature": reading.get("temperature"),
+                },
+                "timestamp": time.time(),
+            }
+
+        except Exception as e:
+            logger.exception("get_victron_battery_current_failed error=%s", e)
+            raise HTTPException(
+                status_code=500,
+                detail=f"Failed to get Victron battery data: {str(e)}"
+            )
+
+    @app.get("/victron/battery/history")
+    async def get_victron_battery_history(hours: int = 24, limit: int = 100):
+        """
+        Get historical Victron battery readings.
+
+        Args:
+            hours: Number of hours to look back (default: 24, max: 72)
+            limit: Maximum number of records (default: 100, max: 1000)
+
+        Returns:
+            dict: List of battery readings over time
+        """
+        try:
+            from ..utils.db import get_connection, query_all
+
+            # Enforce limits (72 hours max due to retention policy)
+            hours = min(hours, 72)
+            limit = min(limit, 1000)
+
+            with get_connection() as conn:
+                readings = query_all(
+                    conn,
+                    """
+                    SELECT
+                        timestamp,
+                        installation_id,
+                        soc,
+                        voltage,
+                        current,
+                        power,
+                        state,
+                        temperature
+                    FROM victron.battery_readings
+                    WHERE timestamp >= NOW() - INTERVAL '%s hours'
+                    ORDER BY timestamp DESC
+                    LIMIT %s
+                    """,
+                    (hours, limit),
+                    as_dict=True
+                )
+
+            # Format timestamps
+            formatted_readings = []
+            for r in readings:
+                formatted_readings.append({
+                    "timestamp": r["timestamp"].isoformat() if r.get("timestamp") else None,
+                    "installation_id": r.get("installation_id"),
+                    "soc": r.get("soc"),
+                    "voltage": r.get("voltage"),
+                    "current": r.get("current"),
+                    "power": r.get("power"),
+                    "state": r.get("state"),
+                    "temperature": r.get("temperature"),
+                })
+
+            return {
+                "status": "success",
+                "count": len(formatted_readings),
+                "hours": hours,
+                "data": formatted_readings,
+                "timestamp": time.time(),
+            }
+
+        except Exception as e:
+            logger.exception("get_victron_battery_history_failed error=%s", e)
+            raise HTTPException(
+                status_code=500,
+                detail=f"Failed to get Victron battery history: {str(e)}"
+            )
+
+    @app.get("/victron/health")
+    async def get_victron_health():
+        """
+        Check Victron integration health status.
+
+        Returns poller status, API rate limits, and recent polling statistics.
+
+        Returns:
+            dict: Comprehensive health status
+        """
+        try:
+            from ..utils.db import get_connection, query_one, query_all
+
+            with get_connection() as conn:
+                # Get polling status
+                status = query_one(
+                    conn,
+                    "SELECT * FROM victron.polling_status WHERE id = 1",
+                    as_dict=True
+                )
+
+                # Get count of readings in last 24 hours
+                readings_count = query_one(
+                    conn,
+                    """
+                    SELECT COUNT(*) as count
+                    FROM victron.battery_readings
+                    WHERE timestamp >= NOW() - INTERVAL '24 hours'
+                    """,
+                    as_dict=True
+                )
+
+            if not status:
+                return {
+                    "status": "not_initialized",
+                    "message": "Victron poller not yet initialized",
+                    "timestamp": time.time(),
+                }
+
+            return {
+                "status": "success",
+                "data": {
+                    "poller_running": status.get("is_healthy", False),
+                    "last_poll_attempt": status["last_poll_attempt"].isoformat() if status.get("last_poll_attempt") else None,
+                    "last_successful_poll": status["last_successful_poll"].isoformat() if status.get("last_successful_poll") else None,
+                    "last_error": status.get("last_error"),
+                    "consecutive_failures": status.get("consecutive_failures", 0),
+                    "is_healthy": status.get("is_healthy", False),
+                    "readings_count_24h": readings_count.get("count", 0) if readings_count else 0,
+                    "api_requests_this_hour": status.get("requests_this_hour", 0),
+                    "rate_limit_max": 50,
+                },
+                "timestamp": time.time(),
+            }
+
+        except Exception as e:
+            logger.exception("get_victron_health_failed error=%s", e)
+            raise HTTPException(
+                status_code=500,
+                detail=f"Failed to get Victron health status: {str(e)}"
+            )
+
+    @app.post("/victron/poll-now")
+    async def trigger_victron_poll():
+        """
+        Manually trigger a Victron VRM API poll (for testing).
+
+        This bypasses the normal 3-minute polling interval and fetches
+        battery data immediately.
+
+        Returns:
+            dict: Battery data that was fetched
+        """
+        try:
+            from ..services.victron_poller import get_poller
+
+            poller = get_poller()
+            data = await poller.poll_and_store()
+
+            return {
+                "status": "success",
+                "message": "Poll completed successfully",
+                "data": data,
+                "timestamp": time.time(),
+            }
+
+        except Exception as e:
+            logger.exception("trigger_victron_poll_failed error=%s", e)
+            raise HTTPException(
+                status_code=500,
+                detail=f"Failed to trigger Victron poll: {str(e)}"
             )
 
     # ─────────────────────────────────────────────────────────────────────────

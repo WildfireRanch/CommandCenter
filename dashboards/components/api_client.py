@@ -64,6 +64,22 @@ class RailwayAPIClient:
         """Get recent conversations"""
         return self._get(f"/conversations?limit={limit}") or {"error": "No conversations"}
 
+    # ─────────────────────────────────────────────────────────────────────────
+    # Victron Integration Endpoints (V1.6+)
+    # ─────────────────────────────────────────────────────────────────────────
+
+    def get_victron_battery_current(self) -> Dict[str, Any]:
+        """Get latest Victron battery reading from Cerbo GX"""
+        return self._get("/victron/battery/current") or {"error": "No Victron data"}
+
+    def get_victron_battery_history(self, hours: int = 24, limit: int = 480) -> Dict[str, Any]:
+        """Get Victron battery history (up to 72 hours)"""
+        return self._get(f"/victron/battery/history?hours={hours}&limit={limit}") or {"error": "No historical data"}
+
+    def get_victron_health(self) -> Dict[str, Any]:
+        """Get Victron integration health status"""
+        return self._get("/victron/health") or {"error": "Health check failed"}
+
 
 # Singleton instance
 api = RailwayAPIClient()

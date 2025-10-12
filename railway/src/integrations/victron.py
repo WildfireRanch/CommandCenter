@@ -46,10 +46,11 @@ logger = logging.getLogger(__name__)
 # Configuration
 # ─────────────────────────────────────────────────────────────────────────────
 
-VRM_API_BASE_URL = os.getenv("VICTRON_API_URL", "https://vrmapi.victronenergy.com")
+VRM_API_BASE_URL = os.getenv("VICTRON_API_URL", os.getenv("VRM_API_URL", "https://vrmapi.victronenergy.com"))
 VRM_USERNAME = os.getenv("VICTRON_VRM_USERNAME")
 VRM_PASSWORD = os.getenv("VICTRON_VRM_PASSWORD")
-INSTALLATION_ID = os.getenv("VICTRON_INSTALLATION_ID")
+VRM_API_TOKEN = os.getenv("VRM_API_TOKEN")  # Alternative: pre-generated token
+INSTALLATION_ID = os.getenv("VICTRON_INSTALLATION_ID", os.getenv("IDSITE"))
 
 # Rate limiting
 MAX_REQUESTS_PER_HOUR = 50
@@ -76,40 +77,51 @@ class VictronVRMClient:
         self,
         username: Optional[str] = None,
         password: Optional[str] = None,
+        api_token: Optional[str] = None,
         installation_id: Optional[str] = None,
         base_url: Optional[str] = None
     ):
         """
         Initialize VRM API client.
 
+        Supports two authentication methods:
+        1. Username + Password (will authenticate to get token)
+        2. Pre-generated API token (skip authentication)
+
         Args:
             username: VRM account email (defaults to env var)
             password: VRM account password (defaults to env var)
+            api_token: Pre-generated VRM API token (alternative to username/password)
             installation_id: VRM installation ID (defaults to env var)
             base_url: API base URL (defaults to env var or standard URL)
         """
         self.base_url = base_url or VRM_API_BASE_URL
         self.username = username or VRM_USERNAME
         self.password = password or VRM_PASSWORD
+        self.api_token = api_token or VRM_API_TOKEN
         self.installation_id = installation_id or INSTALLATION_ID
 
-        # Validate credentials
-        if not self.username or not self.password:
+        # Validate credentials (need either username+password OR api_token)
+        if not ((self.username and self.password) or self.api_token):
             raise ValueError(
                 "Victron VRM credentials not configured. "
-                "Set VICTRON_VRM_USERNAME and VICTRON_VRM_PASSWORD environment variables."
+                "Set either (VICTRON_VRM_USERNAME + VICTRON_VRM_PASSWORD) or VRM_API_TOKEN."
             )
 
         if not self.installation_id:
             logger.warning(
-                "VICTRON_INSTALLATION_ID not set. "
-                "You'll need to call get_installations() to find it."
+                "Installation ID not set. "
+                "Set VICTRON_INSTALLATION_ID or IDSITE environment variable."
             )
 
         # Authentication state
-        self.token: Optional[str] = None
+        self.token: Optional[str] = self.api_token  # Use pre-generated token if provided
         self.user_id: Optional[int] = None
         self.token_expires_at: Optional[datetime] = None
+
+        # If using pre-generated token, set expiration far in future
+        if self.api_token:
+            self.token_expires_at = datetime.now() + timedelta(days=365)
 
         # Rate limiting
         self.request_count = 0
@@ -139,7 +151,11 @@ class VictronVRMClient:
         """
         logger.info("Authenticating with Victron VRM API...")
 
-        url = f"{self.base_url}/v2/auth/login"
+        base = self.base_url.rstrip('/')
+        if base.endswith('/v2'):
+            url = f"{base}/auth/login"
+        else:
+            url = f"{base}/v2/auth/login"
         payload = {
             "username": self.username,
             "password": self.password
@@ -176,7 +192,14 @@ class VictronVRMClient:
         """
         Ensure we have a valid authentication token.
         Re-authenticates if token is expired or missing.
+
+        If using pre-generated API token, this is a no-op.
         """
+        # If we have a pre-generated API token, no need to authenticate
+        if self.api_token:
+            return
+
+        # Otherwise, authenticate if needed
         if not self.token or self._is_token_expired():
             await self.authenticate()
 
@@ -199,7 +222,11 @@ class VictronVRMClient:
         """
         await self.ensure_authenticated()
 
-        url = f"{self.base_url}/v2/users/{self.user_id}/installations"
+        base = self.base_url.rstrip('/')
+        if base.endswith('/v2'):
+            url = f"{base}/users/{self.user_id}/installations"
+        else:
+            url = f"{base}/v2/users/{self.user_id}/installations"
 
         response = await self._make_request("GET", url)
 
@@ -242,25 +269,65 @@ class VictronVRMClient:
                 "Installation ID required. Set VICTRON_INSTALLATION_ID or pass as argument."
             )
 
-        url = f"{self.base_url}/v2/installations/{install_id}/widgets/BatterySummary"
+        # Use diagnostics endpoint (real VRM API structure)
+        base = self.base_url.rstrip('/')
+        if base.endswith('/v2'):
+            url = f"{base}/installations/{install_id}/diagnostics"
+        else:
+            url = f"{base}/v2/installations/{install_id}/diagnostics"
 
         try:
             response = await self._make_request("GET", url)
 
-            # Extract battery data from response
-            records = response.get("records", {})
+            # Extract battery data from diagnostics records
+            # VRM API uses data attribute codes:
+            # 51 = SOC (State of Charge)
+            # 47 = V (Voltage)
+            # 49 = I (Current)
+            # 115 = BT (Battery Temperature)
+            records = response.get("records", [])
 
-            # Map VRM response to our format
             battery_data = {
                 "timestamp": datetime.now().isoformat(),
                 "installation_id": install_id,
-                "soc": records.get("soc"),
-                "voltage": records.get("voltage"),
-                "current": records.get("current"),
-                "power": records.get("power"),
-                "state": records.get("state"),
-                "temperature": records.get("temperature")
+                "soc": None,
+                "voltage": None,
+                "current": None,
+                "power": None,
+                "state": None,
+                "temperature": None
             }
+
+            # Parse diagnostics records for battery monitor data
+            for record in records:
+                attr_id = record.get("idDataAttribute")
+                raw_value = record.get("rawValue")
+
+                if attr_id == 51:  # SOC
+                    battery_data["soc"] = float(raw_value) if raw_value is not None else None
+                elif attr_id == 47:  # Voltage
+                    battery_data["voltage"] = float(raw_value) if raw_value is not None else None
+                elif attr_id == 49:  # Current
+                    battery_data["current"] = float(raw_value) if raw_value is not None else None
+                elif attr_id == 115:  # Battery Monitor temperature
+                    battery_data["temperature"] = float(raw_value) if raw_value is not None else None
+                elif attr_id == 450:  # External temperature sensor (e.g., ShackTemp instance 24)
+                    # Prefer external temp sensor if available
+                    if raw_value is not None:
+                        battery_data["temperature"] = float(raw_value)
+
+            # Calculate power from voltage and current if available
+            if battery_data["voltage"] and battery_data["current"]:
+                battery_data["power"] = battery_data["voltage"] * battery_data["current"]
+
+            # Determine state from current
+            if battery_data["current"]:
+                if battery_data["current"] > 0.5:
+                    battery_data["state"] = "charging"
+                elif battery_data["current"] < -0.5:
+                    battery_data["state"] = "discharging"
+                else:
+                    battery_data["state"] = "idle"
 
             logger.debug(f"Battery data: SOC={battery_data['soc']}%, V={battery_data['voltage']}V")
 
