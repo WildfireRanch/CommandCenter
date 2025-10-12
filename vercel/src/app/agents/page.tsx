@@ -101,9 +101,17 @@ export default function AgentsPage() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div>
-        <h1 className="text-3xl font-bold text-gray-900">Agent Monitor</h1>
-        <p className="text-gray-600 mt-1">Real-time health and performance monitoring</p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-3xl font-bold text-gray-900">Agent Monitor</h1>
+          <p className="text-gray-600 mt-1">Real-time health and performance monitoring</p>
+        </div>
+        <a
+          href="/testing"
+          className="px-4 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2"
+        >
+          🧪 Developer Tools
+        </a>
       </div>
 
       {/* Summary Stats */}
