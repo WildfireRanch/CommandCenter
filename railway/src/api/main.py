@@ -423,6 +423,107 @@ def create_app() -> FastAPI:
                 detail=f"Schema initialization failed: {str(e)}"
             )
 
+    @app.post("/db/create-victron-tables")
+    async def create_victron_tables():
+        """
+        Create Victron database tables (temporary emergency fix).
+
+        WHAT: Creates victron schema and required tables
+        WHY: Migration failing due to TimescaleDB dependency
+        HOW: Direct SQL execution
+
+        Returns:
+            dict: Success status and table names created
+        """
+        try:
+            from ..utils.db import get_connection
+
+            logger.info("victron_tables_creation_requested")
+
+            with get_connection() as conn:
+                conn.autocommit = True
+                cursor = conn.cursor()
+
+                # Create schema
+                cursor.execute("CREATE SCHEMA IF NOT EXISTS victron;")
+
+                # Create battery_readings table
+                cursor.execute("""
+                CREATE TABLE IF NOT EXISTS victron.battery_readings (
+                    id SERIAL PRIMARY KEY,
+                    timestamp TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+                    installation_id VARCHAR(100),
+                    soc FLOAT NOT NULL,
+                    voltage FLOAT,
+                    current FLOAT,
+                    power FLOAT,
+                    state VARCHAR(20),
+                    temperature FLOAT,
+                    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+                );
+                """)
+
+                # Create polling_status table
+                cursor.execute("""
+                CREATE TABLE IF NOT EXISTS victron.polling_status (
+                    id SERIAL PRIMARY KEY,
+                    last_poll_attempt TIMESTAMPTZ,
+                    last_successful_poll TIMESTAMPTZ,
+                    last_error TEXT,
+                    requests_this_hour INTEGER DEFAULT 0,
+                    hour_window_start TIMESTAMPTZ DEFAULT NOW(),
+                    consecutive_failures INTEGER DEFAULT 0,
+                    is_healthy BOOLEAN DEFAULT TRUE,
+                    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+                );
+                """)
+
+                # Insert default polling status
+                cursor.execute("""
+                INSERT INTO victron.polling_status (id, updated_at)
+                VALUES (1, NOW())
+                ON CONFLICT (id) DO NOTHING;
+                """)
+
+                # Create indexes
+                cursor.execute("""
+                CREATE INDEX IF NOT EXISTS idx_battery_readings_timestamp
+                    ON victron.battery_readings(timestamp DESC);
+                """)
+
+                cursor.execute("""
+                CREATE INDEX IF NOT EXISTS idx_battery_readings_installation
+                    ON victron.battery_readings(installation_id, timestamp DESC);
+                """)
+
+                # Verify
+                cursor.execute("""
+                SELECT table_name
+                FROM information_schema.tables
+                WHERE table_schema = 'victron'
+                ORDER BY table_name;
+                """)
+                tables = cursor.fetchall()
+                table_names = [t[0] for t in tables]
+
+                cursor.close()
+
+            logger.info(f"victron_tables_created tables={table_names}")
+
+            return {
+                "status": "success",
+                "message": "Victron tables created successfully",
+                "tables": table_names,
+                "timestamp": time.time()
+            }
+
+        except Exception as e:
+            logger.exception("victron_tables_creation_failed error=%s", e)
+            raise HTTPException(
+                status_code=500,
+                detail=f"Failed to create Victron tables: {str(e)}"
+            )
+
     @app.post("/db/migrate-kb-schema")
     async def migrate_kb_schema():
         """
