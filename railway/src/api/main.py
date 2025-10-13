@@ -1266,12 +1266,17 @@ def create_app() -> FastAPI:
             if not totals:
                 raise HTTPException(status_code=404, detail="No data available for the specified period")
 
-            # Calculate costs
-            grid_import_cost = totals['grid_import_kwh'] * import_rate
-            grid_export_revenue = totals['grid_export_kwh'] * export_rate
+            # Calculate costs (convert Decimal to float for calculations)
+            grid_import_kwh = float(totals['grid_import_kwh'] or 0)
+            grid_export_kwh = float(totals['grid_export_kwh'] or 0)
+            total_solar_kwh = float(totals['total_solar_kwh'] or 0)
+            total_load_kwh = float(totals['total_load_kwh'] or 0)
+
+            grid_import_cost = grid_import_kwh * import_rate
+            grid_export_revenue = grid_export_kwh * export_rate
 
             # Solar savings = solar used directly (not exported) * import rate
-            solar_self_consumed = totals['total_solar_kwh'] - totals['grid_export_kwh']
+            solar_self_consumed = total_solar_kwh - grid_export_kwh
             solar_savings = solar_self_consumed * import_rate
 
             net_savings = solar_savings + grid_export_revenue - grid_import_cost
@@ -1284,10 +1289,10 @@ def create_app() -> FastAPI:
                     "days": (end - start).days + 1
                 },
                 "energy": {
-                    "solar_produced_kwh": round(totals['total_solar_kwh'], 2),
-                    "load_consumed_kwh": round(totals['total_load_kwh'], 2),
-                    "grid_import_kwh": round(totals['grid_import_kwh'], 2),
-                    "grid_export_kwh": round(totals['grid_export_kwh'], 2),
+                    "solar_produced_kwh": round(total_solar_kwh, 2),
+                    "load_consumed_kwh": round(total_load_kwh, 2),
+                    "grid_import_kwh": round(grid_import_kwh, 2),
+                    "grid_export_kwh": round(grid_export_kwh, 2),
                     "solar_self_consumed_kwh": round(solar_self_consumed, 2)
                 },
                 "costs": {
@@ -1302,11 +1307,11 @@ def create_app() -> FastAPI:
                 },
                 "metrics": {
                     "solar_self_consumption_pct": round(
-                        solar_self_consumed / totals['total_solar_kwh'] * 100, 1
-                    ) if totals['total_solar_kwh'] > 0 else 0,
+                        solar_self_consumed / total_solar_kwh * 100, 1
+                    ) if total_solar_kwh > 0 else 0,
                     "grid_independence_pct": round(
-                        (totals['total_load_kwh'] - totals['grid_import_kwh']) / totals['total_load_kwh'] * 100, 1
-                    ) if totals['total_load_kwh'] > 0 else 0
+                        (total_load_kwh - grid_import_kwh) / total_load_kwh * 100, 1
+                    ) if total_load_kwh > 0 else 0
                 },
                 "timestamp": time.time()
             }
@@ -1342,18 +1347,25 @@ def create_app() -> FastAPI:
 
             current_time = datetime.utcnow()
 
-            # Get current SOC from Victron (most accurate)
+            # Get current SOC (try Victron first, fall back to SolArk)
             with get_connection() as conn:
-                current_reading = query_one(
-                    conn,
-                    """
-                    SELECT soc, voltage, current, power
-                    FROM victron.battery_readings
-                    ORDER BY timestamp DESC
-                    LIMIT 1
-                    """,
-                    as_dict=True
-                )
+                current_reading = None
+
+                # Try Victron first (most accurate)
+                try:
+                    current_reading = query_one(
+                        conn,
+                        """
+                        SELECT soc, voltage, current, power
+                        FROM victron.battery_readings
+                        ORDER BY timestamp DESC
+                        LIMIT 1
+                        """,
+                        as_dict=True
+                    )
+                except Exception:
+                    # Victron schema might not exist yet
+                    pass
 
                 if not current_reading:
                     # Fall back to SolArk

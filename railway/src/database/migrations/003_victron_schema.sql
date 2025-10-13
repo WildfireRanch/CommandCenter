@@ -1,23 +1,22 @@
 -- ═══════════════════════════════════════════════════════════════════════════
--- FILE: railway/migrations/003_victron_schema.sql
+-- FILE: railway/src/database/migrations/003_victron_schema_fixed.sql
 -- PURPOSE: Initialize database schema for Victron Cerbo battery monitoring
+--          (Fixed version that works without TimescaleDB)
 --
 -- WHAT IT DOES:
 --   - Creates victron schema for battery data
---   - Creates battery_readings table with TimescaleDB hypertable
+--   - Creates battery_readings table
+--   - Creates polling_status table
+--   - Optionally converts to TimescaleDB hypertable if extension exists
 --   - Sets up indexes for fast time-series queries
---   - Configures 72-hour data retention policy
 --
--- DEPENDENCIES:
---   - PostgreSQL 15+
---   - TimescaleDB extension (already enabled in 001_*)
---   - 001_agent_memory_schema.sql (for TimescaleDB setup)
+-- CHANGES FROM ORIGINAL:
+--   - Gracefully handles missing TimescaleDB extension
+--   - Creates tables even if TimescaleDB is not available
+--   - Skips hypertable conversion and retention policies if TimescaleDB missing
 --
 -- USAGE:
---   psql $DATABASE_URL < migrations/003_victron_schema.sql
---
---   Or via API endpoint:
---   POST https://api.wildfireranch.us/db/init-schema
+--   railway run psql < railway/src/database/migrations/003_victron_schema_fixed.sql
 -- ═══════════════════════════════════════════════════════════════════════════
 
 -- ─────────────────────────────────────────────────────────────────────────────
@@ -66,24 +65,40 @@ COMMENT ON COLUMN victron.battery_readings.temperature IS 'Battery temperature i
 
 
 -- ─────────────────────────────────────────────────────────────────────────────
--- 3. Convert to TimescaleDB Hypertable
+-- 3. Convert to TimescaleDB Hypertable (if TimescaleDB is available)
 -- ─────────────────────────────────────────────────────────────────────────────
 
--- Check if table is already a hypertable before converting
+-- Check if TimescaleDB extension exists before trying to use it
 DO $$
+DECLARE
+    timescale_available BOOLEAN;
 BEGIN
-    IF NOT EXISTS (
-        SELECT 1 FROM timescaledb_information.hypertables
-        WHERE hypertable_schema = 'victron'
-        AND hypertable_name = 'battery_readings'
-    ) THEN
-        -- Convert to hypertable for efficient time-series queries
-        PERFORM create_hypertable(
-            'victron.battery_readings',
-            'timestamp',
-            chunk_time_interval => INTERVAL '1 day',
-            if_not_exists => TRUE
-        );
+    -- Check if TimescaleDB extension is installed
+    SELECT EXISTS (
+        SELECT 1 FROM pg_extension WHERE extname = 'timescaledb'
+    ) INTO timescale_available;
+
+    IF timescale_available THEN
+        -- TimescaleDB is available, check if already a hypertable
+        IF NOT EXISTS (
+            SELECT 1 FROM timescaledb_information.hypertables
+            WHERE hypertable_schema = 'victron'
+            AND hypertable_name = 'battery_readings'
+        ) THEN
+            -- Convert to hypertable for efficient time-series queries
+            PERFORM create_hypertable(
+                'victron.battery_readings',
+                'timestamp',
+                chunk_time_interval => INTERVAL '1 day',
+                if_not_exists => TRUE
+            );
+            RAISE NOTICE '✓ Converted victron.battery_readings to TimescaleDB hypertable';
+        ELSE
+            RAISE NOTICE '✓ victron.battery_readings is already a hypertable';
+        END IF;
+    ELSE
+        RAISE NOTICE '⚠ TimescaleDB not available - using standard PostgreSQL table';
+        RAISE NOTICE '  Install TimescaleDB for better performance: CREATE EXTENSION timescaledb;';
     END IF;
 END $$;
 
@@ -106,30 +121,41 @@ CREATE INDEX IF NOT EXISTS idx_battery_readings_created_at
 
 
 -- ─────────────────────────────────────────────────────────────────────────────
--- 5. Data Retention Policy (72 hours)
+-- 5. Data Retention Policy (if TimescaleDB is available)
 -- ─────────────────────────────────────────────────────────────────────────────
 
--- Remove retention policy if it exists (for re-runs)
 DO $$
+DECLARE
+    timescale_available BOOLEAN;
 BEGIN
-    IF EXISTS (
-        SELECT 1 FROM timescaledb_information.jobs
-        WHERE proc_name = 'policy_retention'
-        AND hypertable_name = 'battery_readings'
-    ) THEN
-        -- Drop existing policy
-        PERFORM remove_retention_policy('victron.battery_readings', if_exists => true);
+    -- Check if TimescaleDB extension is installed
+    SELECT EXISTS (
+        SELECT 1 FROM pg_extension WHERE extname = 'timescaledb'
+    ) INTO timescale_available;
+
+    IF timescale_available THEN
+        -- Remove existing retention policy if it exists
+        IF EXISTS (
+            SELECT 1 FROM timescaledb_information.jobs
+            WHERE proc_name = 'policy_retention'
+            AND hypertable_name = 'battery_readings'
+        ) THEN
+            PERFORM remove_retention_policy('victron.battery_readings', if_exists => true);
+        END IF;
+
+        -- Add 72-hour retention policy
+        PERFORM add_retention_policy(
+            'victron.battery_readings',
+            INTERVAL '72 hours',
+            if_not_exists => true
+        );
+
+        RAISE NOTICE '✓ Added 72-hour retention policy to victron.battery_readings';
+    ELSE
+        RAISE NOTICE '⚠ Skipping retention policy (requires TimescaleDB)';
+        RAISE NOTICE '  Consider manually cleaning old data or enabling TimescaleDB';
     END IF;
 END $$;
-
--- Add 72-hour retention policy
-SELECT add_retention_policy(
-    'victron.battery_readings',
-    INTERVAL '72 hours',
-    if_not_exists => true
-);
-
-COMMENT ON TABLE victron.battery_readings IS 'Time-series battery data with 72-hour retention policy';
 
 
 -- ─────────────────────────────────────────────────────────────────────────────
@@ -171,6 +197,8 @@ BEGIN
     RETURN NEW;
 END;
 $$ LANGUAGE plpgsql;
+
+DROP TRIGGER IF EXISTS trg_update_polling_status_timestamp ON victron.polling_status;
 
 CREATE TRIGGER trg_update_polling_status_timestamp
     BEFORE UPDATE ON victron.polling_status
@@ -215,19 +243,35 @@ COMMENT ON VIEW victron.battery_stats_24h IS '24-hour battery statistics';
 
 
 -- ─────────────────────────────────────────────────────────────────────────────
--- 8. Verification Query
+-- 8. Verification
 -- ─────────────────────────────────────────────────────────────────────────────
 
--- Display schema info
 DO $$
+DECLARE
+    timescale_available BOOLEAN;
 BEGIN
+    -- Check if TimescaleDB extension is installed
+    SELECT EXISTS (
+        SELECT 1 FROM pg_extension WHERE extname = 'timescaledb'
+    ) INTO timescale_available;
+
+    RAISE NOTICE '════════════════════════════════════════════════════════';
     RAISE NOTICE '✓ Victron schema created successfully';
-    RAISE NOTICE '✓ battery_readings table created as TimescaleDB hypertable';
-    RAISE NOTICE '✓ 72-hour retention policy applied';
+    RAISE NOTICE '✓ victron.battery_readings table created';
+    RAISE NOTICE '✓ victron.polling_status table created';
     RAISE NOTICE '✓ Indexes created for optimal query performance';
     RAISE NOTICE '✓ Helper views created';
+
+    IF timescale_available THEN
+        RAISE NOTICE '✓ TimescaleDB hypertable configured';
+        RAISE NOTICE '✓ 72-hour retention policy applied';
+    ELSE
+        RAISE NOTICE '⚠ Running without TimescaleDB (performance may be reduced)';
+    END IF;
+
     RAISE NOTICE '';
     RAISE NOTICE 'Ready for Victron Cerbo integration!';
+    RAISE NOTICE '════════════════════════════════════════════════════════';
 END $$;
 
 

@@ -96,10 +96,20 @@ class VictronPoller:
         logger.info("Starting Victron VRM poller...")
         self.is_running = True
 
-        # Initialize VRM client
+        # Initialize VRM client with API token
         try:
-            self.client = VictronVRMClient()
-            await self.client.authenticate()
+            # Use pre-generated VRM_API_TOKEN instead of username/password
+            # The token-based auth works while username/password gets 401 errors
+            api_token = os.getenv("VRM_API_TOKEN")
+            if not api_token:
+                logger.warning("VRM_API_TOKEN not set, falling back to username/password auth")
+                self.client = VictronVRMClient()
+                await self.client.authenticate()
+            else:
+                # Use token directly - no need to call authenticate()
+                self.client = VictronVRMClient(api_token=api_token)
+                logger.info("VRM client initialized with API token")
+
             logger.info("VRM client authenticated successfully")
         except Exception as e:
             logger.error(f"Failed to initialize VRM client: {e}")
