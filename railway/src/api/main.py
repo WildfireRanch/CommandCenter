@@ -1338,7 +1338,7 @@ def create_app() -> FastAPI:
         """
         try:
             from datetime import datetime, timedelta
-            from ..utils.db import get_connection, query_all
+            from ..utils.db import get_connection, query_all, query_one
 
             current_time = datetime.utcnow()
 
