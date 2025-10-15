@@ -6,6 +6,46 @@
 
 ---
 
+## 🚂 Railway Access Guide
+
+**IMPORTANT:** Before proceeding, please read `/workspaces/CommandCenter/RAILWAY_ACCESS_GUIDE` for Railway CLI context and best practices.
+
+**Quick Railway Context for This Task:**
+- **Project:** CommandCenterProject
+- **Environment:** production
+- **Database Service:** POSTGRES_DB (PostgreSQL with TimescaleDB)
+- **Backend Service:** CommandCenter (FastAPI application)
+
+**Relevant Railway Commands:**
+```bash
+# Check project status
+railway status
+
+# Connect to PostgreSQL database
+railway connect POSTGRES_DB
+
+# Run command with Railway env vars loaded
+railway run <command>
+
+# View database logs
+railway logs --service POSTGRES_DB
+
+# View backend logs
+railway logs --service CommandCenter
+```
+
+**What Claude Code Can Do:**
+- ✅ Run `railway connect POSTGRES_DB` to open psql console
+- ✅ Execute SQL directly in the database
+- ✅ Check logs with `railway logs`
+- ✅ Run Python scripts with `railway run python3 script.py`
+
+**What Requires User Action:**
+- Interactive commands that need TTY (will show error, user needs to do manually)
+- Railway web console access (Claude can't access web UI)
+
+---
+
 ## 🎯 Context
 
 The Database Health Dashboard has been fully implemented and deployed. All code is in production and working except for the historical data endpoint, which requires the `monitoring.health_snapshots` table to be created in the database.
