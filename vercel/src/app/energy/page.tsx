@@ -1,13 +1,14 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { Battery, Sun, Zap, Activity, ArrowDown, ArrowUp, Minus, ThermometerSun, Gauge, TrendingUp, AlertCircle, BarChart3, DollarSign, Lightbulb, Clock } from 'lucide-react'
+import { Battery, Sun, Zap, Activity, ArrowDown, ArrowUp, Minus, ThermometerSun, Gauge, TrendingUp, AlertCircle, BarChart3, DollarSign, Lightbulb, Clock, Database } from 'lucide-react'
 import { PowerFlowChart, SOCComparisonChart, BatteryVoltageChart, BatteryCurrentChart, BatteryTemperatureChart } from '@/components/energy/HistoricalCharts'
 import { TimeRangeSelector } from '@/components/energy/TimeRangeSelector'
 import { AnalyticsSection } from '@/components/energy/AnalyticsSection'
 import { CostTracking } from '@/components/energy/CostTracking'
 import { PredictiveAnalytics } from '@/components/energy/PredictiveAnalytics'
 import { ExcessEnergyDashboard } from '@/components/energy/ExcessEnergyDashboard'
+import { DatabaseHealthTab } from '@/components/energy/DatabaseHealthTab'
 
 interface SolArkData {
   pv_power: number
@@ -252,6 +253,7 @@ export default function EnergyPage() {
     { id: 'cost', label: 'Cost Tracking', icon: DollarSign },
     { id: 'predictions', label: 'Predictions', icon: Clock },
     { id: 'excess', label: 'Excess Energy', icon: Lightbulb },
+    { id: 'health', label: 'Database Health', icon: Database },
   ]
 
   return (
@@ -686,6 +688,10 @@ export default function EnergyPage() {
             loading={analyticsLoading}
           />
         </div>
+      )}
+
+      {activeTab === 'health' && (
+        <DatabaseHealthTab />
       )}
     </div>
   )

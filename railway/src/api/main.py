@@ -267,6 +267,18 @@ def create_app() -> FastAPI:
         else:
             print("🔋 Victron VRM poller: ⏭️  (skipped - credentials not configured)")
 
+        # Start Health Monitor (V1.8)
+        health_monitor_task = None
+        try:
+            import asyncio
+            from ..services.health_monitor import start_monitor
+
+            print("🏥 Starting Health Monitor...")
+            health_monitor_task = asyncio.create_task(start_monitor())
+            print("🏥 Health Monitor: ✅")
+        except Exception as e:
+            print(f"🏥 Health Monitor: ❌ (WARNING: {e})")
+
         yield
 
         # ─────────────────────────────────────────────────────────────────
@@ -303,6 +315,21 @@ def create_app() -> FastAPI:
                 print("🔋 Victron poller stopped: ✅")
             except Exception as e:
                 print(f"🔋 Victron poller stop error: {e}")
+
+        # Stop Health Monitor
+        if health_monitor_task:
+            try:
+                from ..services.health_monitor import stop_monitor
+                print("🏥 Stopping Health Monitor...")
+                await stop_monitor()
+                health_monitor_task.cancel()
+                try:
+                    await health_monitor_task
+                except asyncio.CancelledError:
+                    pass
+                print("🏥 Health Monitor stopped: ✅")
+            except Exception as e:
+                print(f"🏥 Health Monitor stop error: {e}")
     
     # Create FastAPI app
     app = FastAPI(
@@ -2632,6 +2659,10 @@ def create_app() -> FastAPI:
 
     from .routes import kb
     app.include_router(kb.router)
+
+    # Health monitoring endpoints (V1.8)
+    from .endpoints import health_monitoring
+    app.include_router(health_monitoring.router)
 
     logger.info("✅ CommandCenter API initialized")
     return app
