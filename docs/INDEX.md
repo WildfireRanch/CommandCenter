@@ -30,6 +30,12 @@ Guide for Claude Code and AI assistants to navigate docs efficiently:
 
 ## 🎉 **LATEST UPDATES**
 
+### 🟢 V1.7 Database Health & Polling (October 15, 2025)
+1. **[sessions/SESSION_030_DATABASE_HEALTH_AND_POLLING_FIX.md](sessions/SESSION_030_DATABASE_HEALTH_AND_POLLING_FIX.md)** ✅ **Database & polling fixed**
+2. **[AGENT_DATABASE_FIX_SUMMARY.md](AGENT_DATABASE_FIX_SUMMARY.md)** 📋 **Technical fix documentation**
+3. **[prompts/MASTER_DB_QUALITY_AND_POLLING_VALIDATION.md](prompts/MASTER_DB_QUALITY_AND_POLLING_VALIDATION.md)** 🆕 **Health check protocol**
+4. **[prompts/DATABASE_HEALTH_DASHBOARD_IMPLEMENTATION.md](prompts/DATABASE_HEALTH_DASHBOARD_IMPLEMENTATION.md)** 🎯 **Dashboard implementation guide**
+
 ### 🟢 V1.5.0 RELEASED (December 10, 2025)
 1. **[V1.5_MASTER_REFERENCE.md](V1.5_MASTER_REFERENCE.md)** 🆕 **Current system reference**
 2. **[05-architecture.md](05-architecture.md)** ✅ **Updated V1.5 architecture**
@@ -60,6 +66,7 @@ Guide for Claude Code and AI assistants to navigate docs efficiently:
 ## 📋 Session History
 
 ### Latest Sessions (Start Here!)
+- **[sessions/SESSION_030_DATABASE_HEALTH_AND_POLLING_FIX.md](sessions/SESSION_030_DATABASE_HEALTH_AND_POLLING_FIX.md)** ✅ **Session 030 - Database & Polling Fixed (COMPLETE)**
 - **[sessions/SESSION_021_SUMMARY.md](sessions/SESSION_021_SUMMARY.md)** ✅ **Session 021 - Critical Bug Fixes (COMPLETE)**
 - **[sessions/SESSION_021_DEBUG_PROMPT.md](sessions/SESSION_021_DEBUG_PROMPT.md)** 📋 Session 021 debug prompt
 - **[sessions/SESSION_020_PROMPT.md](sessions/SESSION_020_PROMPT.md)** 🆕 **Session 020 - Energy Orchestrator Built**
@@ -119,6 +126,11 @@ Guide for Claude Code and AI assistants to navigate docs efficiently:
   - [RATE_LIMIT_HANDLING.md](deployment/RATE_LIMIT_HANDLING.md)
 
 ## 🔧 Technical Guides
+
+### Database & Monitoring
+- **[AGENT_DATABASE_FIX_SUMMARY.md](AGENT_DATABASE_FIX_SUMMARY.md)** 📋 **Oct 2025 database & polling fixes**
+- **[prompts/MASTER_DB_QUALITY_AND_POLLING_VALIDATION.md](prompts/MASTER_DB_QUALITY_AND_POLLING_VALIDATION.md)** 🔍 **Health check protocol**
+- **[prompts/DATABASE_HEALTH_DASHBOARD_IMPLEMENTATION.md](prompts/DATABASE_HEALTH_DASHBOARD_IMPLEMENTATION.md)** 🎯 **Dashboard implementation**
 
 ### MCP Server
 - **[mcp-server/INSTALL.md](../mcp-server/INSTALL.md)** - Claude Desktop integration
