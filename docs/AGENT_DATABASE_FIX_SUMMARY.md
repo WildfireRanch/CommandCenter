@@ -44,14 +44,14 @@ Agent was not seeing:
 **File:** `railway/src/services/solark_poller.py`
 
 **Features:**
-- Polls SolArk API every **60 seconds** (configurable via `SOLARK_POLL_INTERVAL`)
+- Polls SolArk API every **180 seconds (3 minutes)** (configurable via `SOLARK_POLL_INTERVAL`)
 - Stores data in `solark.plant_flow` table automatically
 - Tracks health metrics (polls, failures, success rate)
 - Graceful error handling (doesn't crash on API errors)
 - Async-compatible with FastAPI lifecycle
 
 **Data Collection:**
-- Target: 1,440 records per day (1 per minute)
+- Target: 480 records per day (20 per hour)
 - Storage: Uses existing `get_solark_status(save_to_db=True)` function
 - Database: `solark.plant_flow` table (TimescaleDB hypertable)
 
@@ -63,9 +63,9 @@ Agent was not seeing:
     'last_successful_poll': '2025-10-15T16:30:00',
     'consecutive_failures': 0,
     'is_healthy': True,
-    'poll_interval_seconds': 60,
-    'total_polls': 1440,
-    'total_records_saved': 1440
+    'poll_interval_seconds': 180,
+    'total_polls': 480,
+    'total_records_saved': 480
 }
 ```
 
@@ -103,10 +103,10 @@ Returns SolArk poller status and metrics:
     "last_successful_poll": "2025-10-15T16:30:00",
     "consecutive_failures": 0,
     "is_healthy": true,
-    "poll_interval_seconds": 60,
-    "total_polls": 1440,
-    "total_records_saved": 1440,
-    "readings_count_24h": 1440
+    "poll_interval_seconds": 180,
+    "total_polls": 480,
+    "total_records_saved": 480,
+    "readings_count_24h": 480
   }
 }
 ```
@@ -185,9 +185,9 @@ curl https://api.wildfireranch.us/victron/health
 ## 📊 Expected Data Collection
 
 ### SolArk Poller
-- **Frequency:** Every 60 seconds
-- **Daily Records:** 1,440 (60 per hour × 24 hours)
-- **Weekly Records:** 10,080
+- **Frequency:** Every 180 seconds (3 minutes)
+- **Daily Records:** 480 (20 per hour × 24 hours)
+- **Weekly Records:** 3,360
 - **Data Retention:** Based on database retention policy (unlimited for now)
 
 ### Victron Poller
@@ -234,10 +234,10 @@ curl https://api.wildfireranch.us/victron/health
 
 #### Check Data Collection (Wait 1 hour)
 ```bash
-# Should return 50-60 records after 1 hour
+# Should return 15-20 records after 1 hour
 curl "https://api.wildfireranch.us/energy/history?hours=1&limit=100" | jq '.count'
 
-# Should return ~1440 records after 24 hours
+# Should return ~480 records after 24 hours
 curl "https://api.wildfireranch.us/energy/stats?hours=24" | jq '.stats.total_records'
 ```
 
@@ -251,7 +251,7 @@ curl "https://api.wildfireranch.us/energy/stats?hours=24" | jq '.stats.total_rec
 curl "https://api.wildfireranch.us/energy/stats?hours=24"
 ```
 
-**Expected:** Full statistics with 1,440 data points showing averages, peaks, and ranges.
+**Expected:** Full statistics with 480 data points showing averages, peaks, and ranges.
 
 ### Test Time-Series Data
 ```bash
@@ -294,13 +294,13 @@ Agent query: "What was my solar production hour-by-hour for the last 6 hours?"
 - [ ] First Victron poll completes within 180 seconds
 
 ### After 1 Hour
-- [ ] 50-60 SolArk records in database
+- [ ] 15-20 SolArk records in database
 - [ ] 15-20 Victron records in database
 - [ ] `/energy/history?hours=1` returns meaningful data
 - [ ] Agent historical queries work correctly
 
 ### After 24 Hours
-- [ ] 1,440 SolArk records in database
+- [ ] 480 SolArk records in database
 - [ ] 480 Victron records in database
 - [ ] `/energy/analytics/daily` shows accurate statistics
 - [ ] `/energy/predictions/soc` provides forecasts

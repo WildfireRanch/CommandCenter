@@ -3,7 +3,7 @@
 # PURPOSE: Background polling service for SolArk inverter data
 #
 # WHAT IT DOES:
-#   - Polls SolArk API every 60 seconds for real-time energy data
+#   - Polls SolArk API every 3 minutes for real-time energy data
 #   - Stores readings in solark.plant_flow table
 #   - Provides continuous time-series data for analytics
 #   - Handles errors gracefully without crashing
@@ -44,7 +44,7 @@ logger = logging.getLogger(__name__)
 # Configuration
 # ─────────────────────────────────────────────────────────────────────────────
 
-DEFAULT_POLL_INTERVAL = 60  # 1 minute (1,440 records/day)
+DEFAULT_POLL_INTERVAL = 180  # 3 minutes (480 records/day)
 POLL_INTERVAL = int(os.getenv("SOLARK_POLL_INTERVAL", DEFAULT_POLL_INTERVAL))
 MAX_CONSECUTIVE_FAILURES = 10  # Alert threshold
 
