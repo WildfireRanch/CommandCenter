@@ -237,15 +237,30 @@ def create_app() -> FastAPI:
             else:
                 print("🗄️ Database connected: ❌ (WARNING: Database unreachable)")
 
+        # Start SolArk poller (V1.7) if credentials configured
+        solark_task = None
+        if os.getenv("SOLARK_EMAIL") and os.getenv("SOLARK_PASSWORD"):
+            try:
+                import asyncio
+                from ..services.solark_poller import start_poller as start_solark_poller
+
+                print("☀️ Starting SolArk poller...")
+                solark_task = asyncio.create_task(start_solark_poller())
+                print("☀️ SolArk poller: ✅")
+            except Exception as e:
+                print(f"☀️ SolArk poller: ❌ (WARNING: {e})")
+        else:
+            print("☀️ SolArk poller: ⏭️  (skipped - credentials not configured)")
+
         # Start Victron poller (V1.6) if credentials configured
         victron_task = None
         if os.getenv("VICTRON_VRM_USERNAME") and os.getenv("VICTRON_VRM_PASSWORD"):
             try:
                 import asyncio
-                from ..services.victron_poller import start_poller
+                from ..services.victron_poller import start_poller as start_victron_poller
 
                 print("🔋 Starting Victron VRM poller...")
-                victron_task = asyncio.create_task(start_poller())
+                victron_task = asyncio.create_task(start_victron_poller())
                 print("🔋 Victron VRM poller: ✅")
             except Exception as e:
                 print(f"🔋 Victron VRM poller: ❌ (WARNING: {e})")
@@ -259,12 +274,27 @@ def create_app() -> FastAPI:
         # ─────────────────────────────────────────────────────────────────
         print("👋 CommandCenter API shutting down...")
 
+        # Stop SolArk poller
+        if solark_task:
+            try:
+                from ..services.solark_poller import stop_poller as stop_solark_poller
+                print("☀️ Stopping SolArk poller...")
+                await stop_solark_poller()
+                solark_task.cancel()
+                try:
+                    await solark_task
+                except asyncio.CancelledError:
+                    pass
+                print("☀️ SolArk poller stopped: ✅")
+            except Exception as e:
+                print(f"☀️ SolArk poller stop error: {e}")
+
         # Stop Victron poller
         if victron_task:
             try:
-                from ..services.victron_poller import stop_poller
+                from ..services.victron_poller import stop_poller as stop_victron_poller
                 print("🔋 Stopping Victron poller...")
-                await stop_poller()
+                await stop_victron_poller()
                 victron_task.cancel()
                 try:
                     await victron_task
@@ -1072,6 +1102,87 @@ def create_app() -> FastAPI:
             raise HTTPException(
                 status_code=500,
                 detail=f"Failed to trigger Victron poll: {str(e)}"
+            )
+
+    # ─────────────────────────────────────────────────────────────────────────
+    # SolArk Poller Endpoints (V1.7)
+    # ─────────────────────────────────────────────────────────────────────────
+
+    @app.get("/solark/health")
+    async def get_solark_health():
+        """
+        Check SolArk poller health status.
+
+        Returns poller status and recent polling statistics.
+
+        Returns:
+            dict: Comprehensive health status
+        """
+        try:
+            from ..services.solark_poller import get_poller
+            from ..utils.db import get_connection, query_one
+
+            # Get in-memory poller status
+            poller = get_poller()
+            health = poller.get_health_status()
+
+            # Get count of readings in last 24 hours from database
+            with get_connection() as conn:
+                readings_count = query_one(
+                    conn,
+                    """
+                    SELECT COUNT(*) as count
+                    FROM solark.plant_flow
+                    WHERE created_at >= NOW() - INTERVAL '24 hours'
+                    """,
+                    as_dict=True
+                )
+
+            return {
+                "status": "success",
+                "data": {
+                    **health,
+                    "readings_count_24h": readings_count.get("count", 0) if readings_count else 0,
+                },
+                "timestamp": time.time(),
+            }
+
+        except Exception as e:
+            logger.exception("get_solark_health_failed error=%s", e)
+            raise HTTPException(
+                status_code=500,
+                detail=f"Failed to get SolArk health status: {str(e)}"
+            )
+
+    @app.post("/solark/poll-now")
+    async def trigger_solark_poll():
+        """
+        Manually trigger a SolArk API poll (for testing).
+
+        This bypasses the normal polling interval and fetches
+        energy data immediately.
+
+        Returns:
+            dict: Energy data that was fetched
+        """
+        try:
+            from ..services.solark_poller import get_poller
+
+            poller = get_poller()
+            data = await poller.poll_and_store()
+
+            return {
+                "status": "success",
+                "message": "Poll completed successfully",
+                "data": data,
+                "timestamp": time.time(),
+            }
+
+        except Exception as e:
+            logger.exception("trigger_solark_poll_failed error=%s", e)
+            raise HTTPException(
+                status_code=500,
+                detail=f"Failed to trigger SolArk poll: {str(e)}"
             )
 
     # ─────────────────────────────────────────────────────────────────────────
