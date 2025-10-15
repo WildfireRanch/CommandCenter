@@ -66,6 +66,7 @@ Guide for Claude Code and AI assistants to navigate docs efficiently:
 ## 📋 Session History
 
 ### Latest Sessions (Start Here!)
+- **[sessions/SESSION_031_SUMMARY.md](sessions/SESSION_031_SUMMARY.md)** ✅ **Session 031 - Database Health Dashboard (IMPLEMENTATION COMPLETE)**
 - **[sessions/SESSION_030_DATABASE_HEALTH_AND_POLLING_FIX.md](sessions/SESSION_030_DATABASE_HEALTH_AND_POLLING_FIX.md)** ✅ **Session 030 - Database & Polling Fixed (COMPLETE)**
 - **[sessions/SESSION_021_SUMMARY.md](sessions/SESSION_021_SUMMARY.md)** ✅ **Session 021 - Critical Bug Fixes (COMPLETE)**
 - **[sessions/SESSION_021_DEBUG_PROMPT.md](sessions/SESSION_021_DEBUG_PROMPT.md)** 📋 Session 021 debug prompt
