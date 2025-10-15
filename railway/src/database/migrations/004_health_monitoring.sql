@@ -116,4 +116,9 @@ FROM pg_tables
 WHERE schemaname = 'monitoring'
 AND tablename = 'health_snapshots';
 
-RAISE NOTICE 'Migration 004_health_monitoring.sql completed successfully';
+-- Success message
+DO $$
+BEGIN
+    RAISE NOTICE 'Migration 004_health_monitoring.sql completed successfully';
+END
+$$;
