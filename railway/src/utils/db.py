@@ -266,6 +266,7 @@ def init_schema():
         "001_knowledge_base.sql",
         "002_agent_metrics.sql",
         "003_victron_schema.sql",  # V1.6: Victron Cerbo battery monitoring
+        "004_health_monitoring.sql",  # V1.8: Database health monitoring
     ]
 
     # Fallback if migrations directory doesn't exist
