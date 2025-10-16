@@ -289,15 +289,61 @@ def init_schema():
             print(f"📋 Running migration: {migration_file_name}")
             schema_sql = migration_file.read_text()
 
-            with conn.cursor() as cursor:
-                try:
-                    cursor.execute(schema_sql)
-                    print(f"✅ Migration completed: {migration_file_name}")
-                except Exception as e:
-                    print(f"❌ Migration failed ({migration_file_name}): {e}")
-                    # Continue with other migrations even if one fails
-                    # This allows adding KB schema even if agent schema exists
+            # Use subprocess to run psql for complex SQL files
+            # This is more reliable than trying to parse multi-statement SQL
+            import subprocess
+            import tempfile
+
+            try:
+                # Write SQL to temp file
+                with tempfile.NamedTemporaryFile(mode='w', suffix='.sql', delete=False) as f:
+                    f.write(schema_sql)
+                    temp_file = f.name
+
+                # Get DATABASE_URL
+                db_url = os.getenv('DATABASE_URL')
+                if not db_url:
+                    print(f"❌ DATABASE_URL not set, skipping {migration_file_name}")
                     continue
+
+                # Run psql
+                result = subprocess.run(
+                    ['psql', db_url, '-f', temp_file],
+                    capture_output=True,
+                    text=True,
+                    timeout=30
+                )
+
+                # Clean up temp file
+                os.unlink(temp_file)
+
+                if result.returncode == 0:
+                    print(f"✅ Migration completed: {migration_file_name}")
+                    if result.stdout:
+                        for line in result.stdout.split('\n'):
+                            if line.strip() and 'NOTICE' in line:
+                                print(f"   {line}")
+                else:
+                    print(f"❌ Migration failed ({migration_file_name})")
+                    if result.stderr:
+                        print(f"   Error: {result.stderr[:200]}")
+                    # Continue with other migrations
+                    continue
+
+            except FileNotFoundError:
+                # psql not available, fall back to cursor.execute
+                print(f"⚠️  psql not found, using cursor.execute (may fail on complex SQL)")
+                with conn.cursor() as cursor:
+                    try:
+                        cursor.execute(schema_sql)
+                        print(f"✅ Migration completed: {migration_file_name}")
+                    except Exception as e:
+                        print(f"❌ Migration failed ({migration_file_name}): {str(e)[:200]}")
+                        continue
+            except Exception as e:
+                print(f"❌ Migration failed ({migration_file_name}): {str(e)[:200]}")
+                # Continue with other migrations
+                continue
 
     print("✅ All database migrations completed")
 
