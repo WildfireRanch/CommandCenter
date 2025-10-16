@@ -30,6 +30,12 @@ Guide for Claude Code and AI assistants to navigate docs efficiently:
 
 ## 🎉 **LATEST UPDATES**
 
+### 🟢 V1.8 Database Health Dashboard COMPLETE (October 16, 2025)
+1. **[sessions/SESSION_031_SUMMARY.md](sessions/SESSION_031_SUMMARY.md)** ✅ **Dashboard implementation**
+2. **[sessions/SESSION_032_MIGRATION_COMPLETION.md](sessions/SESSION_032_MIGRATION_COMPLETION.md)** 🎯 **Migration deployment & lessons learned**
+3. **[RAILWAY_ACCESS_GUIDE.md](../RAILWAY_ACCESS_GUIDE.md)** 📋 **Railway infrastructure guide**
+4. **[prompts/RUN_HEALTH_MONITORING_MIGRATION.md](prompts/RUN_HEALTH_MONITORING_MIGRATION.md)** 🔧 **Migration instructions**
+
 ### 🟢 V1.7 Database Health & Polling (October 15, 2025)
 1. **[sessions/SESSION_030_DATABASE_HEALTH_AND_POLLING_FIX.md](sessions/SESSION_030_DATABASE_HEALTH_AND_POLLING_FIX.md)** ✅ **Database & polling fixed**
 2. **[AGENT_DATABASE_FIX_SUMMARY.md](AGENT_DATABASE_FIX_SUMMARY.md)** 📋 **Technical fix documentation**
@@ -66,6 +72,7 @@ Guide for Claude Code and AI assistants to navigate docs efficiently:
 ## 📋 Session History
 
 ### Latest Sessions (Start Here!)
+- **[sessions/SESSION_032_MIGRATION_COMPLETION.md](sessions/SESSION_032_MIGRATION_COMPLETION.md)** 🎯 **Session 032 - Health Dashboard Migration & Railway Lessons (COMPLETE)**
 - **[sessions/SESSION_031_SUMMARY.md](sessions/SESSION_031_SUMMARY.md)** ✅ **Session 031 - Database Health Dashboard (IMPLEMENTATION COMPLETE)**
 - **[sessions/SESSION_030_DATABASE_HEALTH_AND_POLLING_FIX.md](sessions/SESSION_030_DATABASE_HEALTH_AND_POLLING_FIX.md)** ✅ **Session 030 - Database & Polling Fixed (COMPLETE)**
 - **[sessions/SESSION_021_SUMMARY.md](sessions/SESSION_021_SUMMARY.md)** ✅ **Session 021 - Critical Bug Fixes (COMPLETE)**
