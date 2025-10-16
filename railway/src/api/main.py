@@ -608,6 +608,99 @@ def create_app() -> FastAPI:
                 "type": type(e).__name__,
             }
 
+    @app.post("/db/run-solark-migration")
+    async def run_solark_migration():
+        """
+        Run SolArk schema migration specifically.
+
+        WHAT: Creates solark schema and solark.telemetry hypertable
+        WHY: Fix /system/stats endpoint error - table missing
+        HOW: Runs 005_solark_schema.sql with detailed logging
+
+        Returns:
+            dict: Migration status with detailed output
+        """
+        try:
+            import subprocess
+            import tempfile
+            from pathlib import Path
+            import os
+
+            logger.info("solark_migration_requested")
+
+            # Find migration file
+            migrations_dir = Path(__file__).parent.parent / "database" / "migrations"
+            migration_file = migrations_dir / "005_solark_schema.sql"
+
+            if not migration_file.exists():
+                return {
+                    "status": "error",
+                    "message": f"Migration file not found: {migration_file}",
+                    "file_path": str(migration_file),
+                    "migrations_dir_exists": migrations_dir.exists(),
+                }
+
+            # Read SQL
+            schema_sql = migration_file.read_text()
+
+            # Get DATABASE_URL
+            db_url = os.getenv('DATABASE_URL')
+            if not db_url:
+                return {
+                    "status": "error",
+                    "message": "DATABASE_URL not set"
+                }
+
+            # Try using psql first (required for DO blocks)
+            try:
+                with tempfile.NamedTemporaryFile(mode='w', suffix='.sql', delete=False) as f:
+                    f.write(schema_sql)
+                    temp_file = f.name
+
+                result = subprocess.run(
+                    ['psql', db_url, '-f', temp_file],
+                    capture_output=True,
+                    text=True,
+                    timeout=30
+                )
+
+                os.unlink(temp_file)
+
+                if result.returncode == 0:
+                    logger.info("solark_migration_completed_via_psql")
+                    return {
+                        "status": "success",
+                        "message": "SolArk migration completed via psql",
+                        "method": "psql",
+                        "stdout": result.stdout,
+                        "stderr": result.stderr,
+                        "timestamp": time.time(),
+                    }
+                else:
+                    return {
+                        "status": "error",
+                        "message": "psql execution failed",
+                        "method": "psql",
+                        "returncode": result.returncode,
+                        "stdout": result.stdout,
+                        "stderr": result.stderr,
+                    }
+
+            except FileNotFoundError:
+                return {
+                    "status": "error",
+                    "message": "psql not found - required for multi-statement SQL with DO blocks",
+                    "help": "Install postgresql-client in Docker container"
+                }
+
+        except Exception as e:
+            logger.exception("solark_migration_failed error=%s", e)
+            return {
+                "status": "error",
+                "message": str(e),
+                "type": type(e).__name__,
+            }
+
     @app.post("/db/create-victron-tables")
     async def create_victron_tables():
         """
