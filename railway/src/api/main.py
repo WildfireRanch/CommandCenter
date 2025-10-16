@@ -480,6 +480,134 @@ def create_app() -> FastAPI:
                 detail=f"Schema initialization failed: {str(e)}"
             )
 
+    @app.post("/db/run-health-migration")
+    async def run_health_monitoring_migration():
+        """
+        Run health monitoring migration specifically.
+
+        WHAT: Creates monitoring schema and health_snapshots table
+        WHY: Dedicated endpoint for troubleshooting migration issues
+        HOW: Runs 004_health_monitoring.sql with detailed logging
+
+        Returns:
+            dict: Migration status with detailed output
+        """
+        try:
+            import subprocess
+            import tempfile
+            from pathlib import Path
+            import os
+
+            logger.info("health_migration_requested")
+
+            # Find migration file
+            migrations_dir = Path(__file__).parent.parent / "database" / "migrations"
+            migration_file = migrations_dir / "004_health_monitoring.sql"
+
+            if not migration_file.exists():
+                return {
+                    "status": "error",
+                    "message": f"Migration file not found: {migration_file}",
+                    "file_path": str(migration_file),
+                    "migrations_dir_exists": migrations_dir.exists(),
+                }
+
+            # Read SQL
+            schema_sql = migration_file.read_text()
+
+            # Get DATABASE_URL
+            db_url = os.getenv('DATABASE_URL')
+            if not db_url:
+                return {
+                    "status": "error",
+                    "message": "DATABASE_URL not set"
+                }
+
+            # Try using psql first
+            try:
+                with tempfile.NamedTemporaryFile(mode='w', suffix='.sql', delete=False) as f:
+                    f.write(schema_sql)
+                    temp_file = f.name
+
+                result = subprocess.run(
+                    ['psql', db_url, '-f', temp_file],
+                    capture_output=True,
+                    text=True,
+                    timeout=30
+                )
+
+                os.unlink(temp_file)
+
+                if result.returncode == 0:
+                    logger.info("health_migration_completed_via_psql")
+                    return {
+                        "status": "success",
+                        "message": "Migration completed via psql",
+                        "method": "psql",
+                        "stdout": result.stdout,
+                        "timestamp": time.time(),
+                    }
+                else:
+                    return {
+                        "status": "error",
+                        "message": "psql execution failed",
+                        "method": "psql",
+                        "returncode": result.returncode,
+                        "stdout": result.stdout,
+                        "stderr": result.stderr,
+                    }
+
+            except FileNotFoundError:
+                # psql not available, use psycopg2
+                logger.info("psql_not_found_using_psycopg2")
+                from ..utils.db import get_connection
+
+                with get_connection() as conn:
+                    conn.autocommit = True
+                    cursor = conn.cursor()
+
+                    # Execute each statement separately
+                    statements = [s.strip() for s in schema_sql.split(';') if s.strip() and not s.strip().startswith('--')]
+
+                    executed = []
+                    errors = []
+
+                    for i, stmt in enumerate(statements):
+                        try:
+                            if stmt:
+                                cursor.execute(stmt + ';')
+                                executed.append(f"Statement {i+1}: OK")
+                        except Exception as e:
+                            errors.append(f"Statement {i+1}: {str(e)[:100]}")
+
+                    cursor.close()
+
+                    if errors:
+                        return {
+                            "status": "partial",
+                            "message": f"Executed {len(executed)}/{len(statements)} statements",
+                            "method": "psycopg2",
+                            "executed": executed,
+                            "errors": errors,
+                        }
+                    else:
+                        logger.info("health_migration_completed_via_psycopg2")
+                        return {
+                            "status": "success",
+                            "message": "Migration completed via psycopg2",
+                            "method": "psycopg2",
+                            "executed": executed,
+                            "timestamp": time.time(),
+                        }
+
+        except Exception as e:
+            logger.exception("health_migration_failed error=%s", e)
+            return {
+                "status": "error",
+                "message": str(e),
+                "type": type(e).__name__,
+            }
+
     @app.post("/db/create-victron-tables")
     async def create_victron_tables():
         """
