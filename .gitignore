@@ -66,3 +66,10 @@ out/
 # Google Service Account
 .google-service-account.json
 *service-account*.json
+
+# Claude Code (local configuration)
+.claude/settings.local.json
+.claude/prompts/
+
+# Demo dashboards (development/testing)
+dashboards/DEMO_DASH/
