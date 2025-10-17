@@ -31,6 +31,31 @@ logger = logging.getLogger(__name__)
 DEFAULT_USER_ID = "a0000000-0000-0000-0000-000000000001"
 
 
+@router.get("/debug-raw")
+async def get_preferences_debug():
+    """Debug endpoint - return raw dict without Pydantic."""
+    try:
+        with get_connection() as conn:
+            prefs = query_one(
+                conn,
+                """
+                SELECT
+                    id::text, user_id::text,
+                    voltage_at_0_percent::float, voltage_at_100_percent::float,
+                    voltage_optimal_min::float, voltage_optimal_max::float,
+                    timezone, operating_mode
+                FROM user_preferences
+                WHERE user_id = %s::uuid
+                LIMIT 1
+                """,
+                (DEFAULT_USER_ID,),
+                as_dict=True
+            )
+            return dict(prefs) if prefs else {"status": "not_found"}
+    except Exception as e:
+        return {"error": str(e)}
+
+
 @router.get("", response_model=UserPreferencesResponse)
 async def get_preferences():
     """
