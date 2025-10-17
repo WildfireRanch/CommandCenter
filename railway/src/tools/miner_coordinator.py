@@ -1,145 +1,254 @@
-from crewai.tools import tool
+# ═══════════════════════════════════════════════════════════════════════════
+# FILE: railway/src/tools/miner_coordinator.py
+# PURPOSE: Miner coordination tool with priority-based allocation from database
+# VERSION: V1.9 - Integrated with user preferences and miner profiles
+# ═══════════════════════════════════════════════════════════════════════════
+
+from crewai.tools import BaseTool
+from typing import Any, Optional
 import logging
+import os
+from ..utils.db import get_connection, query_all
 
 logger = logging.getLogger(__name__)
+DEFAULT_USER_ID = os.getenv("DEFAULT_USER_ID", "a0000000-0000-0000-0000-000000000001")
 
-@tool("Miner Coordinator")
-def coordinate_miners(available_power: float, current_load: float, soc: float) -> str:
+
+class MinerCoordinatorTool(BaseTool):
+    name: str = "Miner Coordinator"
+    description: str = """Manages multiple miners with priority-based allocation using database profiles.
+
+    Use this tool to make intelligent miner control decisions that balance profitability
+    with system reliability and battery health, using real miner profiles from the database.
+
+    Input should be a dict with:
+    - battery_voltage: Current battery voltage (float)
+    - solar_power: Current solar production in watts (float)
+    - load_power: Current load consumption in watts (float)
+
+    Returns: Priority-based allocation decisions for all active miners
     """
-    Decide whether to run bitcoin miners based on power availability and battery state.
 
-    Use this tool to make intelligent miner control decisions that balance
-    profitability with system reliability and battery health.
+    user_prefs: dict = {}
+    converter: Optional[Any] = None
 
-    Args:
-        available_power: Watts available from solar + battery (after current load)
-        current_load: Current house load in watts
-        soc: Battery state of charge (0-100)
+    def __init__(self, user_preferences: dict = None, voltage_converter=None):
+        """
+        Initialize Miner Coordinator with user preferences.
 
-    Returns:
-        str: Decision (START/STOP/MAINTAIN) with reasoning
+        Args:
+            user_preferences: User preferences dict with voltage thresholds
+            voltage_converter: Voltage-SOC converter for display purposes
+        """
+        super().__init__()
+        self.user_prefs = user_preferences or {}
+        self.converter = voltage_converter
 
-    Policy (configurable via KB):
-    - Miners draw ~2000W
-    - Only START if SOC >= 60% (reserve margin)
-    - STOP if SOC drops below 40% (protect battery)
-    - Need 2500W+ available (miner load + safety buffer)
-    - Never start miners if battery critical (<20%)
+    def _run(self, battery_voltage: float, solar_power: float, load_power: float) -> str:
+        """
+        Coordinate multiple miners based on priority and constraints.
 
-    Examples:
-        >>> coordinate_miners(3500, 1200, 65)
-        "START miners. SOC is 65% (above 60% threshold), available power 3500W
-        exceeds requirement of 2500W. Profitable to mine with current conditions."
+        Args:
+            battery_voltage: Current battery voltage
+            solar_power: Current solar production in watts
+            load_power: Current load consumption in watts
 
-        >>> coordinate_miners(1800, 1200, 55)
-        "STOP miners. Available power (1800W) insufficient for safe miner operation
-        (need 2500W minimum). SOC is 55% but power constraint takes priority."
+        Returns:
+            str: Priority-based allocation decisions
+        """
+        try:
+            voltage = float(battery_voltage)
+            solar = float(solar_power)
+            load = float(load_power)
 
-        >>> coordinate_miners(3000, 1000, 35)
-        "STOP miners. SOC is 35% (below 40% threshold). Battery protection
-        takes priority over mining profitability. Will resume when SOC >= 60%."
-    """
-    try:
-        logger.info(f"Miner coordination requested: available={available_power}W, load={current_load}W, SOC={soc}%")
+            # Load all active miners from database
+            miners = self._load_miners()
 
-        # Constants (these can be moved to KB later)
-        MINER_POWER_DRAW = 2000  # Watts per miner
-        MIN_AVAILABLE_POWER = 2500  # Minimum watts needed (miner + buffer)
-        MIN_SOC_TO_START = 60  # Don't start unless battery healthy
-        MIN_SOC_TO_RUN = 40  # Stop if battery gets low
-        CRITICAL_SOC = 20  # Never run if this low
+            if not miners:
+                return "📭 No miner profiles configured in database."
 
-        # Critical battery state - always stop
-        if soc < CRITICAL_SOC:
+            # Calculate available power budget
+            available_power = solar - load
+            power_budget = available_power
+
+            decisions = []
+            soc_display = ""
+
+            # Calculate SOC for display
+            if self.converter:
+                try:
+                    soc = self.converter.voltage_to_soc(voltage)
+                    soc_display = f" ({soc:.1f}% SOC)"
+                except Exception as e:
+                    logger.warning(f"SOC conversion failed: {e}")
+
+            # Header with current state
+            decisions.append(f"🔋 Battery: {voltage}V{soc_display}")
+            decisions.append(f"☀️ Solar: {solar:,.0f}W | ⚡ Load: {load:,.0f}W")
+            decisions.append(f"💰 Available power budget: {available_power:,.0f}W")
+            decisions.append("")
+            decisions.append("🤖 MINER ALLOCATION (Priority Order):")
+            decisions.append("─" * 60)
+
+            # Sort miners by priority (1 = highest)
+            sorted_miners = sorted(miners, key=lambda m: m['priority_level'])
+
+            for miner in sorted_miners:
+                decision = self._evaluate_miner(miner, voltage, solar, power_budget)
+                decisions.append(decision)
+
+                # If miner can start, deduct from budget
+                if "✅ START" in decision or "CONTINUE" in decision:
+                    power_budget -= miner['power_draw_watts']
+
+            decisions.append("─" * 60)
+            decisions.append(f"💡 Final power budget remaining: {power_budget:,.0f}W")
+
+            return "\n".join(decisions)
+
+        except Exception as e:
+            logger.error(f"Miner coordinator error: {e}")
+            return f"❌ Error in miner coordination: {str(e)}"
+
+    def _load_miners(self) -> list:
+        """Load active miners from database."""
+        try:
+            with get_connection() as conn:
+                miners = query_all(
+                    conn,
+                    """
+                    SELECT
+                        id, name, model, power_draw_watts, priority_level,
+                        start_voltage, stop_voltage, emergency_stop_voltage,
+                        require_excess_solar, minimum_excess_watts,
+                        minimum_solar_production_watts, enabled
+                    FROM miner_profiles
+                    WHERE user_id = %s::uuid AND enabled = true
+                    ORDER BY priority_level ASC
+                    """,
+                    (DEFAULT_USER_ID,),
+                    as_dict=True
+                )
+                return list(miners)
+        except Exception as e:
+            logger.error(f"Failed to load miners from database: {e}")
+            return []
+
+    def _evaluate_miner(self, miner: dict, voltage: float, solar: float, budget: float) -> str:
+        """
+        Evaluate if a miner should start based on all constraints.
+
+        Args:
+            miner: Miner profile dict from database
+            voltage: Current battery voltage
+            solar: Current solar production
+            budget: Remaining power budget
+
+        Returns:
+            str: Decision string with emoji status
+        """
+        name = miner['name']
+        priority = miner['priority_level']
+        power = miner['power_draw_watts']
+
+        # Emergency stop check (highest priority)
+        emergency_stop = miner.get('emergency_stop_voltage')
+        if emergency_stop and voltage <= emergency_stop:
             return (
-                f"⛔ STOP miners IMMEDIATELY\n"
-                f"SOC: {soc}% (CRITICAL - below {CRITICAL_SOC}%)\n"
-                f"Reason: Battery protection is priority #1\n"
-                f"Action: Stop all miners immediately\n"
-                f"Resume when: SOC >= {MIN_SOC_TO_START}%"
+                f"🛑 [P{priority}] {name}: EMERGENCY STOP - "
+                f"voltage {voltage}V ≤ emergency {emergency_stop}V"
             )
 
-        # Low battery - stop even if power available
-        if soc < MIN_SOC_TO_RUN:
+        # Stop voltage check
+        stop_voltage = miner.get('stop_voltage')
+        if stop_voltage and voltage < stop_voltage:
             return (
-                f"🛑 STOP miners\n"
-                f"SOC: {soc}% (below {MIN_SOC_TO_RUN}% threshold)\n"
-                f"Available Power: {available_power}W (sufficient but SOC too low)\n"
-                f"Reason: Battery protection takes priority over mining\n"
-                f"Action: Stop miners, allow battery to charge\n"
-                f"Resume when: SOC >= {MIN_SOC_TO_START}%"
+                f"❌ [P{priority}] {name}: STOP - "
+                f"voltage {voltage}V < stop {stop_voltage}V"
             )
 
-        # Insufficient power - stop regardless of SOC
-        if available_power < MIN_AVAILABLE_POWER:
+        # Start voltage check (need to be above this to start)
+        start_voltage = miner.get('start_voltage')
+        if start_voltage and voltage < start_voltage:
             return (
-                f"🛑 STOP miners\n"
-                f"Available Power: {available_power}W (need {MIN_AVAILABLE_POWER}W minimum)\n"
-                f"SOC: {soc}% (adequate but power insufficient)\n"
-                f"Reason: Insufficient power for safe miner operation\n"
-                f"Miner Draw: ~{MINER_POWER_DRAW}W + {MIN_AVAILABLE_POWER - MINER_POWER_DRAW}W buffer\n"
-                f"Action: Stop miners until solar production increases or load decreases"
+                f"⏸️ [P{priority}] {name}: WAIT - "
+                f"voltage {voltage}V < start {start_voltage}V ({power:,}W)"
             )
 
-        # Good conditions but SOC not quite ready to start
-        if soc >= MIN_SOC_TO_RUN and soc < MIN_SOC_TO_START and available_power >= MIN_AVAILABLE_POWER:
+        # Power budget check
+        if budget < power:
             return (
-                f"⏸️ MAINTAIN (don't start new miners)\n"
-                f"SOC: {soc}% (safe to run but below {MIN_SOC_TO_START}% start threshold)\n"
-                f"Available Power: {available_power}W (sufficient)\n"
-                f"Action: If miners already running, continue. Don't start new ones.\n"
-                f"Reason: Build battery reserve before adding more load\n"
-                f"Start miners when: SOC >= {MIN_SOC_TO_START}%"
+                f"⏳ [P{priority}] {name}: WAIT - "
+                f"insufficient power (need {power:,}W, {budget:,.0f}W available)"
             )
 
-        # Excellent conditions - start or continue miners
-        if soc >= MIN_SOC_TO_START and available_power >= MIN_AVAILABLE_POWER:
-            return (
-                f"✅ START/CONTINUE miners\n"
-                f"SOC: {soc}% (above {MIN_SOC_TO_START}% threshold) ✓\n"
-                f"Available Power: {available_power}W (exceeds {MIN_AVAILABLE_POWER}W requirement) ✓\n"
-                f"Current Load: {current_load}W\n"
-                f"Miner Power: ~{MINER_POWER_DRAW}W\n"
-                f"Action: Safe to run miners, conditions optimal\n"
-                f"Monitor: Stop if SOC drops below {MIN_SOC_TO_RUN}% or available power < {MIN_AVAILABLE_POWER}W"
-            )
+        # Check solar requirements (for dump loads)
+        if miner.get('require_excess_solar'):
+            min_solar = miner.get('minimum_solar_production_watts', 0)
+            if solar < min_solar:
+                return (
+                    f"☀️ [P{priority}] {name}: WAIT - "
+                    f"insufficient solar ({solar:,.0f}W, need {min_solar:,}W)"
+                )
 
-        # Fallback
+            min_excess = miner.get('minimum_excess_watts', 0)
+            excess = solar - power
+            if excess < min_excess:
+                return (
+                    f"⚡ [P{priority}] {name}: WAIT - "
+                    f"insufficient excess ({excess:,.0f}W, need {min_excess:,}W)"
+                )
+
+        # All checks passed!
         return (
-            f"⏸️ MAINTAIN current state\n"
-            f"SOC: {soc}%\n"
-            f"Available Power: {available_power}W\n"
-            f"Action: Continue current operations, monitor conditions"
+            f"✅ [P{priority}] {name}: START - "
+            f"{power:,}W allocated (budget remaining: {budget - power:,.0f}W)"
         )
 
-    except Exception as e:
-        logger.error(f"Miner coordinator error: {e}")
-        return f"Error in miner coordination: {str(e)}"
 
-
+# ─────────────────────────────────────────────────────────────────────────────
 # CLI Testing Interface
+# ─────────────────────────────────────────────────────────────────────────────
+
 if __name__ == "__main__":
     """Test the miner coordinator from command line."""
     import sys
 
     # Default test cases
     test_cases = [
-        (3500, 1200, 65),
-        (1800, 1200, 55),
-        (3000, 1000, 35),
+        (52.3, 8450, 1850, "High voltage, good solar"),
+        (47.0, 5000, 2000, "Low voltage, moderate solar"),
+        (54.0, 12000, 1500, "High voltage, excellent solar"),
     ]
 
+    # Create mock preferences
+    test_prefs = {
+        'voltage_at_0_percent': 45.0,
+        'voltage_at_100_percent': 56.0,
+    }
+
+    # Create mock converter
+    class MockConverter:
+        def voltage_to_soc(self, voltage):
+            return ((voltage - 45.0) / (56.0 - 45.0)) * 100
+
+    tool = MinerCoordinatorTool(
+        user_preferences=test_prefs,
+        voltage_converter=MockConverter()
+    )
+
     if len(sys.argv) == 4:
-        # Custom test: python miner_coordinator.py <available_power> <load> <soc>
-        available_power = float(sys.argv[1])
-        load = float(sys.argv[2])
-        soc = float(sys.argv[3])
-        print(coordinate_miners.func(available_power, load, soc))
+        # Custom test: python miner_coordinator.py <voltage> <solar> <load>
+        voltage = float(sys.argv[1])
+        solar = float(sys.argv[2])
+        load = float(sys.argv[3])
+        print(tool._run(voltage, solar, load))
     else:
         # Run all test cases
-        for available_power, load, soc in test_cases:
+        for voltage, solar, load, description in test_cases:
             print(f"\n{'='*70}")
-            print(f"TEST: Available={available_power}W, Load={load}W, SOC={soc}%")
+            print(f"TEST: {description}")
+            print(f"Voltage={voltage}V, Solar={solar}W, Load={load}W")
             print('='*70)
-            print(coordinate_miners.func(available_power, load, soc))
+            print(tool._run(voltage, solar, load))
             print('='*70)

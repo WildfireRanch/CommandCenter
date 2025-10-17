@@ -5,15 +5,57 @@
 
 from crewai import Agent, Crew, Task
 from crewai.tools import tool
+import os
+import logging
 
-from ..tools.battery_optimizer import optimize_battery
-from ..tools.miner_coordinator import coordinate_miners
+from ..tools.battery_optimizer import BatteryOptimizerTool
+from ..tools.miner_coordinator import MinerCoordinatorTool
 from ..tools.energy_planner import create_energy_plan
 from ..tools.kb_search import search_knowledge_base
 from ..tools.solark import get_solark_status, format_status_summary
 from ..utils.solark_storage import get_energy_stats, get_recent_data
 from ..utils.agent_telemetry import track_agent_execution
 from ..services.context_manager import ContextManager
+from ..services.voltage_soc_converter import get_converter
+from ..utils.db import get_connection, query_one
+
+logger = logging.getLogger(__name__)
+DEFAULT_USER_ID = os.getenv("DEFAULT_USER_ID", "a0000000-0000-0000-0000-000000000001")
+
+
+def load_user_preferences() -> dict:
+    """Load user preferences from database."""
+    try:
+        with get_connection() as conn:
+            prefs = query_one(
+                conn,
+                """
+                SELECT
+                    voltage_at_0_percent, voltage_at_100_percent, voltage_curve,
+                    voltage_shutdown, voltage_critical_low, voltage_low,
+                    voltage_restart, voltage_optimal_min, voltage_optimal_max,
+                    voltage_float, voltage_absorption, voltage_full,
+                    timezone, operating_mode
+                FROM user_preferences
+                WHERE user_id = %s::uuid
+                LIMIT 1
+                """,
+                (DEFAULT_USER_ID,),
+                as_dict=True
+            )
+            return dict(prefs) if prefs else {}
+    except Exception as e:
+        logger.error(f"Failed to load preferences: {e}")
+        # Return safe defaults if DB fails
+        return {
+            'voltage_at_0_percent': 45.0,
+            'voltage_at_100_percent': 56.0,
+            'voltage_optimal_min': 50.0,
+            'voltage_optimal_max': 54.5,
+            'voltage_low': 47.0,
+            'voltage_critical_low': 45.0,
+            'operating_mode': 'balanced'
+        }
 
 
 # Wrapper tool to get current status for planning
@@ -125,13 +167,33 @@ def get_time_series_data(hours: int = 24, limit: int = 100) -> str:
         return f"❌ Error fetching time-series data: {str(e)}"
 
 
-def create_energy_orchestrator(context_bundle=None) -> Agent:
+def create_energy_orchestrator(context_bundle=None, user_preferences=None, voltage_converter=None) -> Agent:
     """
     Create the Energy Orchestrator agent.
 
     Args:
         context_bundle: Optional ContextBundle from ContextManager (V1.8+)
+        user_preferences: User preferences dict (V1.9+)
+        voltage_converter: Voltage-SOC converter instance (V1.9+)
     """
+    # Load preferences if not provided (V1.9)
+    if user_preferences is None:
+        user_preferences = load_user_preferences()
+
+    if voltage_converter is None:
+        voltage_converter = get_converter(user_preferences)
+
+    # Create tool instances with preferences (V1.9)
+    battery_optimizer = BatteryOptimizerTool(
+        user_preferences=user_preferences,
+        voltage_converter=voltage_converter
+    )
+
+    miner_coordinator = MinerCoordinatorTool(
+        user_preferences=user_preferences,
+        voltage_converter=voltage_converter
+    )
+
     # Build backstory with system context
     backstory = """You are the energy operations manager for a solar-powered
     off-grid ranch with battery storage and bitcoin mining operations.
@@ -193,8 +255,8 @@ SYSTEM CONTEXT (Always Available)
             get_current_status,
             get_historical_stats,
             get_time_series_data,
-            optimize_battery,
-            coordinate_miners,
+            battery_optimizer,
+            miner_coordinator,
             create_energy_plan,
             search_knowledge_base
         ],
@@ -249,6 +311,16 @@ def create_orchestrator_crew(query: str, context: str = "", user_id: str = None)
         context: Legacy conversation context (optional)
         user_id: User ID for smart context loading (V1.8+)
     """
+    # V1.9: Load user preferences
+    user_preferences = load_user_preferences()
+    voltage_converter = get_converter(user_preferences)
+
+    logger.info(
+        f"V1.9: Loaded user preferences with voltage range "
+        f"{user_preferences.get('voltage_at_0_percent', 'N/A')}V - "
+        f"{user_preferences.get('voltage_at_100_percent', 'N/A')}V"
+    )
+
     # V1.8: Use ContextManager for smart context loading
     context_bundle = None
     try:
@@ -258,20 +330,20 @@ def create_orchestrator_crew(query: str, context: str = "", user_id: str = None)
             user_id=user_id,
             max_tokens=3500  # Planning queries get larger budget
         )
-        import logging
-        logger = logging.getLogger(__name__)
         logger.info(
             f"Smart context loaded: {context_bundle.total_tokens} tokens, "
             f"type={context_bundle.query_type.value}, "
             f"cache_hit={context_bundle.cache_hit}"
         )
     except Exception as e:
-        import logging
-        logger = logging.getLogger(__name__)
         logger.warning(f"ContextManager failed, using legacy context: {e}")
         context_bundle = None
 
-    agent = create_energy_orchestrator(context_bundle=context_bundle)
+    agent = create_energy_orchestrator(
+        context_bundle=context_bundle,
+        user_preferences=user_preferences,
+        voltage_converter=voltage_converter
+    )
 
     # Use legacy context if no context_bundle
     if context_bundle is None and context:
