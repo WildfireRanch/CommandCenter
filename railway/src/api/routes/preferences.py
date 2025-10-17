@@ -45,6 +45,54 @@ async def get_model_version():
         return {"error": str(e)}
 
 
+@router.get("/debug-pydantic")
+async def get_preferences_pydantic_test():
+    """Test Pydantic model instantiation."""
+    import traceback
+    try:
+        with get_connection() as conn:
+            prefs = query_one(
+                conn,
+                """
+                SELECT
+                    id, user_id,
+                    voltage_at_0_percent, voltage_at_100_percent, voltage_curve,
+                    battery_chemistry, battery_nominal_voltage,
+                    battery_absolute_min, battery_absolute_max,
+                    voltage_shutdown, voltage_critical_low, voltage_low,
+                    voltage_restart, voltage_optimal_min, voltage_optimal_max,
+                    voltage_float, voltage_absorption, voltage_full,
+                    user_prefers_soc_display, use_custom_soc_mapping, display_units,
+                    timezone, location_lat, location_lon,
+                    operating_mode, grid_import_allowed,
+                    created_at, updated_at
+                FROM user_preferences
+                WHERE user_id = %s::uuid
+                LIMIT 1
+                """,
+                (DEFAULT_USER_ID,),
+                as_dict=True
+            )
+
+            if not prefs:
+                return {"status": "not_found"}
+
+            # Try to instantiate Pydantic model
+            model = UserPreferencesResponse(**prefs)
+            return {
+                "status": "success",
+                "pydantic_created": True,
+                "json_output": model.model_dump_json()
+            }
+
+    except Exception as e:
+        return {
+            "status": "error",
+            "error": str(e),
+            "traceback": traceback.format_exc()
+        }
+
+
 @router.get("/debug-raw")
 async def get_preferences_debug():
     """Debug endpoint - return raw dict without Pydantic."""
