@@ -1,0 +1,61 @@
+graph TB
+    subgraph "Daily Training Pipeline (2:00 AM)"
+        A[Extract 90 Days<br/>Telemetry Data] --> B[Engineer Features<br/>Time, Rolling, Lags]
+        B --> C[Train Solar Model<br/>Prophet]
+        B --> D[Train Load Model<br/>Prophet]
+        B --> E[Train Battery Model<br/>XGBoost]
+        
+        C --> F{Better than<br/>Production?}
+        D --> G{Better than<br/>Production?}
+        E --> H{Better than<br/>Production?}
+        
+        F -->|Yes| I[Promote to<br/>Production]
+        F -->|No| J[Keep Current<br/>Model]
+        G -->|Yes| I
+        G -->|No| J
+        H -->|Yes| I
+        H -->|No| J
+        
+        I --> K[MLflow Model<br/>Registry]
+        J --> K
+    end
+    
+    subgraph "Hourly Prediction Pipeline"
+        L[Load Production<br/>Models] --> M[Get Weather<br/>Forecast]
+        M --> N[Generate Solar<br/>Predictions 24h]
+        M --> O[Generate Load<br/>Predictions 24h]
+        
+        N --> P[Store in PostgreSQL]
+        O --> P
+        P --> Q[Cache in Redis<br/>2h expiry]
+    end
+    
+    subgraph "Every 5 Minutes - Intelligent Automation"
+        R[Get Battery State] --> S[Get Cached<br/>Predictions]
+        S --> T[Simulate Battery<br/>Next 6 Hours]
+        T --> U[Optimize Miner<br/>Schedule]
+        T --> V[Optimize HVAC<br/>Control]
+        
+        U --> W{Safety<br/>Checks?}
+        V --> W
+        
+        W -->|Pass| X[Execute Actions<br/>Shelly API]
+        W -->|Fail| Y[Log Block<br/>+ Alert]
+        
+        X --> Z[Log Outcome<br/>for Training]
+        Y --> Z
+    end
+    
+    K -.->|Load Models| L
+    Q -.->|Fast Access| S
+    Z -.->|Training Data| A
+    
+    style A fill:#e1f5ff
+    style C fill:#fff4e1
+    style D fill:#fff4e1
+    style E fill:#fff4e1
+    style I fill:#90EE90
+    style K fill:#FFD700
+    style Q fill:#FFB6C1
+    style X fill:#90EE90
+    style Y fill:#FF6B6B

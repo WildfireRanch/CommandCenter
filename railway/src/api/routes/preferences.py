@@ -16,6 +16,7 @@
 from fastapi import APIRouter, HTTPException
 from typing import Dict, Any
 import logging
+import os
 
 from ...utils.db import get_connection, query_one, execute
 from ..models.v1_9 import (
@@ -23,99 +24,17 @@ from ..models.v1_9 import (
     UserPreferencesUpdate,
     UserPreferencesBase
 )
+from .constants import ALLOWED_PREFERENCE_FIELDS
 
 router = APIRouter(prefix="/preferences", tags=["preferences"])
 logger = logging.getLogger(__name__)
 
 # Default user ID for V1.9 (single-user system)
-DEFAULT_USER_ID = "a0000000-0000-0000-0000-000000000001"
-
-
-@router.get("/debug-version")
-async def get_model_version():
-    """Check deployed model version."""
-    try:
-        from ..models import v1_9
-        return {
-            "version": getattr(v1_9, '__V19_MODELS_VERSION__', 'unknown'),
-            "has_field_validator": hasattr(v1_9.UserPreferencesResponse, '__pydantic_decorators__'),
-            "model_fields": list(v1_9.UserPreferencesResponse.model_fields.keys())[:10]
-        }
-    except Exception as e:
-        return {"error": str(e)}
-
-
-@router.get("/debug-pydantic")
-async def get_preferences_pydantic_test():
-    """Test Pydantic model instantiation."""
-    import traceback
-    try:
-        with get_connection() as conn:
-            prefs = query_one(
-                conn,
-                """
-                SELECT
-                    id, user_id,
-                    voltage_at_0_percent, voltage_at_100_percent, voltage_curve,
-                    battery_chemistry, battery_nominal_voltage,
-                    battery_absolute_min, battery_absolute_max,
-                    voltage_shutdown, voltage_critical_low, voltage_low,
-                    voltage_restart, voltage_optimal_min, voltage_optimal_max,
-                    voltage_float, voltage_absorption, voltage_full,
-                    user_prefers_soc_display, use_custom_soc_mapping, display_units,
-                    timezone, location_lat, location_lon,
-                    operating_mode, grid_import_allowed,
-                    created_at, updated_at
-                FROM user_preferences
-                WHERE user_id = %s::uuid
-                LIMIT 1
-                """,
-                (DEFAULT_USER_ID,),
-                as_dict=True
-            )
-
-            if not prefs:
-                return {"status": "not_found"}
-
-            # Try to instantiate Pydantic model
-            model = UserPreferencesResponse(**prefs)
-            return {
-                "status": "success",
-                "pydantic_created": True,
-                "json_output": model.model_dump_json()
-            }
-
-    except Exception as e:
-        return {
-            "status": "error",
-            "error": str(e),
-            "traceback": traceback.format_exc()
-        }
-
-
-@router.get("/debug-raw")
-async def get_preferences_debug():
-    """Debug endpoint - return raw dict without Pydantic."""
-    try:
-        with get_connection() as conn:
-            prefs = query_one(
-                conn,
-                """
-                SELECT
-                    id::text, user_id::text,
-                    voltage_at_0_percent::float, voltage_at_100_percent::float,
-                    voltage_optimal_min::float, voltage_optimal_max::float,
-                    timezone, operating_mode
-                FROM user_preferences
-                WHERE user_id = %s::uuid
-                LIMIT 1
-                """,
-                (DEFAULT_USER_ID,),
-                as_dict=True
-            )
-            return dict(prefs) if prefs else {"status": "not_found"}
-    except Exception as e:
-        return {"error": str(e)}
+# SECURITY: Load from environment variable (set in Railway)
+DEFAULT_USER_ID = os.getenv(
+    "DEFAULT_USER_ID",
+    "a0000000-0000-0000-0000-000000000001"  # Fallback for local dev
+)
 
 
 @router.get("", response_model=UserPreferencesResponse)
@@ -218,6 +137,14 @@ async def update_preferences(updates: UserPreferencesUpdate):
                 detail="No fields to update"
             )
 
+        # SECURITY: Validate fields against whitelist (prevent SQL injection)
+        for field in update_data.keys():
+            if field not in ALLOWED_PREFERENCE_FIELDS:
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"Field '{field}' is not allowed for updates"
+                )
+
         # Build SET clause
         set_clauses = []
         values = []
@@ -232,22 +159,14 @@ async def update_preferences(updates: UserPreferencesUpdate):
         values.append(DEFAULT_USER_ID)
 
         with get_connection() as conn:
-            # Execute update
-            execute(
+            # PERFORMANCE: Single query with RETURNING (instead of UPDATE + SELECT)
+            updated_prefs = query_one(
                 conn,
                 f"""
                 UPDATE user_preferences
                 SET {', '.join(set_clauses)}
                 WHERE user_id = %s::uuid
-                """,
-                tuple(values)
-            )
-
-            # Fetch and return updated preferences
-            updated_prefs = query_one(
-                conn,
-                """
-                SELECT
+                RETURNING
                     id, user_id,
                     voltage_at_0_percent, voltage_at_100_percent, voltage_curve,
                     battery_chemistry, battery_nominal_voltage,
@@ -259,11 +178,8 @@ async def update_preferences(updates: UserPreferencesUpdate):
                     timezone, location_lat, location_lon,
                     operating_mode, grid_import_allowed,
                     created_at, updated_at
-                FROM user_preferences
-                WHERE user_id = %s::uuid
-                LIMIT 1
                 """,
-                (DEFAULT_USER_ID,),
+                tuple(values),
                 as_dict=True
             )
 

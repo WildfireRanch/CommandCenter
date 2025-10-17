@@ -52,6 +52,7 @@ load_dotenv(dotenv_path=env_file)
 # Import agents and utilities
 from ..agents.manager import create_manager_crew
 from ..utils.db import check_connection as check_db_connection
+from .middleware.auth import APIKeyMiddleware
 
 # Configure logging
 logging.basicConfig(
@@ -371,6 +372,9 @@ def create_app() -> FastAPI:
     # Add Middlewares
     # ─────────────────────────────────────────────────────────────────────────
     
+    # Add API Key Authentication (Priority 1 - Security)
+    app.add_middleware(APIKeyMiddleware)
+
     app.add_middleware(GZipMiddleware, minimum_size=1024)
     app.add_middleware(RequestIDMiddleware)
     app.add_middleware(AccessLogMiddleware)

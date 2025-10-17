@@ -1,0 +1,78 @@
+graph TB
+    subgraph "Every 5 Minutes - Vision Processing"
+        A[Capture Images<br/>All Cameras] --> B[Sky Camera]
+        A --> C[Security Cameras]
+        A --> D[Panel Camera]
+        
+        B --> E[Sky Classifier<br/>CNN]
+        C --> F[Object Detection<br/>YOLOv8]
+        D --> G[Panel Monitor<br/>CNN]
+        
+        E --> H{Sky<br/>Condition?}
+        F --> I{Objects<br/>Detected?}
+        G --> J{Panel<br/>Issues?}
+        
+        H -->|Clear| K[Solar Impact: 1.0x]
+        H -->|Cloudy| L[Solar Impact: 0.7x]
+        H -->|Storm| M[Solar Impact: 0.1x]
+        
+        I -->|Person| N[Security Event]
+        I -->|Vehicle| O[Log Activity]
+        I -->|Animal| P[Low Priority]
+        
+        J -->|Snow >30%| Q[Adjust Forecast<br/>Alert User]
+        J -->|Clean| R[Normal Operation]
+    end
+    
+    subgraph "Intelligence Fusion"
+        S[Get Battery State] --> T[Get ML Predictions]
+        K --> T
+        L --> T
+        M --> T
+        Q --> T
+        
+        T --> U[Enhanced Solar<br/>Forecast]
+        U --> V[Simulate Battery<br/>With Vision Data]
+    end
+    
+    subgraph "Context-Aware Security"
+        N --> W[Get System Context]
+        S --> W
+        
+        W --> X{House<br/>Occupied?}
+        X -->|No| Y[HIGH Priority<br/>SMS + Image]
+        X -->|Yes| Z[MEDIUM Priority<br/>App Notify]
+        
+        W --> AA{Miners<br/>Running?}
+        AA -->|Yes| AB[Pause Miners<br/>Reduce Noise]
+        AA -->|No| AC[No Action]
+        
+        Y --> AD[Execute Security<br/>Response]
+        Z --> AD
+        AB --> AD
+        AC --> AD
+    end
+    
+    subgraph "ML-Enhanced Automation"
+        V --> AE[Optimize Decisions<br/>With Vision Context]
+        AE --> AF{Safe to<br/>Run Miners?}
+        AF -->|Yes| AG[Start Priority<br/>Miners]
+        AF -->|No| AH[Wait for Better<br/>Conditions]
+        
+        AG --> AI[Log Action +<br/>Vision Context]
+        AH --> AI
+    end
+    
+    AI -.->|Training Data| AJ[(Vision Events<br/>Database)]
+    AD -.->|Security Logs| AJ
+    
+    style E fill:#FFB6C1
+    style F fill:#FFB6C1
+    style G fill:#FFB6C1
+    style K fill:#90EE90
+    style L fill:#FFD700
+    style M fill:#FF6B6B
+    style Y fill:#FF6B6B
+    style Z fill:#FFD700
+    style AG fill:#90EE90
+    style AH fill:#FFB6C1

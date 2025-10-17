@@ -1,0 +1,90 @@
+graph TB
+    subgraph "Data Collection Layer (V1.5 - Existing)"
+        A[Victron Poller<br/>30s intervals]
+        B[SolArk Integration<br/>API calls]
+        C[Weather API<br/>V2.1]
+        D[Reolink Cameras<br/>V3.0]
+    end
+    
+    subgraph "Storage Layer"
+        E[(PostgreSQL + TimescaleDB<br/>Time-series data)]
+        F[(Redis Cache<br/>Fast predictions)]
+    end
+    
+    subgraph "Intelligence Layer"
+        G[Agents V1.9<br/>Advisory only]
+        H[Prefect V2.0<br/>Rules Engine]
+        I[Prefect V2.1<br/>ML Engine]
+        J[Prefect V3.0<br/>Vision Processing]
+    end
+    
+    subgraph "ML Models (V2.1)"
+        K[Prophet<br/>Solar Forecast]
+        L[Prophet<br/>Load Prediction]
+        M[XGBoost<br/>Battery Health]
+    end
+    
+    subgraph "CV Models (V3.0)"
+        N[Sky Classifier<br/>Weather Detection]
+        O[YOLOv8<br/>Object Detection]
+        P[Panel Monitor<br/>Coverage Detection]
+    end
+    
+    subgraph "Execution Layer"
+        Q[Hardware APIs<br/>Shelly, Miners, HVAC]
+    end
+    
+    subgraph "User Interface"
+        R[Dashboard<br/>Vercel/Next.js]
+        S[Mobile App<br/>Future]
+    end
+    
+    A --> E
+    B --> E
+    C --> E
+    D --> E
+    
+    E --> G
+    E --> H
+    E --> I
+    E --> J
+    
+    E --> K
+    E --> L
+    E --> M
+    E --> N
+    E --> O
+    E --> P
+    
+    K --> F
+    L --> F
+    
+    F --> I
+    
+    I --> Q
+    H --> Q
+    J --> Q
+    
+    E --> R
+    F --> R
+    E --> S
+    
+    style A fill:#e1f5ff
+    style B fill:#e1f5ff
+    style C fill:#fff4e1
+    style D fill:#ffe1e1
+    style E fill:#e1ffe1
+    style F fill:#e1ffe1
+    style G fill:#e1f5ff
+    style H fill:#fff4e1
+    style I fill:#fff4e1
+    style J fill:#ffe1e1
+    style K fill:#fff4e1
+    style L fill:#fff4e1
+    style M fill:#fff4e1
+    style N fill:#ffe1e1
+    style O fill:#ffe1e1
+    style P fill:#ffe1e1
+    style Q fill:#f0e1ff
+    style R fill:#f0e1ff
+    style S fill:#f0e1ff

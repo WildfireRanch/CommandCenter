@@ -19,6 +19,7 @@ from fastapi import APIRouter, HTTPException, Path
 from typing import List
 from uuid import UUID
 import logging
+import os
 
 from ...utils.db import get_connection, query_all, query_one, execute
 from ..models.v1_9 import (
@@ -26,12 +27,17 @@ from ..models.v1_9 import (
     HVACZoneBase,
     HVACZoneUpdate
 )
+from .constants import ALLOWED_HVAC_FIELDS
 
 router = APIRouter(prefix="/hvac/zones", tags=["hvac"])
 logger = logging.getLogger(__name__)
 
 # Default user ID for V1.9 (single-user system)
-DEFAULT_USER_ID = "a0000000-0000-0000-0000-000000000001"
+# SECURITY: Load from environment variable (set in Railway)
+DEFAULT_USER_ID = os.getenv(
+    "DEFAULT_USER_ID",
+    "a0000000-0000-0000-0000-000000000001"  # Fallback for local dev
+)
 
 
 @router.get("", response_model=List[HVACZoneResponse])
@@ -272,6 +278,14 @@ async def update_zone(
                 detail="No fields to update"
             )
 
+        # SECURITY: Validate fields against whitelist (prevent SQL injection)
+        for field in update_data.keys():
+            if field not in ALLOWED_HVAC_FIELDS:
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"Field '{field}' is not allowed for updates"
+                )
+
         # Build SET clause
         set_clauses = []
         values = []
@@ -286,22 +300,14 @@ async def update_zone(
         values.extend([str(zone_id), DEFAULT_USER_ID])
 
         with get_connection() as conn:
-            # Execute update
-            execute(
+            # PERFORMANCE: Single query with RETURNING (instead of UPDATE + SELECT)
+            updated_zone = query_one(
                 conn,
                 f"""
                 UPDATE hvac_zones
                 SET {', '.join(set_clauses)}
                 WHERE id = %s::uuid AND user_id = %s::uuid
-                """,
-                tuple(values)
-            )
-
-            # Fetch and return updated zone
-            updated_zone = query_one(
-                conn,
-                """
-                SELECT
+                RETURNING
                     id, user_id, zone_name, zone_type,
                     temp_too_hot, temp_hot_ok, temp_too_cold, temp_cold_ok,
                     exhaust_fan_enabled, exhaust_fan_device_id,
@@ -311,10 +317,8 @@ async def update_zone(
                     block_charging_below_temp,
                     enabled, temperature_sensor_id,
                     created_at, updated_at
-                FROM hvac_zones
-                WHERE id = %s::uuid AND user_id = %s::uuid
                 """,
-                (str(zone_id), DEFAULT_USER_ID),
+                tuple(values),
                 as_dict=True
             )
 

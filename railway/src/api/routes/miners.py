@@ -19,6 +19,7 @@ from fastapi import APIRouter, HTTPException, Path
 from typing import List
 from uuid import UUID
 import logging
+import os
 
 from ...utils.db import get_connection, query_all, query_one, execute
 from ..models.v1_9 import (
@@ -26,12 +27,17 @@ from ..models.v1_9 import (
     MinerProfileBase,
     MinerProfileUpdate
 )
+from .constants import ALLOWED_MINER_FIELDS
 
 router = APIRouter(prefix="/miners", tags=["miners"])
 logger = logging.getLogger(__name__)
 
 # Default user ID for V1.9 (single-user system)
-DEFAULT_USER_ID = "a0000000-0000-0000-0000-000000000001"
+# SECURITY: Load from environment variable (set in Railway)
+DEFAULT_USER_ID = os.getenv(
+    "DEFAULT_USER_ID",
+    "a0000000-0000-0000-0000-000000000001"  # Fallback for local dev
+)
 
 
 @router.get("", response_model=List[MinerProfileResponse])
@@ -275,6 +281,14 @@ async def update_miner(
                 detail="No fields to update"
             )
 
+        # SECURITY: Validate fields against whitelist (prevent SQL injection)
+        for field in update_data.keys():
+            if field not in ALLOWED_MINER_FIELDS:
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"Field '{field}' is not allowed for updates"
+                )
+
         # Build SET clause
         set_clauses = []
         values = []
@@ -289,22 +303,14 @@ async def update_miner(
         values.extend([str(miner_id), DEFAULT_USER_ID])
 
         with get_connection() as conn:
-            # Execute update
-            execute(
+            # PERFORMANCE: Single query with RETURNING (instead of UPDATE + SELECT)
+            updated_miner = query_one(
                 conn,
                 f"""
                 UPDATE miner_profiles
                 SET {', '.join(set_clauses)}
                 WHERE id = %s::uuid AND user_id = %s::uuid
-                """,
-                tuple(values)
-            )
-
-            # Fetch and return updated miner
-            updated_miner = query_one(
-                conn,
-                """
-                SELECT
+                RETURNING
                     id, user_id, name, model, hashrate_ths, power_draw_watts,
                     priority_level, operating_mode,
                     start_voltage, stop_voltage, emergency_stop_voltage,
@@ -314,10 +320,8 @@ async def update_miner(
                     require_sunny_weather, minimum_solar_production_watts,
                     enabled, control_method, device_identifier,
                     created_at, updated_at
-                FROM miner_profiles
-                WHERE id = %s::uuid AND user_id = %s::uuid
                 """,
-                (str(miner_id), DEFAULT_USER_ID),
+                tuple(values),
                 as_dict=True
             )
 

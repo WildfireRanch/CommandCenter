@@ -1,0 +1,51 @@
+sequenceDiagram
+    participant Sensors as Data Sources<br/>(Victron, SolArk, Weather, Cameras)
+    participant DB as PostgreSQL<br/>TimescaleDB
+    participant Prefect as Prefect<br/>Orchestration
+    participant ML as ML Models<br/>(Prophet, XGBoost, CNN)
+    participant Cache as Redis<br/>Cache
+    participant Agents as AI Agents<br/>(Advisory)
+    participant Hardware as Hardware<br/>(Shelly, Miners, HVAC)
+    participant User as User<br/>(Dashboard/App)
+    
+    Note over Sensors,DB: Continuous Data Collection (30s intervals)
+    Sensors->>DB: Store telemetry<br/>(voltage, solar, load, images)
+    
+    Note over DB,ML: Daily Training (2:00 AM)
+    Prefect->>DB: Extract 90 days data
+    Prefect->>ML: Train models
+    ML->>ML: Evaluate performance
+    ML->>Prefect: Return metrics
+    Prefect->>ML: Promote if better
+    
+    Note over DB,Cache: Hourly Predictions (Every hour)
+    Prefect->>ML: Load production models
+    Prefect->>DB: Get weather forecast
+    ML->>Prefect: Generate 24h predictions
+    Prefect->>DB: Store predictions
+    Prefect->>Cache: Cache for fast access
+    
+    Note over DB,Hardware: Real-time Automation (Every 5 min)
+    Prefect->>DB: Get current state
+    Prefect->>Cache: Get predictions (fast!)
+    Prefect->>ML: Simulate battery future
+    ML->>Prefect: Return scenarios
+    Prefect->>Prefect: Safety validation
+    Prefect->>Hardware: Execute actions
+    Hardware->>Prefect: Confirm execution
+    Prefect->>DB: Log outcome
+    
+    Note over User,Agents: User Queries (On demand)
+    User->>Agents: Ask question
+    Agents->>DB: Query data
+    Agents->>Cache: Get predictions
+    Agents->>User: Provide answer
+    
+    Note over User,Hardware: Manual Control (Anytime)
+    User->>Prefect: Manual override
+    Prefect->>Hardware: Execute command
+    Hardware->>DB: Log manual action
+    
+    Note over DB: All data flows to one place!
+    Note over Prefect: One orchestrator for everything!
+    Note over Cache: Fast access to predictions!
