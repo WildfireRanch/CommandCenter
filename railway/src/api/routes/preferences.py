@@ -124,7 +124,7 @@ async def update_preferences(updates: UserPreferencesUpdate):
     """
     try:
         # Build dynamic UPDATE query from provided fields
-        update_data = updates.dict(exclude_unset=True)
+        update_data = updates.model_dump(exclude_unset=True)
         if not update_data:
             raise HTTPException(
                 status_code=400,
