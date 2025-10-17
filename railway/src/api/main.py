@@ -1124,6 +1124,57 @@ def create_app() -> FastAPI:
                 detail=f"Schema status check failed: {str(e)}"
             )
 
+    @app.get("/db/debug-v19-prefs")
+    async def debug_v19_preferences():
+        """
+        Debug V1.9 preferences - raw database query without Pydantic serialization.
+        Temporary endpoint to diagnose serialization issues.
+        """
+        try:
+            from ..utils.db import get_connection, query_one
+
+            DEFAULT_USER_ID = "a0000000-0000-0000-0000-000000000001"
+
+            with get_connection() as conn:
+                prefs = query_one(
+                    conn,
+                    """
+                    SELECT
+                        id::text, user_id::text,
+                        voltage_at_0_percent, voltage_at_100_percent,
+                        voltage_optimal_min, voltage_optimal_max,
+                        timezone, operating_mode,
+                        created_at::text, updated_at::text
+                    FROM user_preferences
+                    WHERE user_id = %s::uuid
+                    LIMIT 1
+                    """,
+                    (DEFAULT_USER_ID,),
+                    as_dict=True
+                )
+
+                if not prefs:
+                    return {"status": "not_found", "message": "No preferences found"}
+
+                # Convert to regular dict and check types
+                result = dict(prefs)
+                types_info = {k: type(v).__name__ for k, v in result.items()}
+
+                return {
+                    "status": "success",
+                    "data": result,
+                    "types": types_info,
+                    "count": len(result)
+                }
+
+        except Exception as e:
+            import traceback
+            return {
+                "status": "error",
+                "error": str(e),
+                "traceback": traceback.format_exc()
+            }
+
     # ─────────────────────────────────────────────────────────────────────────
     # Energy Data Endpoints
     # ─────────────────────────────────────────────────────────────────────────
