@@ -5,14 +5,50 @@ I'm working with a Railway project. Railway is a deployment platform for applica
 
 **Current Project**: CommandCenterProject
 **Environment**: production
-**Services**: CommandCenter (FastAPI backend), POSTGRES_DB (PostgreSQL with TimescaleDB)
+**Services**: CommandCenter (FastAPI backend), POSTGRES_DB (PostgreSQL with TimescaleDB), Redis (Cache)
 
-## Railway CLI Basics
+## Railway CLI Authentication
+
+### Authenticating in GitHub Codespaces
+
+**IMPORTANT**: `railway login` does NOT work in GitHub Codespaces because it requires a browser.
+
+#### Solution: Use Project Token
+
+The Railway project token is stored in: `docs/configuration/.env.master`
+
+**To authenticate in any session:**
+```bash
+# Export the token (needed for each new shell session)
+export RAILWAY_TOKEN=<token-from-env.master>
+
+# Verify authentication works
+railway status
+```
+
+**To persist across sessions (already configured):**
+```bash
+# Token is already added to ~/.bashrc
+# Just source it to apply
+source ~/.bashrc
+```
+
+#### Token Types and Limitations
+
+**Project Token** (current setup):
+- ✅ Works: `railway status`, `railway variables`, `railway redeploy`
+- ❌ Doesn't work: `railway whoami`, `railway logs` (requires account token)
+- Stored in: `docs/configuration/.env.master`
+
+**Account Token** (if needed for full access):
+- ✅ Works for all commands including logs
+- Create at: https://railway.app/account/tokens
+- Replace token in `docs/configuration/.env.master`
 
 ### Essential Commands You Should Know
 ```bash
-# Login and setup
-railway login                    # Authenticate with Railway
+# Login and setup (does NOT work in Codespaces - see above)
+railway login                    # Authenticate with Railway (local only)
 railway link                     # Link to existing project
 railway status                   # Show current project/environment
 
@@ -343,8 +379,16 @@ When working together, please:
 **Project Name**: CommandCenterProject
 
 **Services**:
-- CommandCenter (FastAPI backend - Python 3.11)
-- POSTGRES_DB (PostgreSQL 16 with TimescaleDB extension)
+- **CommandCenter** (FastAPI backend - Python 3.11)
+  - Public URL: https://api.wildfireranch.us
+  - Status: ✅ Healthy (verified 2025-10-17)
+- **POSTGRES_DB** (PostgreSQL 16 with TimescaleDB extension)
+  - Internal: `postgres_db.railway.internal:5432`
+  - Public: `postgresdb-production-e5ae.up.railway.app`
+  - Status: ✅ Connected
+- **Redis** (Cache service)
+  - Internal: `redis.railway.internal:6379`
+  - Status: ✅ Configured
 
 **Environment**: production
 
@@ -352,24 +396,116 @@ When working together, please:
 - API: https://api.wildfireranch.us
 - Dashboard: https://dashboard.wildfireranch.us
 
+**Key Environment Variables** (30 total):
+- ✅ `DATABASE_URL` - PostgreSQL connection
+- ✅ `REDIS_URL` - Redis cache connection
+- ✅ `OPENAI_API_KEY` - AI services
+- ✅ `SOLARK_EMAIL/PASSWORD/PLANT_ID` - Solar inverter data
+- ✅ `VICTRON_VRM_*` - Battery monitoring
+- ✅ `GOOGLE_SERVICE_ACCOUNT_JSON` - Google Workspace
+- ✅ `API_KEY` - Internal API authentication
+- ✅ `TAVILY_API_KEY` - Search/research
+
 **Key Features**:
 - SolArk solar inverter data collection
 - Victron VRM battery monitoring
 - Database health monitoring with historical snapshots
 - Knowledge base integration
+- Redis caching for performance
 
 ---
+
+## Best Practices for Railway in Codespaces
+
+### Authentication Pattern
+Always export the token at the start of command chains:
+```bash
+export RAILWAY_TOKEN=<token-from-env.master> && railway status
+```
+
+### Inspecting Services
+```bash
+# Quick health check
+export RAILWAY_TOKEN=<token> && railway status
+curl https://api.wildfireranch.us/health | jq
+
+# View all environment variables
+export RAILWAY_TOKEN=<token> && railway variables
+
+# Extract specific variables
+export RAILWAY_TOKEN=<token> && railway variables --json | jq -r '.DATABASE_URL'
+export RAILWAY_TOKEN=<token> && railway variables --json | jq -r '.REDIS_URL'
+
+# List all variable names
+export RAILWAY_TOKEN=<token> && railway variables --json | jq -r 'keys | .[]' | sort
+```
+
+### Deployment Workflow
+```bash
+# 1. Make code changes locally
+# 2. Commit and push
+git add .
+git commit -m "Your change description"
+git push origin main
+
+# 3. Redeploy the service (Railway auto-deploys from GitHub)
+export RAILWAY_TOKEN=<token> && railway redeploy --service CommandCenter -y
+
+# 4. Verify deployment
+curl https://api.wildfireranch.us/health
+```
+
+### Database Operations
+Since internal Railway hostnames don't work from Codespaces:
+```bash
+# ✅ DO: Use API endpoints for migrations
+curl -X POST https://api.wildfireranch.us/db/init-schema
+
+# ✅ DO: Use Railway CLI to run commands with proper environment
+export RAILWAY_TOKEN=<token> && railway run python3 railway/run_migration.py
+
+# ❌ DON'T: Try to connect directly to postgres_db.railway.internal
+# (won't work from Codespaces)
+```
+
+### Monitoring and Debugging
+```bash
+# Check what Railway sees
+export RAILWAY_TOKEN=<token> && railway status
+
+# Get service URLs
+export RAILWAY_TOKEN=<token> && railway variables --json | jq '{
+  project: .RAILWAY_PROJECT_NAME,
+  service: .RAILWAY_SERVICE_NAME,
+  public_url: .RAILWAY_PUBLIC_DOMAIN,
+  postgres: .RAILWAY_SERVICE_POSTGRES_DB_URL
+}'
+
+# Test API endpoints
+curl https://api.wildfireranch.us/health
+curl https://api.wildfireranch.us/system/stats
+```
 
 ## Quick Reference Cheatsheet
 
 **When in doubt**:
-1. `railway status` - See where we are
-2. `railway variables` - Check environment configuration
+1. `export RAILWAY_TOKEN=<token> && railway status` - See where we are
+2. `export RAILWAY_TOKEN=<token> && railway variables` - Check environment configuration
 3. `curl https://api.wildfireranch.us/health` - Test if API is responding
 
 **Common Tasks**:
 ```bash
-# Deploy changes
+# Authenticate (use token from docs/configuration/.env.master)
+export RAILWAY_TOKEN=<token-from-env.master>
+
+# Check project status
+railway status
+
+# View environment variables
+railway variables
+railway variables --json | jq
+
+# Deploy changes (Railway auto-deploys from GitHub)
 git push origin main
 railway redeploy --service CommandCenter -y
 
@@ -377,14 +513,19 @@ railway redeploy --service CommandCenter -y
 curl -X POST https://api.wildfireranch.us/db/init-schema
 
 # Check service health
+curl https://api.wildfireranch.us/health
 curl https://api.wildfireranch.us/health/monitoring/status
 
-# View recent logs (if not timing out)
-railway logs --tail 50
+# View logs (requires account token)
+# Note: Current project token doesn't support logs
+# Workaround: Check logs in Railway dashboard or use API endpoints
 ```
 
 **Troubleshooting**:
-- Migration fails → Check if psql installed in Dockerfile
-- Service not picking up changes → Redeploy with `railway redeploy`
-- Can't connect to database → You're outside Railway network, use API endpoints
-- Logs timing out → Use smaller tail limit or check via API health endpoints
+- **Can't authenticate** → Check token in `docs/configuration/.env.master` and export it
+- **"Unauthorized" errors** → Token might be expired, regenerate at https://railway.app/account/tokens
+- **Migration fails** → Check if psql installed in Dockerfile
+- **Service not picking up changes** → Redeploy with `railway redeploy --service CommandCenter -y`
+- **Can't connect to database** → You're outside Railway network, use API endpoints
+- **Logs not working** → Project token doesn't support logs, use account token or Railway dashboard
+- **Command requires TTY** → Use `-y` flag or `--json` output format
