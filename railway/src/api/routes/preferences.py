@@ -31,6 +31,20 @@ logger = logging.getLogger(__name__)
 DEFAULT_USER_ID = "a0000000-0000-0000-0000-000000000001"
 
 
+@router.get("/debug-version")
+async def get_model_version():
+    """Check deployed model version."""
+    try:
+        from ..models import v1_9
+        return {
+            "version": getattr(v1_9, '__V19_MODELS_VERSION__', 'unknown'),
+            "has_field_validator": hasattr(v1_9.UserPreferencesResponse, '__pydantic_decorators__'),
+            "model_fields": list(v1_9.UserPreferencesResponse.model_fields.keys())[:10]
+        }
+    except Exception as e:
+        return {"error": str(e)}
+
+
 @router.get("/debug-raw")
 async def get_preferences_debug():
     """Debug endpoint - return raw dict without Pydantic."""

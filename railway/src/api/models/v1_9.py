@@ -20,6 +20,9 @@ from uuid import UUID
 
 from pydantic import BaseModel, Field, validator, ConfigDict, field_validator
 
+# Version marker for debugging
+__V19_MODELS_VERSION__ = "2.0.0-decimal-fix"
+
 
 # ─────────────────────────────────────────────────────────────────────────────
 # User Preferences Models
