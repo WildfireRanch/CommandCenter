@@ -18,7 +18,7 @@ from decimal import Decimal
 from typing import Optional, Dict, Any, List
 from uuid import UUID
 
-from pydantic import BaseModel, Field, validator
+from pydantic import BaseModel, Field, validator, ConfigDict
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -146,8 +146,8 @@ class UserPreferencesBase(BaseModel):
                 raise ValueError('voltage_at_100_percent must be > voltage_at_0_percent')
         return v
 
-    class Config:
-        json_schema_extra = {
+    model_config = ConfigDict(
+        json_schema_extra={
             "example": {
                 "voltage_at_0_percent": 45.0,
                 "voltage_at_100_percent": 56.0,
@@ -157,6 +157,7 @@ class UserPreferencesBase(BaseModel):
                 "operating_mode": "balanced"
             }
         }
+    )
 
 
 class UserPreferencesResponse(UserPreferencesBase):
@@ -166,8 +167,7 @@ class UserPreferencesResponse(UserPreferencesBase):
     created_at: datetime
     updated_at: datetime
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class UserPreferencesUpdate(BaseModel):
@@ -295,8 +295,8 @@ class MinerProfileBase(BaseModel):
                 raise ValueError('emergency_stop_voltage must be < stop_voltage')
         return v
 
-    class Config:
-        json_schema_extra = {
+    model_config = ConfigDict(
+        json_schema_extra={
             "example": {
                 "name": "Primary S21+ (Revenue)",
                 "model": "Antminer S21+ 235TH",
@@ -311,6 +311,7 @@ class MinerProfileBase(BaseModel):
                 "enabled": True
             }
         }
+    )
 
 
 class MinerProfileResponse(MinerProfileBase):
@@ -320,8 +321,7 @@ class MinerProfileResponse(MinerProfileBase):
     created_at: datetime
     updated_at: datetime
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class MinerProfileUpdate(BaseModel):
@@ -450,8 +450,8 @@ class HVACZoneBase(BaseModel):
                 raise ValueError('temp_cold_ok must be > temp_too_cold')
         return v
 
-    class Config:
-        json_schema_extra = {
+    model_config = ConfigDict(
+        json_schema_extra={
             "example": {
                 "zone_name": "Heat Room",
                 "zone_type": "equipment",
@@ -469,6 +469,7 @@ class HVACZoneBase(BaseModel):
                 "enabled": True
             }
         }
+    )
 
 
 class HVACZoneResponse(HVACZoneBase):
@@ -478,8 +479,7 @@ class HVACZoneResponse(HVACZoneBase):
     created_at: datetime
     updated_at: datetime
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class HVACZoneUpdate(BaseModel):
