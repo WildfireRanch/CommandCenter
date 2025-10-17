@@ -44,7 +44,7 @@ class UserPreferencesBase(BaseModel):
         le=60.0,
         description="Battery voltage at 100% SOC (e.g., 56.0V for Solar Shack)"
     )
-    voltage_curve: Optional[Dict[str, Any]] = Field(
+    voltage_curve: Optional[List[Dict[str, Any]]] = Field(
         default=None,
         description="Optional non-linear voltage-SOC calibration curve (6-point)"
     )
@@ -185,7 +185,7 @@ class UserPreferencesUpdate(BaseModel):
     """Update model (all fields optional)."""
     voltage_at_0_percent: Optional[float] = None
     voltage_at_100_percent: Optional[float] = None
-    voltage_curve: Optional[Dict[str, Any]] = None
+    voltage_curve: Optional[List[Dict[str, Any]]] = None
     battery_chemistry: Optional[str] = None
     battery_nominal_voltage: Optional[float] = None
     battery_absolute_min: Optional[float] = None
