@@ -267,6 +267,8 @@ def init_schema():
         "002_agent_metrics.sql",
         "003_victron_schema.sql",  # V1.6: Victron Cerbo battery monitoring
         "004_health_monitoring.sql",  # V1.8: Database health monitoring
+        "005_solark_schema.sql",  # V1.5: SolArk telemetry storage
+        "006_v1.9_user_preferences.sql",  # V1.9: User preferences & voltage-based decisions
     ]
 
     # Fallback if migrations directory doesn't exist

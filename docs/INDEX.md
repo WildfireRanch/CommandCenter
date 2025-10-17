@@ -1,8 +1,8 @@
 # 📚 CommandCenter Documentation Index
 
-**Last Updated**: December 10, 2025 (V1.5.0 Release)
-**Status**: ✅ **PRODUCTION** - V1.5 deployed and operational
-**Version**: V1.5.0 - Multi-agent system with KB fast-path
+**Last Updated**: October 17, 2025 (V1.9 Database Migration Ready)
+**Status**: ✅ **PRODUCTION** - V1.8 deployed and operational | 🚧 **V1.9 IN PROGRESS**
+**Version**: V1.8.0 - Smart Context + Health Dashboard | V1.9.0 - User Preferences System (Week 1)
 
 ## ⭐ **START HERE**
 
@@ -30,6 +30,16 @@ Guide for Claude Code and AI assistants to navigate docs efficiently:
 
 ## 🎉 **LATEST UPDATES**
 
+### 🔵 V1.9 User Preferences System - Week 1 API Complete (October 17, 2025)
+1. **[sessions/2025-10/session-037-v1.9-api-endpoints.md](sessions/2025-10/session-037-v1.9-api-endpoints.md)** ✅ **API endpoints complete (14 new endpoints)**
+2. **[sessions/2025-10/session-036-v1.9-migration-ready.md](sessions/2025-10/session-036-v1.9-migration-ready.md)** ✅ **Database migration prepared**
+3. **[versions/v1.9/V1.9_IMPLEMENTATION_PLAN.md](versions/v1.9/V1.9_IMPLEMENTATION_PLAN.md)** 📋 **Complete 3-week roadmap**
+4. **[versions/v1.9/V1.9_MIGRATION_DEPLOYMENT_GUIDE.md](versions/v1.9/V1.9_MIGRATION_DEPLOYMENT_GUIDE.md)** 🚀 **Deployment instructions**
+5. **[versions/v1.9/V1.9_TECHNICAL_SPECIFICATION.md](versions/v1.9/V1.9_TECHNICAL_SPECIFICATION.md)** 📖 **Complete technical specs**
+6. **[versions/v1.9/V1.9_quick_reference.md](versions/v1.9/V1.9_quick_reference.md)** ⚡ **5-minute context guide**
+
+**Status:** API endpoints ready | Next: Deploy to Railway → Agent integration (Week 1, Day 5)
+
 ### 🟢 V1.8 Database Health Dashboard COMPLETE (October 16, 2025)
 1. **[sessions/SESSION_031_SUMMARY.md](sessions/SESSION_031_SUMMARY.md)** ✅ **Dashboard implementation**
 2. **[sessions/SESSION_032_MIGRATION_COMPLETION.md](sessions/SESSION_032_MIGRATION_COMPLETION.md)** 🎯 **Migration deployment & lessons learned**
@@ -38,7 +48,7 @@ Guide for Claude Code and AI assistants to navigate docs efficiently:
 
 ### 🟢 V1.7 Database Health & Polling (October 15, 2025)
 1. **[sessions/SESSION_030_DATABASE_HEALTH_AND_POLLING_FIX.md](sessions/SESSION_030_DATABASE_HEALTH_AND_POLLING_FIX.md)** ✅ **Database & polling fixed**
-2. **[AGENT_DATABASE_FIX_SUMMARY.md](AGENT_DATABASE_FIX_SUMMARY.md)** 📋 **Technical fix documentation**
+2. **[sessions/2025-10/AGENT_DATABASE_FIX_SUMMARY.md](sessions/2025-10/AGENT_DATABASE_FIX_SUMMARY.md)** 📋 **Technical fix documentation**
 3. **[prompts/MASTER_DB_QUALITY_AND_POLLING_VALIDATION.md](prompts/MASTER_DB_QUALITY_AND_POLLING_VALIDATION.md)** 🆕 **Health check protocol**
 4. **[prompts/DATABASE_HEALTH_DASHBOARD_IMPLEMENTATION.md](prompts/DATABASE_HEALTH_DASHBOARD_IMPLEMENTATION.md)** 🎯 **Dashboard implementation guide**
 
@@ -64,9 +74,14 @@ Guide for Claude Code and AI assistants to navigate docs efficiently:
 ### Guides & Testing
 1. **[guides/](guides/)** 📖 **Step-by-step guides**
    - [AUTHENTICATION_GUIDE.md](guides/AUTHENTICATION_GUIDE.md) - OAuth setup
+   - [RAILWAY_ACCESS_GUIDE.md](guides/RAILWAY_ACCESS_GUIDE.md) - Railway CLI & deployment
    - [KB_USER_TESTING_GUIDE.md](guides/KB_USER_TESTING_GUIDE.md) - KB testing
 2. **[reference/](reference/)** 📚 **Reference material**
    - [Code Style Guide](reference/CommandCenter%20Code%20Style%20Guide.md)
+   - [Quick Reference - CommandCenter](reference/QUICK_REFERENCE_CommandCenter.md)
+   - [Quick Reference - Deployment](reference/QUICK_REFERENCE_DEPLOYMENT.md)
+   - [Architecture Decisions](reference/ARCHITECTURE_DECISIONS.md)
+   - [V2.0 Roadmap](reference/V2.0_ROADMAP.md)
    - [Progress tracking](reference/progress.md)
 
 ## 📋 Session History
@@ -91,6 +106,13 @@ Guide for Claude Code and AI assistants to navigate docs efficiently:
 - **[archive/early-sessions/](archive/early-sessions/)** - Sessions 001-011 (foundation work)
 - **[archive/session-planning/](archive/session-planning/)** - Session prompts & testing guides
 - **[archive/frontend-analysis/](archive/frontend-analysis/)** - Old frontend analysis
+
+### Version-Specific Documentation
+- **[versions/](versions/)** 📦 **Version-specific docs**
+- **[versions/v1.6/](versions/v1.6/)** - V1.6 Victron integration & energy dashboard
+- **[versions/v1.7/](versions/v1.7/)** - V1.7 Research agent & validation
+- **[versions/v1.8/](versions/v1.8/)** - V1.8 Database health dashboard
+- **[versions/v1.9/](versions/v1.9/)** - V1.9 User preferences & voltage-based decisions 🆕
 
 ## 🎨 Frontend Documentation
 
@@ -136,7 +158,9 @@ Guide for Claude Code and AI assistants to navigate docs efficiently:
 ## 🔧 Technical Guides
 
 ### Database & Monitoring
-- **[AGENT_DATABASE_FIX_SUMMARY.md](AGENT_DATABASE_FIX_SUMMARY.md)** 📋 **Oct 2025 database & polling fixes**
+- **[sessions/2025-10/AGENT_DATABASE_FIX_SUMMARY.md](sessions/2025-10/AGENT_DATABASE_FIX_SUMMARY.md)** 📋 **Oct 2025 database & polling fixes**
+- **[sessions/2025-10/AGENT_MONITORING_DEPLOYMENT.md](sessions/2025-10/AGENT_MONITORING_DEPLOYMENT.md)** 🚀 **Monitoring deployment**
+- **[sessions/2025-10/AGENT_MONITORING_AUDIT_REPORT.md](sessions/2025-10/AGENT_MONITORING_AUDIT_REPORT.md)** 📊 **Monitoring audit**
 - **[prompts/MASTER_DB_QUALITY_AND_POLLING_VALIDATION.md](prompts/MASTER_DB_QUALITY_AND_POLLING_VALIDATION.md)** 🔍 **Health check protocol**
 - **[prompts/DATABASE_HEALTH_DASHBOARD_IMPLEMENTATION.md](prompts/DATABASE_HEALTH_DASHBOARD_IMPLEMENTATION.md)** 🎯 **Dashboard implementation**
 

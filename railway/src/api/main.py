@@ -701,6 +701,118 @@ def create_app() -> FastAPI:
                 "type": type(e).__name__,
             }
 
+    @app.post("/db/run-v19-migration")
+    async def run_v19_migration():
+        """
+        Run V1.9 User Preferences migration.
+
+        WHAT: Creates users, user_preferences, miner_profiles, hvac_zones tables
+        WHY: V1.9 feature - voltage-based battery management with user preferences
+        HOW: Runs 006_v1.9_user_preferences.sql with psql for complex SQL
+
+        Creates:
+        - 4 tables (users, user_preferences, miner_profiles, hvac_zones)
+        - 5 indexes for performance
+        - 5 constraints for data integrity
+        - 4 update triggers for auto-timestamps
+        - Default data for Solar Shack (admin user + 2 miners + 2 HVAC zones)
+
+        Returns:
+            dict: Migration status with detailed output
+        """
+        try:
+            import subprocess
+            import tempfile
+            from pathlib import Path
+            import os
+
+            logger.info("v19_migration_requested")
+
+            # Find migration file
+            migrations_dir = Path(__file__).parent.parent / "database" / "migrations"
+            migration_file = migrations_dir / "006_v1.9_user_preferences.sql"
+
+            if not migration_file.exists():
+                return {
+                    "status": "error",
+                    "message": f"Migration file not found: {migration_file}",
+                    "file_path": str(migration_file),
+                    "migrations_dir_exists": migrations_dir.exists(),
+                }
+
+            # Read SQL
+            schema_sql = migration_file.read_text()
+
+            # Get DATABASE_URL
+            db_url = os.getenv('DATABASE_URL')
+            if not db_url:
+                return {
+                    "status": "error",
+                    "message": "DATABASE_URL not set"
+                }
+
+            # Try using psql (required for complex migrations)
+            try:
+                with tempfile.NamedTemporaryFile(mode='w', suffix='.sql', delete=False) as f:
+                    f.write(schema_sql)
+                    temp_file = f.name
+
+                result = subprocess.run(
+                    ['psql', db_url, '-f', temp_file],
+                    capture_output=True,
+                    text=True,
+                    timeout=30
+                )
+
+                os.unlink(temp_file)
+
+                if result.returncode == 0:
+                    logger.info("v19_migration_completed_via_psql")
+                    return {
+                        "status": "success",
+                        "message": "V1.9 migration completed successfully",
+                        "method": "psql",
+                        "tables_created": ["users", "user_preferences", "miner_profiles", "hvac_zones"],
+                        "default_data": {
+                            "users": 1,
+                            "preferences": 1,
+                            "miners": 2,
+                            "hvac_zones": 2
+                        },
+                        "stdout": result.stdout,
+                        "stderr": result.stderr,
+                        "timestamp": time.time(),
+                        "next_steps": [
+                            "Validate with: curl https://api.wildfireranch.us/api/preferences",
+                            "Test miners: curl https://api.wildfireranch.us/api/miners",
+                            "Test HVAC: curl https://api.wildfireranch.us/api/hvac/zones"
+                        ]
+                    }
+                else:
+                    return {
+                        "status": "error",
+                        "message": "psql execution failed",
+                        "method": "psql",
+                        "returncode": result.returncode,
+                        "stdout": result.stdout,
+                        "stderr": result.stderr,
+                    }
+
+            except FileNotFoundError:
+                return {
+                    "status": "error",
+                    "message": "psql not found - required for complex migrations",
+                    "help": "Install postgresql-client in Docker container"
+                }
+
+        except Exception as e:
+            logger.exception("v19_migration_failed error=%s", e)
+            return {
+                "status": "error",
+                "message": str(e),
+                "type": type(e).__name__,
+            }
+
     @app.post("/db/create-victron-tables")
     async def create_victron_tables():
         """
@@ -2880,6 +2992,12 @@ def create_app() -> FastAPI:
 
     from .routes import kb
     app.include_router(kb.router)
+
+    # V1.9: User preferences, miners, HVAC zones
+    from .routes import preferences, miners, hvac
+    app.include_router(preferences.router, prefix="/api")
+    app.include_router(miners.router, prefix="/api")
+    app.include_router(hvac.router, prefix="/api")
 
     # Health monitoring endpoints (V1.8)
     from .endpoints import health_monitoring

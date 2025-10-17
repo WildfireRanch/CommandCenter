@@ -4,9 +4,9 @@ AI-powered energy management system with CrewAI agents, MCP integration, and pro
 
 ## 🎯 Project Status
 
-**Current Phase:** ✅ **V1.8 PRODUCTION READY** 🎉
-**Status:** Production Stable - Database Health Dashboard Fully Operational
-**Last Updated:** 2025-10-16 (Session 032 - V1.8 Migration Complete!)
+**Current Phase:** ✅ **V1.8 PRODUCTION** | 🚧 **V1.9 IN PROGRESS** (Week 1/3)
+**Status:** V1.8 Stable - Database Health Dashboard | V1.9 Migration Ready for Deployment
+**Last Updated:** 2025-10-17 (Session 036 - V1.9 Database Migration Prepared!)
 
 ### Quick Stats (V1.8)
 - ✅ **Production Services:** API + Dashboard + Testing Tools deployed
@@ -27,7 +27,8 @@ AI-powered energy management system with CrewAI agents, MCP integration, and pro
 - ✅ **Database:** PostgreSQL 16 + TimescaleDB + pgvector + Redis
 - ✅ **Production Features:** Rate limiting, retry logic, error boundaries, memory leak prevention
 - ✅ **Validation:** All tests passing (10 edge case tests + integration tests)
-- 🎯 **Next:** Monitor V1.8 health metrics → V1.9 enhancements
+- 🚧 **V1.9 (Week 1):** Database migration ready | Next: Deploy → API endpoints
+- 🎯 **V1.9 Goal:** Voltage-based user preferences system (3 weeks)
 
 ---
 
@@ -165,7 +166,7 @@ AI-powered energy management system with CrewAI agents, MCP integration, and pro
 - Production monitoring setup
 - Additional hardware integrations (Shelly, Miners)
 
-### Planned 📋 (See [KB_ROADMAP.md](KB_ROADMAP.md) for details)
+### Planned 📋 (See [KB_ROADMAP.md](docs/guides/KB_ROADMAP.md) for details)
 - **Knowledge Base Enhancements:**
   - Settings implementation (auto-sync, configurable params)
   - Advanced search with filters
@@ -192,25 +193,28 @@ AI-powered energy management system with CrewAI agents, MCP integration, and pro
 - **[CrewAI Studio Railway Setup](crewai-studio/RAILWAY_SETUP.md)** - Railway deployment
 - **[MCP Server Setup](mcp-server/INSTALL.md)** - Claude Desktop integration
 - **[Streamlit Ops Dashboard](dashboards/README.md)** - Admin dashboard guide
-- **[Authentication Guide](docs/AUTHENTICATION_GUIDE.md)** - How to protect pages with OAuth
+- **[Authentication Guide](docs/guides/AUTHENTICATION_GUIDE.md)** - How to protect pages with OAuth
+- **[Railway Access Guide](docs/guides/RAILWAY_ACCESS_GUIDE.md)** - Railway CLI & deployment workflows
 
 ### Latest Documentation (V1.8)
-- **[V1.8_FINAL_IMPLEMENTATION_REPORT.md](V1.8_FINAL_IMPLEMENTATION_REPORT.md)** - Complete V1.8 implementation report
-- **[V1.8_DEPLOYMENT_READY.md](V1.8_DEPLOYMENT_READY.md)** - Deployment guide and verification
-- **[V1.8_IMPLEMENTATION_COMPLETE.md](V1.8_IMPLEMENTATION_COMPLETE.md)** - Smart Context Loading details
-- **[AGENT_VISUALIZATION_PROGRESS.md](AGENT_VISUALIZATION_PROGRESS.md)** - Dashboard implementation
-- **[TEST_RESULTS_SUMMARY.md](TEST_RESULTS_SUMMARY.md)** - Edge case testing results
+- **[V1.8 Documentation](docs/versions/v1.8/)** - Complete V1.8 documentation
+  - [Implementation Report](docs/versions/v1.8/V1.8_FINAL_IMPLEMENTATION_REPORT.md)
+  - [Deployment Ready](docs/versions/v1.8/V1.8_DEPLOYMENT_READY.md)
+  - [Smart Context Loading](docs/versions/v1.8/V1.8_IMPLEMENTATION_COMPLETE.md)
+  - [Agent Visualization](docs/versions/v1.8/AGENT_VISUALIZATION_PROGRESS.md)
 - **[PROJECT_STATUS.md](PROJECT_STATUS.md)** - Current system status and metrics
 
-### Knowledge Base Documentation
-- **[KB_ROADMAP.md](KB_ROADMAP.md)** - Complete feature roadmap and future plans
-- **[Session 018D Summary](docs/SESSION_018D_FILES_TAB_COMPLETION.md)** - Files tab + deletion handling
-- **[Session 018C Summary](docs/SESSION_018C_SYNC_IMPROVEMENTS.md)** - Sync improvements
+### Additional Guides
+- **[All Guides](docs/guides/)** - Step-by-step guides
+  - [Quick Start Dashboards](docs/guides/QUICKSTART_DASHBOARDS.md)
+  - [Redis Setup](docs/guides/REDIS_SETUP_GUIDE.md)
+  - [Environment Setup](docs/guides/ENVIRONMENT_SETUP_COMPLETE.md)
+  - [KB Roadmap](docs/guides/KB_ROADMAP.md)
 
-### Other Session Notes
-- **[Session 012 Summary](docs/sessions/SESSION_012_SUMMARY.md)** - Production deployment
-- **[Session 011 Summary](SESSION_011_SUMMARY.md)** - Frontend integration
+### Session Notes
+- **[Latest Sessions](docs/sessions/2025-10/)** - Recent development sessions
 - **[All Session Notes](docs/sessions/)** - Complete development history
+- **[Version History](docs/versions/)** - Version-specific documentation
 
 ### API Documentation
 - **[Interactive API Docs](https://api.wildfireranch.us/docs)** - Swagger UI
@@ -449,7 +453,7 @@ Private Project - WildfireRanch © 2025
 - ✅ **KB Fast-Path Refinement:** Excludes system-specific patterns
 - 📊 **Performance:** No degradation, improved accuracy for system questions
 
-See [V1.8_FINAL_IMPLEMENTATION_REPORT.md](V1.8_FINAL_IMPLEMENTATION_REPORT.md), [V1.7_PRODUCTION_VALIDATION.md](V1.7_PRODUCTION_VALIDATION.md), and [PROJECT_STATUS.md](PROJECT_STATUS.md) for complete history.
+See [V1.8 Documentation](docs/versions/v1.8/), [V1.7 Documentation](docs/versions/v1.7/), and [PROJECT_STATUS.md](PROJECT_STATUS.md) for complete history.
 
 ---
 
