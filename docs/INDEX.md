@@ -1,8 +1,8 @@
 # 📚 CommandCenter Documentation Index
 
-**Last Updated**: October 17, 2025 (V1.9 Database Migration Ready)
-**Status**: ✅ **PRODUCTION** - V1.8 deployed and operational | 🚧 **V1.9 IN PROGRESS**
-**Version**: V1.8.0 - Smart Context + Health Dashboard | V1.9.0 - User Preferences System (Week 1)
+**Last Updated**: October 17, 2025 (V1.9 API Endpoints Deployed - Session 037)
+**Status**: ✅ **PRODUCTION** - V1.8 deployed and operational | ⚠️ **V1.9 DEPLOYED** (90% - 1 bug fix pending)
+**Version**: V1.8.0 - Smart Context + Health Dashboard | V1.9.0 - User Preferences System (Week 1, Day 3-4 Complete)
 
 ## ⭐ **START HERE**
 
@@ -30,15 +30,26 @@ Guide for Claude Code and AI assistants to navigate docs efficiently:
 
 ## 🎉 **LATEST UPDATES**
 
-### 🔵 V1.9 User Preferences System - Week 1 API Complete (October 17, 2025)
-1. **[sessions/2025-10/session-037-v1.9-api-endpoints.md](sessions/2025-10/session-037-v1.9-api-endpoints.md)** ✅ **API endpoints complete (14 new endpoints)**
-2. **[sessions/2025-10/session-036-v1.9-migration-ready.md](sessions/2025-10/session-036-v1.9-migration-ready.md)** ✅ **Database migration prepared**
-3. **[versions/v1.9/V1.9_IMPLEMENTATION_PLAN.md](versions/v1.9/V1.9_IMPLEMENTATION_PLAN.md)** 📋 **Complete 3-week roadmap**
-4. **[versions/v1.9/V1.9_MIGRATION_DEPLOYMENT_GUIDE.md](versions/v1.9/V1.9_MIGRATION_DEPLOYMENT_GUIDE.md)** 🚀 **Deployment instructions**
-5. **[versions/v1.9/V1.9_TECHNICAL_SPECIFICATION.md](versions/v1.9/V1.9_TECHNICAL_SPECIFICATION.md)** 📖 **Complete technical specs**
-6. **[versions/v1.9/V1.9_quick_reference.md](versions/v1.9/V1.9_quick_reference.md)** ⚡ **5-minute context guide**
+### 🔵 V1.9 User Preferences System - Week 1 API Deployed (October 17, 2025)
 
-**Status:** API endpoints ready | Next: Deploy to Railway → Agent integration (Week 1, Day 5)
+**Session 037:** ⚠️ **90% COMPLETE** - Migration deployed ✅ | API endpoints deployed ✅ | 1 bug fix pending
+
+**Key Documents:**
+1. **[SESSION_037_COMPLETION_REPORT.md](../SESSION_037_COMPLETION_REPORT.md)** ⚠️ **Status report + bug fix instructions**
+2. **[sessions/2025-10/session-037-v1.9-api-endpoints.md](sessions/2025-10/session-037-v1.9-api-endpoints.md)** ✅ **API endpoints implementation (14 endpoints)**
+3. **[sessions/2025-10/session-036-v1.9-migration-ready.md](sessions/2025-10/session-036-v1.9-migration-ready.md)** ✅ **Database migration prepared**
+4. **[versions/v1.9/V1.9_IMPLEMENTATION_PLAN.md](versions/v1.9/V1.9_IMPLEMENTATION_PLAN.md)** 📋 **Complete 3-week roadmap**
+5. **[versions/v1.9/V1.9_MIGRATION_DEPLOYMENT_GUIDE.md](versions/v1.9/V1.9_MIGRATION_DEPLOYMENT_GUIDE.md)** 🚀 **Deployment instructions**
+6. **[versions/v1.9/V1.9_TECHNICAL_SPECIFICATION.md](versions/v1.9/V1.9_TECHNICAL_SPECIFICATION.md)** 📖 **Complete technical specs**
+7. **[versions/v1.9/V1.9_quick_reference.md](versions/v1.9/V1.9_quick_reference.md)** ⚡ **5-minute context guide**
+
+**What's Deployed:**
+- ✅ 4 database tables (users, user_preferences, miner_profiles, hvac_zones)
+- ✅ 14 API endpoints (preferences, miners, HVAC zones)
+- ✅ Default Solar Shack configuration
+- ⚠️ 1 bug: Decimal serialization issue (30 min fix)
+
+**Next Session:** Fix Decimal serialization → Test endpoints → Agent integration (Week 1, Day 5)
 
 ### 🟢 V1.8 Database Health Dashboard COMPLETE (October 16, 2025)
 1. **[sessions/SESSION_031_SUMMARY.md](sessions/SESSION_031_SUMMARY.md)** ✅ **Dashboard implementation**
@@ -87,6 +98,9 @@ Guide for Claude Code and AI assistants to navigate docs efficiently:
 ## 📋 Session History
 
 ### Latest Sessions (Start Here!)
+- **[SESSION_037_COMPLETION_REPORT.md](../SESSION_037_COMPLETION_REPORT.md)** ⚠️ **Session 037 - V1.9 API Endpoints (90% COMPLETE - 1 bug fix pending)**
+- **[sessions/2025-10/session-037-v1.9-api-endpoints.md](sessions/2025-10/session-037-v1.9-api-endpoints.md)** 📋 **Session 037 - Implementation details**
+- **[sessions/2025-10/session-036-v1.9-migration-ready.md](sessions/2025-10/session-036-v1.9-migration-ready.md)** ✅ **Session 036 - Migration prepared**
 - **[sessions/SESSION_032_MIGRATION_COMPLETION.md](sessions/SESSION_032_MIGRATION_COMPLETION.md)** 🎯 **Session 032 - Health Dashboard Migration & Railway Lessons (COMPLETE)**
 - **[sessions/SESSION_031_SUMMARY.md](sessions/SESSION_031_SUMMARY.md)** ✅ **Session 031 - Database Health Dashboard (IMPLEMENTATION COMPLETE)**
 - **[sessions/SESSION_030_DATABASE_HEALTH_AND_POLLING_FIX.md](sessions/SESSION_030_DATABASE_HEALTH_AND_POLLING_FIX.md)** ✅ **Session 030 - Database & Polling Fixed (COMPLETE)**

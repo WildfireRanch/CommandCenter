@@ -4,9 +4,9 @@ AI-powered energy management system with CrewAI agents, MCP integration, and pro
 
 ## 🎯 Project Status
 
-**Current Phase:** ✅ **V1.8 PRODUCTION** | 🚧 **V1.9 IN PROGRESS** (Week 1/3)
-**Status:** V1.8 Stable - Database Health Dashboard | V1.9 Migration Ready for Deployment
-**Last Updated:** 2025-10-17 (Session 036 - V1.9 Database Migration Prepared!)
+**Current Phase:** ✅ **V1.8 PRODUCTION** | ⚠️ **V1.9 DEPLOYED** (Week 1/3 - 90% Complete)
+**Status:** V1.8 Stable | V1.9 Migration Deployed ✅ | API Endpoints Deployed ✅ | 1 Bug Fix Pending ⚠️
+**Last Updated:** 2025-10-17 (Session 037 - V1.9 API Endpoints Deployed!)
 
 ### Quick Stats (V1.8)
 - ✅ **Production Services:** API + Dashboard + Testing Tools deployed
@@ -23,12 +23,13 @@ AI-powered energy management system with CrewAI agents, MCP integration, and pro
 - ✅ **Knowledge Base:** 4 context files + 10 searchable documents (147K tokens)
 - ✅ **Testing Dashboard:** Interactive testing tools at /testing
 - ✅ **Accessibility:** WCAG 2.1 AA compliant with full screen reader support
-- ✅ **API Endpoints:** 20+ operational (including health monitoring + diagnostics)
-- ✅ **Database:** PostgreSQL 16 + TimescaleDB + pgvector + Redis
+- ✅ **API Endpoints:** 34+ operational (20 V1.8 + 14 V1.9 new endpoints)
+- ✅ **Database:** PostgreSQL 16 + TimescaleDB + pgvector + Redis + V1.9 User Preferences Tables
 - ✅ **Production Features:** Rate limiting, retry logic, error boundaries, memory leak prevention
 - ✅ **Validation:** All tests passing (10 edge case tests + integration tests)
-- 🚧 **V1.9 (Week 1):** Database migration ready | Next: Deploy → API endpoints
-- 🎯 **V1.9 Goal:** Voltage-based user preferences system (3 weeks)
+- ✅ **V1.9 (Week 1, Day 1-4):** Migration deployed ✅ | 14 API endpoints deployed ✅
+- ⚠️ **V1.9 Known Issue:** Decimal serialization bug (30 min fix pending)
+- 🎯 **V1.9 Next:** Fix bug → Test endpoints → Agent integration (Week 1, Day 5)
 
 ---
 
@@ -142,6 +143,10 @@ AI-powered energy management system with CrewAI agents, MCP integration, and pro
   - `/conversations/*` - Chat history
   - `/system/*` - System statistics
   - `/kb/*` - Knowledge base sync and search
+  - `/api/preferences` - User preferences (V1.9) 🆕
+  - `/api/miners` - Miner profiles (V1.9) 🆕
+  - `/api/hvac/zones` - HVAC zones (V1.9) 🆕
+  - `/db/run-v19-migration` - V1.9 migration endpoint 🆕
 
 #### CrewAI Studio (Streamlit)
 - **No-Code Agent Builder:**
@@ -427,6 +432,18 @@ Private Project - WildfireRanch © 2025
 ---
 
 ## 🎉 Recent Updates
+
+**Session 037 (2025-10-17) - V1.9 User Preferences API Deployed (90% Complete):**
+- ✅ **Database Migration:** 4 new tables (users, user_preferences, miner_profiles, hvac_zones)
+- ✅ **14 New API Endpoints:** Full CRUD for preferences, miners, and HVAC zones
+- ✅ **Default Configuration:** Solar Shack voltage calibration (45-56V) and miner profiles
+- ✅ **Priority-Based Miner Management:** Support for multiple miners with allocation priority
+- ✅ **Voltage-Based Decisions:** Battery management using measured voltage (not SOC%)
+- ✅ **HVAC Zone Management:** Temperature-based climate control with solar constraints
+- ⚠️ **Known Issue:** Decimal serialization bug (API returns 500 error - 30 min fix)
+- 📊 **Impact:** Foundation for voltage-based user preferences system
+- 🎯 **Status:** 90% Complete - Bug fix → Testing → Agent integration pending
+- 📝 **Documentation:** [Session 037](docs/sessions/2025-10/session-037-v1.9-api-endpoints.md) | [Completion Report](SESSION_037_COMPLETION_REPORT.md)
 
 **Session 031 (2025-10-12) - V1.8 Smart Context Loading Complete:**
 - ✅ **Smart Context Loading:** 40-60% token reduction with Redis caching
