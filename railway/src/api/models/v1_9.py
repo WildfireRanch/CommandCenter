@@ -18,7 +18,7 @@ from decimal import Decimal
 from typing import Optional, Dict, Any, List
 from uuid import UUID
 
-from pydantic import BaseModel, Field, validator, ConfigDict
+from pydantic import BaseModel, Field, validator, ConfigDict, field_validator
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -166,6 +166,14 @@ class UserPreferencesResponse(UserPreferencesBase):
     user_id: UUID
     created_at: datetime
     updated_at: datetime
+
+    @field_validator('*', mode='before')
+    @classmethod
+    def decimal_to_float(cls, v):
+        """Convert Decimal types to float for JSON serialization."""
+        if isinstance(v, Decimal):
+            return float(v)
+        return v
 
     model_config = ConfigDict(from_attributes=True)
 
@@ -320,6 +328,14 @@ class MinerProfileResponse(MinerProfileBase):
     user_id: UUID
     created_at: datetime
     updated_at: datetime
+
+    @field_validator('*', mode='before')
+    @classmethod
+    def decimal_to_float(cls, v):
+        """Convert Decimal types to float for JSON serialization."""
+        if isinstance(v, Decimal):
+            return float(v)
+        return v
 
     model_config = ConfigDict(from_attributes=True)
 
@@ -478,6 +494,14 @@ class HVACZoneResponse(HVACZoneBase):
     user_id: UUID
     created_at: datetime
     updated_at: datetime
+
+    @field_validator('*', mode='before')
+    @classmethod
+    def decimal_to_float(cls, v):
+        """Convert Decimal types to float for JSON serialization."""
+        if isinstance(v, Decimal):
+            return float(v)
+        return v
 
     model_config = ConfigDict(from_attributes=True)
 
