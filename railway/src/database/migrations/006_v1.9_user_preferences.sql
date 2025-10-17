@@ -261,7 +261,7 @@ INSERT INTO user_preferences (
     45.0, 56.0,
     '[{"soc":0,"voltage":45.0},{"soc":15,"voltage":47.0},{"soc":40,"voltage":50.0},{"soc":60,"voltage":52.0},{"soc":80,"voltage":54.5},{"soc":100,"voltage":56.0}]'::jsonb,
     'LiFePO4', 51.2, 43.0, 58.8,
-    44.0, 45.0, 47.0, 50.0, 50.0, 54.5, 54.0, 57.6, 56.0,
+    44.0, 45.0, 47.0, 50.0, 50.0, 54.5, 55.0, 57.6, 58.0,
     'America/Los_Angeles', 37.3382, -121.8863, 'balanced', false
 )
 ON CONFLICT (user_id) DO NOTHING;
