@@ -30,11 +30,21 @@ class APIKeyMiddleware(BaseHTTPMiddleware):
     """
 
     async def dispatch(self, request: Request, call_next):
-        # Skip auth for health check and docs
-        if request.url.path in ["/health", "/docs", "/openapi.json", "/redoc"]:
+        # Skip auth for public endpoints
+        public_paths = ["/health", "/docs", "/openapi.json", "/redoc"]
+
+        # Also skip auth for frontend data endpoints (they don't send API keys)
+        if (request.url.path in public_paths or
+            request.url.path.startswith("/energy/") or
+            request.url.path.startswith("/victron/") or
+            request.url.path.startswith("/solark/") or
+            request.url.path.startswith("/kb/") or
+            request.url.path.startswith("/chat/") or
+            request.url.path.startswith("/ask") or
+            request.url.path.startswith("/db/")):
             return await call_next(request)
 
-        # Require X-API-Key header for all other endpoints
+        # Require X-API-Key header for protected endpoints (V1.9 API)
         api_key = request.headers.get("X-API-Key")
 
         if not API_KEY:
