@@ -41,7 +41,10 @@ class APIKeyMiddleware(BaseHTTPMiddleware):
             request.url.path.startswith("/kb/") or
             request.url.path.startswith("/chat/") or
             request.url.path.startswith("/ask") or
-            request.url.path.startswith("/db/")):
+            request.url.path.startswith("/db/") or
+            request.url.path.startswith("/agents/") or
+            request.url.path.startswith("/system/") or
+            request.url.path.startswith("/health/monitoring/")):
             return await call_next(request)
 
         # Require X-API-Key header for protected endpoints (V1.9 API)
